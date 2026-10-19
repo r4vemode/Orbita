@@ -1,10 +1,87 @@
-(()=>{
-const lessons=window.ORBITA_LESSONS,$=id=>document.getElementById(id),esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const key='orbita.learning.v1';let read=new Set(),category='Все темы',selected=0;
-try{const a=JSON.parse(localStorage.getItem(key)||'[]');if(Array.isArray(a))read=new Set(a.filter(id=>lessons.some(l=>l.id===id)))}catch{}
-const sources={short:['Механика коротких продаж · Investor.gov','https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/stock-purchases-and-sales-long-and'],orders:['Типы заявок · Investor.gov','https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders'],leverage:['Маржинальные счета · Investor.gov','https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-29']};
-$('categories').innerHTML=['Все темы',...new Set(lessons.map(l=>l.category))].map(c=>`<button aria-pressed="${c===category}" data-category="${esc(c)}">${esc(c)}</button>`).join('');
-function render(){const q=$('search').value.trim().toLocaleLowerCase('ru');const rows=lessons.filter(l=>(category==='Все темы'||l.category===category)&&[l.title,l.intro,...l.sections.map(s=>s.title+' '+s.text)].join(' ').toLocaleLowerCase('ru').includes(q));$('lessons').innerHTML=rows.map(l=>`<button class="lesson-card" data-lesson="${l.id}"><span class="lesson-meta"><span>${esc(l.category)}</span><span>${String(lessons.indexOf(l)+1).padStart(2,'0')} / 08</span></span><h2>${esc(l.title)}</h2><p>${esc(l.intro)}</p><span class="lesson-bottom"><span>${read.has(l.id)?'✓ Прочитано':'3 минуты · мини-статья'}</span><span aria-hidden="true">↗</span></span></button>`).join('');$('empty').hidden=!!rows.length;$('resultCount').textContent=`Тем: ${rows.length}`;$('progress').textContent=`${read.size} из ${lessons.length} тем прочитано · на этом устройстве`;$('progressBar').value=read.size;}
-function open(id,update=true){const index=lessons.findIndex(l=>l.id===id);if(index<0)return;selected=index;const l=lessons[index];$('articleCategory').textContent=l.category+' / '+String(index+1).padStart(2,'0');$('articleBody').innerHTML=`<h1 id="articleTitle">${esc(l.title)}</h1><p class="article-lead">${esc(l.intro)}</p>`+l.sections.map(s=>`<section><h2>${esc(s.title)}</h2><p>${esc(s.text)}</p></section>`).join('')+(sources[id]?`<p class="article-source"><a href="${sources[id][1]}" target="_blank" rel="noopener noreferrer">${sources[id][0]} ↗</a></p>`:'');$('markRead').textContent=read.has(id)?'✓ Прочитано':'Отметить прочитанным';$('markRead').disabled=read.has(id);$('nextArticle').disabled=index===lessons.length-1;if(!$('article').open)$('article').showModal();$('article').scrollTop=0;$('closeArticle').focus();if(update)history.replaceState(null,'','#'+id);}
-$('lessons').onclick=e=>{const b=e.target.closest('[data-lesson]');if(b)open(b.dataset.lesson)};$('categories').onclick=e=>{const b=e.target.closest('[data-category]');if(!b)return;category=b.dataset.category;document.querySelectorAll('[data-category]').forEach(x=>x.setAttribute('aria-pressed',x===b));render()};$('search').oninput=render;$('closeArticle').onclick=()=>$('article').close();$('article').addEventListener('close',()=>history.replaceState(null,'',location.pathname+location.search));$('article').onclick=e=>{if(e.target!==$('article'))return;const r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.target.close()};$('markRead').onclick=()=>{read.add(lessons[selected].id);try{localStorage.setItem(key,JSON.stringify([...read]))}catch{}render();$('markRead').textContent='✓ Прочитано';$('markRead').disabled=true};$('nextArticle').onclick=()=>{if(selected+1<lessons.length)open(lessons[selected+1].id)};window.addEventListener('hashchange',()=>open(location.hash.slice(1),false));render();if(location.hash)open(location.hash.slice(1),false);
+(() => {
+  const lessons = window.ORBITA_LESSONS;
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const key = 'orbita.learning.v1';
+  let read = new Set(), category = 'Все темы', selected = 0;
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) || '[]');
+    if (Array.isArray(saved)) read = new Set(saved.filter(id => lessons.some(l => l.id === id)));
+  } catch {}
+  const sources = {
+    short: ['Механика коротких продаж · Investor.gov', 'https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/stock-purchases-and-sales-long-and'],
+    orders: ['Типы заявок · Investor.gov', 'https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders'],
+    leverage: ['Маржинальные счета · Investor.gov', 'https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-29']
+  };
+  $('categories').innerHTML = ['Все темы', ...new Set(lessons.map(l => l.category))].map(c => `<button aria-pressed="${c === category}" data-category="${esc(c)}">${esc(c)}</button>`).join('');
+  $('progressBar').max = lessons.length;
+
+  function render() {
+    const query = $('search').value.trim().toLocaleLowerCase('ru');
+    const rows = lessons.filter(l => (category === 'Все темы' || l.category === category) && [l.title, l.intro, ...l.sections.map(s => s.title + ' ' + s.text)].join(' ').toLocaleLowerCase('ru').includes(query));
+    $('lessons').innerHTML = rows.map(l => `<button class="lesson-card" data-lesson="${esc(l.id)}"><span class="lesson-meta"><span>${esc(l.category)}</span><span>${String(lessons.indexOf(l) + 1).padStart(2, '0')} / ${String(lessons.length).padStart(2, '0')}</span></span><h2>${esc(l.title)}</h2><p>${esc(l.intro)}</p><span class="lesson-bottom"><span>${read.has(l.id) ? '✓ Прочитано' : '3 минуты · мини-статья'}</span><span aria-hidden="true">↗</span></span></button>`).join('');
+    $('empty').hidden = !!rows.length;
+    $('resultCount').textContent = `Тем: ${rows.length}`;
+    $('progress').textContent = `${read.size} из ${lessons.length} тем прочитано · на этом устройстве`;
+    $('progressBar').value = read.size;
+  }
+
+  function setArticleUrl(id) {
+    const url = new URL(location.href);
+    if (id) url.searchParams.set('lesson', id);
+    else url.searchParams.delete('lesson');
+    url.hash = '';
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+  }
+
+  function open(id, update = true) {
+    const index = lessons.findIndex(l => l.id === id);
+    if (index < 0) return;
+    selected = index;
+    const lesson = lessons[index];
+    $('articleCategory').textContent = lesson.category + ' / ' + String(index + 1).padStart(2, '0');
+    $('articleBody').innerHTML = `<h1 id="articleTitle">${esc(lesson.title)}</h1><p class="article-lead">${esc(lesson.intro)}</p>` + lesson.sections.map(s => `<section><h2>${esc(s.title)}</h2><p>${esc(s.text)}</p></section>`).join('') + (sources[id] ? `<p class="article-source"><a href="${sources[id][1]}" target="_blank" rel="noopener noreferrer">${sources[id][0]} ↗</a></p>` : '');
+    $('markRead').textContent = read.has(id) ? '✓ Прочитано' : 'Отметить прочитанным';
+    $('markRead').disabled = read.has(id);
+    $('nextArticle').disabled = index === lessons.length - 1;
+    if (!$('article').open) $('article').showModal();
+    $('article').scrollTop = 0;
+    $('closeArticle').focus();
+    if (update) setArticleUrl(id);
+  }
+
+  $('lessons').onclick = event => {
+    const button = event.target.closest('[data-lesson]');
+    if (button) open(button.dataset.lesson);
+  };
+  $('categories').onclick = event => {
+    const button = event.target.closest('[data-category]');
+    if (!button) return;
+    category = button.dataset.category;
+    document.querySelectorAll('[data-category]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+    render();
+  };
+  $('search').oninput = render;
+  $('closeArticle').onclick = () => $('article').close();
+  $('article').addEventListener('close', () => setArticleUrl(null));
+  $('article').onclick = event => {
+    if (event.target !== $('article')) return;
+    const rect = event.target.getBoundingClientRect();
+    if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) event.target.close();
+  };
+  $('markRead').onclick = () => {
+    read.add(lessons[selected].id);
+    try { localStorage.setItem(key, JSON.stringify([...read])); } catch {}
+    render();
+    $('markRead').textContent = '✓ Прочитано';
+    $('markRead').disabled = true;
+  };
+  $('nextArticle').onclick = () => {
+    if (selected + 1 < lessons.length) open(lessons[selected + 1].id);
+  };
+  const openFromLocation = () => open(new URLSearchParams(location.search).get('lesson') || location.hash.slice(1), false);
+  window.addEventListener('hashchange', openFromLocation);
+  window.addEventListener('popstate', openFromLocation);
+  render();
+  openFromLocation();
 })();

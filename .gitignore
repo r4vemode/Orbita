@@ -1,0 +1,5 @@
+# Local account databases and personal Telegram sessions
+/data/
+.venv/
+__pycache__/
+*.pyc

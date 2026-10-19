@@ -1,1 +1,79 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ORBITA — Обучение</title><link rel="stylesheet" href="assets/calculator.css"><link rel="stylesheet" href="assets/navigation.css"><link rel="stylesheet" href="assets/learning.css"></head><body><header><a class="brand" href="index.html">◌ ORBITA</a><nav aria-label="Навигация кабинета"><a href="app.html">Идеи</a><a href="calculator.html">Калькулятор доходности</a><a href="learn.html" aria-current="page">Обучение</a></nav><a class="return" href="app.html">В кабинет ↗</a></header><main class="academy"><section class="learn-hero"><div class="eyebrow">ORBITA / БАЗА ЗНАНИЙ</div><h1>Сначала понять.<br><em>Потом действовать.</em></h1><p>Короткий курс для первых шагов. Разбираем сделки, риски и язык рынка на понятных примерах.</p><div class="learn-progress"><span id="progress">0 из 8 тем прочитано</span><progress id="progressBar" max="8" value="0" aria-label="Прогресс обучения"></progress></div></section><section aria-label="Темы обучения"><div class="learn-toolbar"><div id="categories" aria-label="Разделы" role="group"></div><label class="learn-search">Найти ответ<input id="search" type="search" placeholder="Например, стоп или плечо"></label></div><p id="resultCount" aria-live="polite"></p><div class="learn-grid" id="lessons"></div><p id="empty" hidden>Ничего не найдено. Попробуйте другой запрос или раздел.</p></section><footer class="learn-footer">Учебные примеры упрощены. Материалы помогают разобраться в механике сделок и не обещают доходность.</footer></main><dialog id="article" aria-labelledby="articleTitle"><div class="article-top"><span id="articleCategory" class="eyebrow"></span><button id="closeArticle" aria-label="Закрыть статью">×</button></div><div id="articleBody"></div><div class="article-actions"><button id="markRead">Отметить прочитанным</button><button id="nextArticle">Следующая тема →</button></div></dialog><script src="assets/learning-data.js"></script><script src="assets/learning.js"></script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ORBITA — Обучение</title>
+  <link rel="stylesheet" href="assets/calculator.css">
+  <link rel="stylesheet" href="assets/navigation.css">
+  <link rel="stylesheet" href="assets/learning.css">
+</head>
+<body>
+  <header>
+    <a class="brand" href="index.html">◌ ORBITA</a>
+    <nav aria-label="Навигация кабинета">
+      <a href="app.html">Идеи</a>
+      <a href="strategies.html">Стратегии</a>
+      <a href="calculator.html">Калькулятор доходности</a>
+      <a href="learn.html" aria-current="page">Обучение</a>
+      <a href="brokers.html">Где торговать</a>
+    </nav>
+    <a class="return" href="app.html">В кабинет ↗</a>
+  </header>
+  <main class="academy">
+    <section class="learn-hero">
+      <div class="eyebrow">ORBITA / БАЗА ЗНАНИЙ</div>
+      <h1>Сначала понять.<br><em>Потом действовать.</em></h1>
+      <p>Короткий курс для первых шагов, разбор тренда и среднесрочные планы Orbita Exclusive. Проверьте механику сделки на тренажёре.</p>
+      <div class="learn-progress"><span id="progress">0 тем прочитано</span><progress id="progressBar" max="10" value="0" aria-label="Прогресс обучения"></progress></div>
+    </section>
+
+    <section class="trade-training" id="tradeTraining" aria-labelledby="trainingTitle">
+      <div class="training-heading">
+        <div><div class="eyebrow">ПРАКТИКА БЕЗ ДЕНЕГ</div><h2 id="trainingTitle">Ваша первая учебная сделка</h2></div>
+        <span class="training-badge">Учебная модель · ₽ за единицу</span>
+      </div>
+      <p class="training-intro">Выберите направление и количество, затем двигайте цену. Стоп закроет позицию, а результат останется зафиксированным до новой сделки.</p>
+      <form id="trainingForm" class="training-form">
+        <label>Направление<select id="trainingSide"><option value="long">Лонг · на рост</option><option value="short">Шорт · на снижение</option></select></label>
+        <label>Цена входа, ₽<input id="trainingEntry" type="number" value="100" min="0.01" max="1000000000" step="any" required></label>
+        <label>Количество, единиц<input id="trainingQuantity" type="number" value="10" min="0.001" max="1000000000" step="any" required></label>
+        <label>Стоп, ₽<input id="trainingStop" type="number" value="95" min="0.01" step="any" required></label>
+        <label>Плечо<select id="trainingLeverage"><option value="1">1× · без плеча</option><option value="2">2×</option><option value="3">3×</option><option value="5">5×</option><option value="10">10×</option></select></label>
+        <button id="trainingApply" type="submit">Открыть учебную сделку</button>
+      </form>
+      <p id="trainingError" class="training-error" role="alert"></p>
+      <div class="training-board">
+        <div class="training-market">
+          <label for="trainingPriceSlider">Учебная цена <output id="trainingPrice" for="trainingPriceSlider">100 ₽</output></label>
+          <input id="trainingPriceSlider" type="range" min="50" max="150" value="100" step="0.1" aria-describedby="trainingStatus">
+          <div class="training-range"><span id="trainingMin">50 ₽</span><span>Двигайте цену ← →</span><span id="trainingMax">150 ₽</span></div>
+          <p id="trainingStatus" class="training-status" aria-live="polite"></p>
+          <button id="trainingReset" class="training-reset" type="button" hidden>Начать заново с теми же параметрами ↺</button>
+        </div>
+        <dl class="training-results">
+          <div class="training-result-main"><dt>Результат до расходов</dt><dd id="trainingPnl">0 ₽</dd></div>
+          <div><dt>Стоимость всей позиции</dt><dd id="trainingNotional">1 000 ₽</dd></div>
+          <div><dt>Собственные средства (обеспечение)</dt><dd id="trainingMargin">1 000 ₽</dd></div>
+          <div><dt>Результат к стоимости позиции</dt><dd id="trainingPositionReturn">0%</dd></div>
+          <div><dt>Результат к своим средствам</dt><dd id="trainingMarginReturn">0%</dd></div>
+          <div><dt>Учебная граница исчерпания обеспечения</dt><dd id="trainingBoundary">0 ₽</dd></div>
+        </dl>
+      </div>
+      <p class="training-explainer">При одинаковом количестве плечо не меняет прибыль в рублях: оно уменьшает требуемые собственные средства и увеличивает процент результата к ним. Например, 10 единиц по 100 ₽ — позиция на 1 000 ₽; с плечом 5× достаточно 200 ₽ обеспечения. Рост до 110 ₽ даёт 100 ₽, то есть 10% позиции и 50% обеспечения.</p>
+      <p class="training-note">Модель предполагает непрерывное движение и исполнение ровно на стопе. В жизни возможны гэпы, проскальзывание, комиссии и плата за заём. Реальное принудительное закрытие зависит от брокера и может произойти раньше учебной границы. Котировки здесь вымышленные, заявок брокеру нет.</p>
+    </section>
+
+    <section aria-label="Темы обучения">
+      <div class="learn-toolbar"><div id="categories" aria-label="Разделы" role="group"></div><label class="learn-search">Найти ответ<input id="search" type="search" placeholder="Например, стоп или плечо"></label></div>
+      <p id="resultCount" aria-live="polite"></p><div class="learn-grid" id="lessons"></div><p id="empty" hidden>Ничего не найдено. Попробуйте другой запрос или раздел.</p>
+    </section>
+    <footer class="learn-footer">Учебные примеры упрощены. Материалы помогают разобраться в механике сделок и не обещают доходность.</footer>
+  </main>
+  <dialog id="article" aria-labelledby="articleTitle"><div class="article-top"><span id="articleCategory" class="eyebrow"></span><button id="closeArticle" aria-label="Закрыть статью">×</button></div><div id="articleBody"></div><div class="article-actions"><button id="markRead">Отметить прочитанным</button><button id="nextArticle">Следующая тема →</button></div></dialog>
+  <script src="assets/learning-data.js"></script>
+  <script src="assets/learning.js"></script>
+  <script src="assets/training-engine.js"></script>
+  <script src="assets/training.js"></script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ORBITA — Где торговать</title>
+  <link rel="stylesheet" href="assets/calculator.css">
+  <link rel="stylesheet" href="assets/navigation.css">
+  <link rel="stylesheet" href="assets/brokers.css">
+</head>
+<body>
+  <header>
+    <a class="brand" href="index.html">◌ ORBITA</a>
+    <nav aria-label="Навигация кабинета">
+      <a href="app.html">Идеи</a>
+      <a href="strategies.html">Стратегии</a>
+      <a href="calculator.html">Калькулятор доходности</a>
+      <a href="learn.html">Обучение</a>
+      <a href="brokers.html" aria-current="page">Где торговать</a>
+    </nav>
+    <a class="return" href="app.html">В кабинет ↗</a>
+  </header>
+  <main class="brokers-page">
+    <section class="brokers-hero">
+      <div class="eyebrow">ORBITA / СЛЕДУЮЩИЙ ШАГ</div>
+      <h1>От идеи<br><em>к своему счёту.</em></h1>
+      <p>Выберите рынок, чтобы найти подходящего брокера или биржу. Перед открытием счёта сравните условия, комиссии и доступные инструменты.</p>
+    </section>
+
+    <aside class="partner-disclosure" aria-label="О партнёрских размещениях">
+      <span class="disclosure-mark" aria-hidden="true">↗</span>
+      <p><strong>Партнёрские размещения обозначены явно.</strong> При переходе по партнёрской ссылке ORBITA может получить вознаграждение. Условия счёта и доступность инструментов уточняйте у брокера или биржи.</p>
+    </aside>
+
+    <section class="partners-section" aria-labelledby="partnersTitle">
+      <div class="partners-heading">
+        <h2 id="partnersTitle">Выберите свой рынок</h2>
+        <div class="market-filters" role="group" aria-label="Рынок">
+          <button type="button" data-market="all" aria-pressed="true">Все рынки</button>
+          <button type="button" data-market="stocks" aria-pressed="false">Акции</button>
+          <button type="button" data-market="futures" aria-pressed="false">Фьючерсы</button>
+          <button type="button" data-market="crypto" aria-pressed="false">Крипто</button>
+        </div>
+      </div>
+      <p id="offersStatus" class="offers-status" role="status"></p>
+      <div id="partnerOffers" class="partner-grid"></div>
+      <noscript><p class="offers-status">Включите JavaScript, чтобы посмотреть предложения по рынкам.</p></noscript>
+    </section>
+
+    <section class="broker-guide" aria-labelledby="guideTitle">
+      <div>
+        <div class="eyebrow">ПЕРЕД ПЕРВОЙ СДЕЛКОЙ</div>
+        <h2 id="guideTitle">Сначала проверьте<br>условия.</h2>
+        <a href="learn.html" class="guide-link">Разобраться в механике сделок →</a>
+      </div>
+      <ol>
+        <li><span>01</span><div><h3>Доступ к нужному рынку</h3><p>Убедитесь, что доступны выбранный инструмент и подходящий тип счёта. Условия зависят от страны и статуса клиента.</p></div></li>
+        <li><span>02</span><div><h3>Полная стоимость сделки</h3><p>Сравните комиссию за сделку, обслуживание, ввод и вывод средств, а также стоимость переноса позиции.</p></div></li>
+        <li><span>03</span><div><h3>Правила и риск</h3><p>Проверьте регуляцию и условия хранения активов. Для фьючерсов и торговли с плечом изучите требования к обеспечению и ликвидации.</p></div></li>
+      </ol>
+    </section>
+
+    <section id="partnerSettings" class="partner-settings" aria-labelledby="settingsTitle" hidden>
+      <div class="eyebrow">НАСТРОЙКА ПРЕДЛОЖЕНИЙ</div>
+      <h2 id="settingsTitle">Партнёрские ссылки</h2>
+      <p>Оставьте поля пустыми до выбора партнёра. Название и ссылка включат предложение для выбранного рынка. Эти настройки сохраняются в этом браузере; общие предложения сайта задаются в конфигурации проекта.</p>
+      <form id="partnerSettingsForm" novalidate>
+        <div id="partnerFields" class="partner-fields"></div>
+        <p id="partnerSettingsMessage" class="settings-message" role="status"></p>
+        <div class="settings-actions">
+          <button class="settings-save" type="submit">Сохранить ссылки</button>
+          <button id="resetPartnerSettings" class="settings-reset" type="button">Вернуть общие настройки</button>
+        </div>
+      </form>
+    </section>
+  </main>
+  <script src="assets/partners-config.js"></script>
+  <script type="module" src="assets/brokers.js"></script>
+</body>
+</html>
