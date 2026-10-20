@@ -1,4 +1,5 @@
-(() => {
+(async () => {
+  await window.ORBITA_LESSONS_READY;
   const lessons = window.ORBITA_LESSONS;
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -84,4 +85,4 @@
   window.addEventListener('popstate', openFromLocation);
   render();
   openFromLocation();
-})();
+})().catch(error=>{const node=document.getElementById('resultCount');if(node)node.textContent=error.message;});

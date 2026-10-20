@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 const context={};context.window=context;vm.createContext(context);
-for(const file of ['editor-seed.js','strategy-data.js','calculator-engine.js'])vm.runInContext(await readFile(new URL('../public/assets/'+file,import.meta.url),'utf8'),context);
-const E=context.OrbitaCalculator,records=JSON.parse(JSON.stringify(context.ORBITA_SEED));
+for(const file of ['calculator-engine.js'])vm.runInContext(await readFile(new URL('../public/assets/'+file,import.meta.url),'utf8'),context);
+const E=context.OrbitaCalculator,records=JSON.parse(await readFile(new URL('../fixtures/demo-ideas.json',import.meta.url),'utf8'));
 const options={capital:100000,allocation:10,fee:0,start:'2026-01-01',end:'2026-12-31',strategy:'Orbita Exclusive'};
 test('Exclusive history includes profit and loss, while open ideas stay outside realised results',()=>{
  const r=E.calculate(records,options);assert.equal(r.executed,2);assert.equal(r.open,1);assert.equal(r.wins,1);assert.ok(r.rows.every(row=>row.demo));assert.ok(r.rows.some(row=>row.net<0));assert.ok(r.rows.some(row=>row.net>0));

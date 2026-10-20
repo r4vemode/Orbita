@@ -1,26 +1,163 @@
 (async () => {
-  if(new URLSearchParams(location.search).has('embed')||!window.OrbitaStore)return;
-  const S=OrbitaStore,esc=S.escape;
-  const {user}=await fetch('/api/me').then(r=>{if(!r.ok)throw Error();return r.json()});
-  const key='orbita.idea-alerts.v1.'+(user?.id||'guest');
-  const initial=()=>({initialized:false,seen:[],items:[],strategies:[],popups:true});
-  function load(){const value=JSON.parse(localStorage.getItem(key)||'null');if(!value)return initial();if(![value.seen,value.items,value.strategies].every(Array.isArray))throw Error('Не удалось прочитать уведомления.');return {...initial(),...value}}
-  let state=load(), watched=new Set(),personal=new Set(),busy=false,timer,refreshQueued=false,generation=0;
-  const save=()=>localStorage.setItem(key,JSON.stringify(state));
-  const aliases=['sber-20261009','lkoh-20261009','si-20261009','btc-20261009','rosn-20261006','eth-20261007'];
-  const canonical=id=>/^demo-[0-5]$/.test(id)?aliases[Number(id.slice(5))]:id;
-  function eventId(record,event,index){return record.id+':'+(event[3]?.id||index+':'+JSON.stringify(event.slice(0,3)))}
-  function text(record,event){const info=event[3],d=record.d,num=n=>Number(n).toLocaleString('ru-RU',{maximumFractionDigits:8});if(info?.type==='stop-change')return `${d.ticker}: стоп изменён с ${num(info.before.stop)} до ${num(info.after.stop)} ${d.unit}`;if(info?.type==='activate')return `${d.ticker}: вход подтверждён · ${num(d.entry)} ${d.unit}`;if(['target','stop','manual'].includes(info?.type))return `${d.ticker}: ${event[1].charAt(0).toLowerCase()+event[1].slice(1)} · выход ${num(info.after.exit)} ${d.unit}`;return `${d.ticker}: ${event[1]==='Идея опубликована'?'новый сигнал':event[1].charAt(0).toLowerCase()+event[1].slice(1)}`}
-  const trigger=document.createElement('button');trigger.className='alerts-trigger';trigger.innerHTML='Обновления идей <b>0</b>';document.querySelector('header').append(trigger);
-  const dialog=document.createElement('dialog');dialog.className='alerts-dialog';dialog.innerHTML='<div class="alerts-head"><h2>Обновления идей</h2><button class="alerts-close" aria-label="Закрыть обновления">×</button></div><p>Изменения отслеживаемых идей и ваших позиций. Новый сигнал приходит по выбранным стратегиям. В этой версии — локальные публикации редактора, без Web Push и Telegram.</p><details class="alerts-settings"><summary>Настроить уведомления</summary><label><input id="ideaPopups" type="checkbox">Показывать сообщения на открытом сайте</label><p>Новые сигналы по стратегиям:</p><div id="strategySubscriptions"></div></details><div class="alerts-tools"><button id="alertsRead">Прочитать всё</button><span role="status" id="alertsStatus"></span></div><div id="ideaAlertsFeed"></div>';document.body.append(dialog);
-  const toast=document.createElement('aside');toast.className='idea-alert-toast';toast.hidden=true;toast.setAttribute('role','status');document.body.append(toast);
-  function render(){const unread=state.items.filter(n=>!n.read).length;trigger.querySelector('b').textContent=unread;trigger.setAttribute('aria-label',`Обновления идей: ${unread} непрочитанных`);dialog.querySelector('#ideaPopups').checked=state.popups;dialog.querySelector('#ideaAlertsFeed').innerHTML=state.items.length?state.items.map(n=>`<article class="alert-item ${n.read?'':'unread'}"><a href="app.html?idea=${encodeURIComponent(n.ideaId)}" data-alert="${esc(n.id)}">${esc(n.title)} →</a><small>${esc(n.date)} МСК · ${esc(n.strategy)}</small><p>${esc(n.body)}</p></article>`).join(''):'<p class="alerts-empty">Пока нет обновлений. Следите за идеями или выберите стратегии в настройках. Предыдущие события не рассылаются повторно.</p>';dialog.querySelectorAll('[data-alert]').forEach(a=>a.onclick=()=>{const n=state.items.find(x=>x.id===a.dataset.alert);if(n){n.read=true;save();render()}});dialog.querySelector('#strategySubscriptions').innerHTML=(window.ORBITA_STRATEGIES||[]).map(s=>`<label><input type="checkbox" value="${esc(s.name)}" ${state.strategies.includes(s.name)?'checked':''}>${esc(s.name)}</label>`).join('');dialog.querySelectorAll('#strategySubscriptions input').forEach(input=>input.onchange=()=>{state.strategies=input.checked?[...new Set([...state.strategies,input.value])]:state.strategies.filter(s=>s!==input.value);save()})}
-  function popup(n){clearTimeout(timer);toast.innerHTML=`<a href="app.html?idea=${encodeURIComponent(n.ideaId)}">${esc(n.title)} →</a><button aria-label="Закрыть уведомление">×</button>`;toast.hidden=false;toast.querySelector('button').onclick=()=>{toast.hidden=true};timer=setTimeout(()=>{toast.hidden=true},10000)}
-  function scan(showPopup=true){state=load();const records=S.read().records.filter(r=>r.published),seen=new Set(state.seen),incoming=[];for(const record of records)for(const [index,event] of (record.meta.events||[]).entries()){const id=eventId(record,event,index);if(!seen.has(id)&&state.initialized){const ideaId=canonical(record.id),isNew=event[3]?.type==='published'||event[1]==='Идея опубликована';if(watched.has(ideaId)||personal.has(ideaId)||(isNew&&state.strategies.includes(record.d.strategy)))incoming.push({id,ideaId,title:text(record,event),body:event[2],date:event[0],strategy:record.d.strategy,at:event[3]?.at||new Date().toISOString(),read:false})}seen.add(id)}state.seen=[...seen];state.initialized=true;incoming.sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));state.items=[...incoming,...state.items].sort((a,b)=>Date.parse(b.at||0)-Date.parse(a.at||0)).slice(0,200);save();render();if(showPopup&&incoming.length&&state.popups&&!dialog.open&&!document.hidden)popup(incoming[0])}
-  async function refresh(showPopup=true){if(document.hidden)return;if(busy){refreshQueued=true;return}const version=generation;busy=true;try{if(user){const [watch,p]=await Promise.all(['/api/watchlist','/api/positions'].map(async url=>{const r=await fetch(url);if(!r.ok)throw Error('Не удалось проверить обновления аккаунта.');return r.json()}));watched=new Set(watch.ids);personal=new Set(p.positions.map(p=>p.ideaId))}else{watched=new Set(JSON.parse(localStorage.getItem('orbita.watchlist.v1')||'[]'));personal=new Set(JSON.parse(localStorage.getItem('orbita.positions.v1.guest')||'[]').map(p=>p.ideaId))}if(version!==generation){refreshQueued=true;return}scan(showPopup);dialog.querySelector('#alertsStatus').textContent=''}catch(e){dialog.querySelector('#alertsStatus').textContent=e.message||'Обновления временно недоступны.'}finally{busy=false;if(refreshQueued){refreshQueued=false;queueMicrotask(()=>refresh())}}}
-  trigger.onclick=()=>{render();dialog.showModal();refresh(false)};dialog.querySelector('.alerts-close').onclick=()=>dialog.close();dialog.querySelector('#alertsRead').onclick=()=>{state.items.forEach(n=>n.read=true);save();render()};dialog.querySelector('#ideaPopups').onchange=e=>{state.popups=e.target.checked;toast.hidden=true;save()};
-  window.addEventListener('storage',e=>{if(e.key===key){state=load();render()}else if([S.key,'orbita.watchlist.v1','orbita.positions.v1.guest'].includes(e.key)||e.key===null){generation++;refresh()}});
-  for(const event of ['orbita:store-change','orbita:watch-change','orbita:positions-change'])window.addEventListener(event,()=>{generation++;refresh()});
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();else toast.hidden=true});
-  render();await refresh(false);setInterval(refresh,10000);
-})().catch(()=>{const message=document.createElement('p');message.className='account-error';message.textContent='Обновления идей временно недоступны. Обновите страницу после запуска нового сервера.';document.querySelector('header')?.after(message)});
+  if (new URLSearchParams(location.search).has('embed') || !window.OrbitaStore || !document.querySelector('header')) return;
+  const S = window.OrbitaStore, esc = S.escape;
+  const initial = () => ({ initialized: false, seen: [], itemIds: [], readIds: [], strategies: [], popups: true });
+  let user = null, key = null, state = initial(), items = [], records = [], watched = new Set(), personal = new Set();
+  let allowedStrategies = [], busy = false, queued = false, timer, active = false;
+
+  // Older versions saved signal text. Keep only preferences and event IDs from now on.
+  try {
+    for (const name of Object.keys(localStorage)) if (name.startsWith('orbita.idea-alerts.v1.')) localStorage.removeItem(name);
+  } catch {}
+
+  async function api(url) {
+    const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw Object.assign(new Error(body.error || 'Обновления временно недоступны.'), { status: response.status });
+    return body;
+  }
+  function entitled(account) {
+    return !!account && (!!account.access?.isAdmin || account.role === 'admin' || !!account.access?.hasSubscription);
+  }
+  function load() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) || 'null');
+      if (!saved || !['seen', 'itemIds', 'readIds', 'strategies'].every(field => Array.isArray(saved[field]))) return initial();
+      return { initialized: !!saved.initialized, popups: saved.popups !== false, ...Object.fromEntries(['seen', 'itemIds', 'readIds', 'strategies'].map(field => [field, saved[field].filter(value => typeof value === 'string')])) };
+    } catch { return initial(); }
+  }
+  function save() {
+    if (!key) return;
+    try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
+  }
+  const number = value => Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 8 }) : null;
+  function eventId(record, event, index) {
+    if (event[3]?.id) return record.id + ':' + event[3].id;
+    // Legacy events still get a stable ID without saving their paid text.
+    let hash = 2166136261;
+    for (const char of JSON.stringify(event.slice(0, 3))) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+    return record.id + ':' + index + ':' + (hash >>> 0).toString(36);
+  }
+  function title(record, event) {
+    const info = event[3] || {}, d = record.d || {}, ticker = String(d.ticker || 'Идея'), unit = d.unit ? ' ' + d.unit : '';
+    const oldStop = number(info.before?.stop), newStop = number(info.after?.stop);
+    if (info.type === 'stop-change' && oldStop && newStop) return `${ticker}: стоп изменён с ${oldStop} до ${newStop}${unit}`;
+    if (info.type === 'activate') return `${ticker}: вход подтверждён${number(d.entry) ? ' · ' + number(d.entry) + unit : ''}`;
+    if (['target', 'stop', 'manual'].includes(info.type)) return `${ticker}: ${String(event[1] || 'сделка закрыта').toLocaleLowerCase('ru')}${number(info.after?.exit) ? ' · выход ' + number(info.after.exit) + unit : ''}`;
+    if (isNewSignal(event)) return `${ticker}: новый сигнал${d.dir ? ' · ' + d.dir : ''}`;
+    return `${ticker}: ${String(event[1] || 'новый комментарий').toLocaleLowerCase('ru')}`;
+  }
+  function isNewSignal(event) {
+    return ['published', 'publish', 'announce', 'announced'].includes(event[3]?.type) || /^(Идея опубликована|Новый сигнал|Сигнал анонсирован|Анонс сигнала)$/i.test(String(event[1] || ''));
+  }
+
+  const trigger = document.createElement('button');
+  trigger.className = 'alerts-trigger'; trigger.type = 'button'; trigger.hidden = true;
+  trigger.innerHTML = 'Обновления идей <b>0</b>';
+  document.querySelector('header').append(trigger);
+  const dialog = document.createElement('dialog'); dialog.className = 'alerts-dialog';
+  dialog.setAttribute('aria-labelledby', 'ideaAlertsTitle');
+  dialog.innerHTML = '<div class="alerts-head"><h2 id="ideaAlertsTitle">Обновления идей</h2><button class="alerts-close" aria-label="Закрыть обновления">×</button></div><p>Изменения отслеживаемых идей и ваших позиций. Новые сигналы — по выбранным стратегиям вашей подписки. Обновления появляются, пока сайт открыт.</p><details class="alerts-settings"><summary>Настроить уведомления</summary><label><input id="ideaPopups" type="checkbox">Показывать сообщения на открытом сайте</label><p>Новые сигналы по стратегиям:</p><div id="strategySubscriptions"></div></details><div class="alerts-tools"><button id="alertsRead">Прочитать всё</button><span role="status" id="alertsStatus"></span></div><div id="ideaAlertsFeed"></div>';
+  document.body.append(dialog);
+  const toast = document.createElement('aside'); toast.className = 'idea-alert-toast'; toast.hidden = true;
+  toast.setAttribute('role', 'status'); document.body.append(toast);
+
+  function restrict(account) {
+    user = account || null; active = false; items = []; records = []; watched.clear(); personal.clear(); allowedStrategies = [];
+    trigger.hidden = true; trigger.querySelector('b').textContent = '0';
+    clearTimeout(timer); toast.hidden = true; toast.innerHTML = '';
+    dialog.querySelector('#ideaAlertsFeed').innerHTML = ''; dialog.querySelector('#strategySubscriptions').innerHTML = '';
+    if (dialog.open) dialog.close();
+  }
+  function configure(account) {
+    const nextKey = 'orbita.idea-alerts.v2.' + account.id;
+    if (key !== nextKey) { key = nextKey; state = load(); items = []; }
+    user = account; active = true;
+    const plans = account.access?.activePlans || [];
+    allowedStrategies = (window.ORBITA_STRATEGIES || []).filter(strategy => account.access?.isAdmin || account.role === 'admin' || plans.includes(strategy.plan || (strategy.exclusive ? 'exclusive' : 'pro'))).map(strategy => strategy.name);
+    // Custom strategies returned by the server are authorized by the same request.
+    for (const record of records) if (record.d?.strategy && !allowedStrategies.includes(record.d.strategy)) allowedStrategies.push(record.d.strategy);
+    state.strategies = state.strategies.filter(strategy => allowedStrategies.includes(strategy));
+    trigger.hidden = false;
+  }
+  function render() {
+    if (!active) return;
+    const unread = items.filter(item => !item.read).length;
+    trigger.querySelector('b').textContent = unread;
+    trigger.setAttribute('aria-label', `Обновления идей: ${unread} непрочитанных`);
+    dialog.querySelector('#ideaPopups').checked = state.popups;
+    dialog.querySelector('#ideaAlertsFeed').innerHTML = items.length ? items.map(item => `<article class="alert-item ${item.read ? '' : 'unread'}"><a href="app.html?idea=${encodeURIComponent(item.ideaId)}" data-alert="${esc(item.id)}">${esc(item.title)} →</a><small>${esc(item.date)} МСК · ${esc(item.strategy)}</small><p>${esc(item.body)}</p></article>`).join('') : '<p class="alerts-empty">Пока нет обновлений. Следите за идеями или выберите стратегии в настройках. Предыдущие события не рассылаются повторно.</p>';
+    dialog.querySelectorAll('[data-alert]').forEach(link => { link.onclick = () => { state.readIds = [...new Set([...state.readIds, link.dataset.alert])].slice(-200); items.forEach(item => { item.read = state.readIds.includes(item.id); }); save(); render(); }; });
+    dialog.querySelector('#strategySubscriptions').innerHTML = allowedStrategies.map(name => `<label><input type="checkbox" value="${esc(name)}" ${state.strategies.includes(name) ? 'checked' : ''}>${esc(name)}</label>`).join('');
+    dialog.querySelectorAll('#strategySubscriptions input').forEach(input => { input.onchange = () => { state.strategies = input.checked ? [...new Set([...state.strategies, input.value])] : state.strategies.filter(name => name !== input.value); save(); }; });
+  }
+  function popup(item) {
+    clearTimeout(timer);
+    toast.innerHTML = `<a href="app.html?idea=${encodeURIComponent(item.ideaId)}">${esc(item.title)} →</a><button aria-label="Закрыть уведомление">×</button>`;
+    toast.hidden = false; toast.querySelector('button').onclick = () => { toast.hidden = true; };
+    timer = setTimeout(() => { toast.hidden = true; }, 10000);
+  }
+  function scan(showPopup) {
+    if (!active) return;
+    state = load();
+    state.strategies = state.strategies.filter(strategy => allowedStrategies.includes(strategy));
+    const seen = new Set(state.seen), available = new Map(), incoming = [];
+    for (const record of records) {
+      if (!record.published || !record.d || !Array.isArray(record.meta?.events)) continue;
+      for (const [index, event] of record.meta.events.entries()) {
+        if (!Array.isArray(event)) continue;
+        const id = eventId(record, event, index);
+        const at = event[3]?.at || record.meta.updatedAt || record.meta.publishedAt || '';
+        const notification = { id, ideaId: record.id, title: title(record, event), body: String(event[2] || ''), date: String(event[0] || ''), strategy: String(record.d.strategy || ''), at, read: state.readIds.includes(id) };
+        available.set(id, notification);
+        if (!seen.has(id) && state.initialized && (watched.has(record.id) || personal.has(record.id) || (isNewSignal(event) && state.strategies.includes(record.d.strategy)))) incoming.push(notification);
+        seen.add(id);
+      }
+    }
+    const incomingIds = new Set(incoming.map(item => item.id));
+    state.itemIds = [...new Set([...incoming.map(item => item.id), ...state.itemIds])].filter(id => available.has(id)).slice(0, 200);
+    state.readIds = state.readIds.filter(id => state.itemIds.includes(id));
+    state.seen = [...seen].slice(-10000); state.initialized = true;
+    items = state.itemIds.map(id => available.get(id)).sort((a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0));
+    save(); render();
+    if (showPopup && state.popups && !dialog.open && !document.hidden) {
+      const latest = items.find(item => incomingIds.has(item.id));
+      if (latest) popup(latest);
+    }
+  }
+  async function refresh(showPopup = true) {
+    if (document.hidden) return;
+    if (busy) { queued = true; return; }
+    busy = true;
+    try {
+      const { user: current } = await api('/api/me');
+      if (!entitled(current)) { restrict(current); return; }
+      const [, watch, positions] = await Promise.all([S.refresh(), api('/api/watchlist'), api('/api/positions')]);
+      records = S.read().records.filter(record => record.published);
+      watched = new Set(Array.isArray(watch.ids) ? watch.ids : []);
+      personal = new Set(Array.isArray(positions.positions) ? positions.positions.map(position => position.ideaId) : []);
+      configure(current); scan(showPopup);
+      dialog.querySelector('#alertsStatus').textContent = '';
+    } catch (error) {
+      // A failed authority check never leaves previously fetched paid messages visible.
+      restrict(user);
+    } finally {
+      busy = false;
+      if (queued) { queued = false; queueMicrotask(() => refresh(showPopup)); }
+    }
+  }
+  trigger.onclick = () => { render(); dialog.showModal(); refresh(false); };
+  dialog.querySelector('.alerts-close').onclick = () => dialog.close();
+  dialog.querySelector('#alertsRead').onclick = () => { state.readIds = state.itemIds.slice(); items.forEach(item => { item.read = true; }); save(); render(); };
+  dialog.querySelector('#ideaPopups').onchange = event => { state.popups = event.target.checked; toast.hidden = true; save(); };
+  window.addEventListener('storage', event => { if (event.key === key || event.key === null) refresh(false); });
+  for (const event of ['orbita:watch-change', 'orbita:positions-change']) window.addEventListener(event, () => refresh());
+  window.addEventListener('orbita:store-change', () => {
+    if (busy || !active) return;
+    // Recheck the session as well as the newly fetched records before showing text.
+    refresh();
+  });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); else toast.hidden = true; });
+  await refresh(false);
+  setInterval(() => refresh(), 10000);
+})();

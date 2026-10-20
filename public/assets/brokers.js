@@ -83,7 +83,7 @@ function card(offer, market) {
   return node;
 }
 
-export function initPartnersPage() {
+export async function initPartnersPage() {
   const offersNode = document.getElementById('partnerOffers');
   if (!offersNode) return;
   const parameters = new URLSearchParams(window.location.search);
@@ -125,7 +125,9 @@ export function initPartnersPage() {
   }));
 
   const settings = document.getElementById('partnerSettings');
-  if (parameters.get('settings') === '1' && settings) {
+  let administrator=false;
+  if(parameters.get('settings')==='1'){try{const response=await fetch('/api/me',{cache:'no-store'});administrator=response.ok&&(await response.json()).user?.role==='admin';}catch{}}
+  if (parameters.get('settings') === '1' && settings && administrator) {
     settings.hidden = false;
     const fields = document.getElementById('partnerFields');
     Object.entries(MARKET_INFO).forEach(([market, info]) => {
