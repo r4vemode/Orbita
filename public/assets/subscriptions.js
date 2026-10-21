@@ -1,9 +1,184 @@
-(async()=>{
- const A=OrbitaAccess,$=id=>document.getElementById(id);let selected=new URLSearchParams(location.search).get('plan'),config,user;
- const date=iso=>new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',dateStyle:'medium',timeStyle:'short'}).format(new Date(iso))+' МСК';
- function choose(plan){selected=plan;document.querySelectorAll('[data-plan]').forEach(n=>n.classList.toggle('selected',n.dataset.plan===plan));const details=$('subscriptionDetails');details.hidden=false;details.replaceChildren();const h=document.createElement('h2');h.textContent=A.plans[plan].name;const p=document.createElement('p');p.textContent='Онлайн-оплата готовится к запуску. Подписка активируется после подтверждения оплаты. Сейчас нажатием кнопки доступ не выдаётся и деньги не списываются.';details.append(h,p);if(config.supportEmail){const a=document.createElement('a');a.href='mailto:'+config.supportEmail+'?subject='+encodeURIComponent('Подписка '+A.plans[plan].name);a.textContent='Уточнить подключение у поддержки';details.append(a);}const legal=document.createElement('p');const link=document.createElement('a');link.href='offer.html';link.textContent='Условия подписки';legal.append(link);details.append(legal);}
- try{user=await A.current();if(!user){location.replace('/account.html?next=/subscriptions.html');return;}config=await A.request('/api/public-config');$('subscriptionIdentity').textContent=user.email;$('subscriptionStatus').textContent=user.access.isAdmin?'Аккаунт администратора. Управление публикациями и подписками доступно в редакции.':user.access.hasSubscription?'Доступ активен. Вы видите только материалы подключённых тарифов.':'Подписка не активна. Сигналы, обучение и инструменты кабинета пока закрыты.';if(new URLSearchParams(location.search).get('error')==='admin')$('subscriptionStatus').textContent='Редакция доступна только администратору. В вашем аккаунте этой роли нет.';
- document.querySelectorAll('[data-plan]').forEach(card=>{const record=user.subscriptions.find(s=>s.plan===card.dataset.plan);card.querySelector('.plan-state').textContent=record?(Date.parse(record.expiresAt)>Date.now()?'Активна до ':'Истекла ')+date(record.expiresAt):'Не подключена';});$('openWorkspace').hidden=!user.access.hasSubscription;if(user.access.isAdmin){$('openWorkspace').href='admin.html';$('openWorkspace').textContent='Открыть редакцию →';}if(['pro','exclusive'].includes(selected))choose(selected);
- document.querySelectorAll('[data-select]').forEach(b=>b.onclick=()=>choose(b.dataset.select));$('subscriptionLogout').onclick=async()=>{try{await A.request('/api/logout',{method:'POST',body:'{}'});location.href='/account.html';}catch(e){$('subscriptionError').textContent=e.message;}};
- }catch(e){$('subscriptionError').textContent=e.message;}
+(async () => {
+  const A = OrbitaAccess, $ = id => document.getElementById(id);
+  const plans = new Set(['pro', 'exclusive']), pendingStatuses = new Set(['creating', 'pending', 'crediting', 'refund_pending', 'refund_review']);
+  const terminalStatuses = new Set(['failed', 'refunded']);
+  const query = new URLSearchParams(location.search);
+  let selected = plans.has(query.get('plan')) ? query.get('plan') : null, user, config = {}, paymentConfig = {}, request = null, order = null;
+  let busy = false, checking = false, pollTimer = null, storageKey;
+  const planName = plan => A.plans[plan]?.name || 'Подписка ORBITA';
+  const money = (amount, currency = 'RUB') => typeof amount === 'number' && Number.isFinite(amount) ? amount.toLocaleString('ru-RU', { style: 'currency', currency, maximumFractionDigits: 2 }) : 'Уточняется';
+  const date = iso => Number.isFinite(Date.parse(iso)) ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso)) + ' МСК' : 'дата уточняется';
+  const enabled = () => config.paymentsAvailable === true && paymentConfig.configured === true && paymentConfig.provider === 'cloudpayments';
+  const subscribed = plan => (user?.subscriptions || []).find(item => item.plan === plan && Date.parse(item.expiresAt) > Date.now());
+  const planConfig = plan => (paymentConfig.plans || []).find(item => item.id === plan) || { amount: A.plans[plan].price, currency: 'RUB', days: 30 };
+  function safeCheckoutUrl(value) {
+    if (typeof value !== 'string') return null;
+    try {
+      const url = new URL(value);
+      return url.protocol === 'https:' && url.hostname === 'orders.cloudpayments.ru' && !url.username && !url.password && (!url.port || url.port === '443') ? url.href : null;
+    } catch { return null; }
+  }
+  const orderId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(value) ? value : null;
+  function readRequest() {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem(storageKey) || 'null');
+      if (stored && plans.has(stored.plan) && /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(stored.requestId)) return { plan: stored.plan, requestId: stored.requestId, orderId: orderId(stored.orderId) };
+    } catch {}
+    return null;
+  }
+  function saveRequest() {
+    try { request ? sessionStorage.setItem(storageKey, JSON.stringify(request)) : sessionStorage.removeItem(storageKey); } catch {}
+  }
+  async function api(url, options = {}) {
+    const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 25000);
+    try { return await A.request(url, { ...options, signal: controller.signal }); }
+    catch (error) {
+      if (controller.signal.aborted) throw Error('Ответ сервера задерживается. Повторите попытку: будет использован тот же запрос оплаты.');
+      throw error;
+    } finally { clearTimeout(timeout); }
+  }
+  function identity() {
+    $('subscriptionIdentity').textContent = user.email;
+    $('subscriptionStatus').textContent = user.access?.isAdmin ? 'Аккаунт администратора. Ваш доступ к редакции не зависит от подписки.' : user.access?.hasSubscription ? 'Доступ активен. Вы видите материалы подключённых тарифов.' : 'Подписка не активна. Выберите тариф, чтобы открыть его материалы и инструменты.';
+    if (query.get('error') === 'admin' && !user.access?.isAdmin) $('subscriptionStatus').textContent = 'Редакция доступна только администратору. В вашем аккаунте этой роли нет.';
+    document.querySelectorAll('[data-plan]').forEach(card => {
+      const plan = card.dataset.plan, record = (user.subscriptions || []).find(item => item.plan === plan), current = subscribed(plan), details = planConfig(plan);
+      card.querySelector('.plan-state').textContent = record ? (current ? 'Активна до ' : 'Истекла ') + date(record.expiresAt) : 'Не подключена';
+      card.querySelector('[data-select]').textContent = current ? 'Продлить ' + (plan === 'pro' ? 'Pro' : 'Exclusive') : 'Выбрать ' + (plan === 'pro' ? 'Pro' : 'Exclusive');
+      card.querySelector('[data-price]').textContent = money(details.amount, details.currency);
+      card.querySelector('small').textContent = '/ ' + details.days + ' дней';
+    });
+    $('openWorkspace').hidden = !user.access?.hasSubscription;
+    if (user.access?.isAdmin) { $('openWorkspace').href = 'admin.html'; $('openWorkspace').textContent = 'Открыть редакцию →'; }
+    $('emailVerification').hidden = user.emailVerified === true;
+    $('verificationDescription').textContent = config.mailEnabled === true ? 'Для оплаты нужен подтверждённый адрес. Откройте настройки безопасности, чтобы отправить письмо или повторить отправку.' : 'Отправка писем пока не подключена. Подтверждение email и оплата станут доступны после настройки почтовой службы.';
+    $('paymentAvailability').hidden = enabled();
+    if (!enabled()) $('paymentAvailability').textContent = 'Онлайн-оплата пока недоступна: приём платежей CloudPayments ещё не подключён. Подписка не активируется нажатием кнопки.';
+    else if (paymentConfig.testMode === true) { $('paymentAvailability').hidden = false; $('paymentAvailability').textContent = 'Включён тестовый режим CloudPayments. Проверяйте режим оплаты перед вводом реквизитов.'; }
+  }
+  function choose(plan, scroll = true) {
+    if (!plans.has(plan)) return;
+    if (scroll && order?.status === 'paid') { order = null; request = null; saveRequest(); renderOrder(); }
+    selected = plan;
+    document.querySelectorAll('[data-plan]').forEach(card => card.classList.toggle('selected', card.dataset.plan === plan));
+    $('subscriptionDetails').hidden = false;
+    $('checkoutTitle').textContent = planName(plan);
+    const current = subscribed(plan), details = planConfig(plan);
+    $('checkoutDescription').textContent = current ? `Продление на ${details.days} дней добавится к действующему сроку подписки — после ${date(current.expiresAt)}. Доступ обновится после подтверждения оплаты сервером.` : `Подписка на ${details.days} дней. Срок начнётся после подтверждения оплаты сервером.`;
+    $('checkoutAmount').textContent = money(details.amount, details.currency);
+    updateCheckoutButton();
+    if (scroll) $('subscriptionDetails').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function updateCheckoutButton() {
+    const otherPending = order && pendingStatuses.has(order.status) && (order.plan !== selected || order.status !== 'creating');
+    const uncertainOtherPlan = request && !order && request.plan !== selected;
+    const alreadyPaid = order?.status === 'paid' && order.plan === selected;
+    $('createCheckout').disabled = busy || checking || !enabled() || user?.emailVerified !== true || !!user?.security?.adminEnrollmentRequired || !!otherPending || !!uncertainOtherPlan || alreadyPaid;
+    $('createCheckout').textContent = busy ? 'Подготавливаем оплату…' : request && !order ? 'Повторить подготовку оплаты' : order?.status === 'creating' ? 'Повторить подготовку оплаты' : 'Перейти к оплате CloudPayments';
+    if (alreadyPaid) $('checkoutMessage').textContent = 'Этот заказ уже оплачен. Для отдельного продления выберите тариф в карточке выше.';
+    else if (uncertainOtherPlan) $('checkoutMessage').textContent = `Результат предыдущего запроса ${planName(request.plan)} пока неизвестен. Выберите этот тариф и повторите тот же запрос.`;
+    else if (otherPending) $('checkoutMessage').textContent = 'Есть незавершённая операция. Проверьте её статус ниже перед созданием нового платежа.';
+    else if (user?.security?.adminEnrollmentRequired) $('checkoutMessage').textContent = 'Сначала завершите настройку защиты аккаунта в разделе «Безопасность».';
+    else if (user?.emailVerified !== true) $('checkoutMessage').textContent = 'Сначала подтвердите email в разделе «Безопасность».';
+    else if (!enabled()) $('checkoutMessage').textContent = 'Приём платежей пока не подключён.';
+    else if (!busy) $('checkoutMessage').textContent = '';
+  }
+  function renderOrder() {
+    $('paymentOrder').hidden = !order;
+    if (!order) { updateCheckoutButton(); return; }
+    $('paymentOrderReference').textContent = `Заказ ${order.id} · ${planName(order.plan)} · ${money(order.amount, order.currency || 'RUB')}`;
+    const current = subscribed(order.plan), confirmed = order.status === 'paid' && !!current;
+    const captions = {
+      creating: ['Оплата подготавливается', 'Платёжный провайдер ещё формирует страницу оплаты. Если подготовка прервалась, повторите её для этого же заказа.'],
+      pending: ['Ожидаем оплату', 'Оплатите заказ на странице CloudPayments. После оплаты дождитесь подтверждения сервера или нажмите «Проверить статус».'],
+      crediting: ['Платёж подтверждается', 'Сервер обрабатывает подтверждение платежа. Доступ откроется после завершения проверки.'],
+      paid: confirmed ? ['Оплата подтверждена', `Подписка ${planName(order.plan)} активна до ${date(current.expiresAt)}.`] : ['Оплата получена, обновляем доступ', 'Дождитесь обновления подписки сервером и повторно проверьте статус.'],
+      failed: ['Платёж не завершён', 'Этот заказ не оплачен. Можно создать новый платёж; доступ по этому заказу не активирован.'],
+      refund_pending: ['Возврат обрабатывается', 'Сервер ожидает подтверждение возврата от платёжного провайдера.'],
+      refunded: ['Платёж возвращён', 'Возврат подтверждён. Действующий доступ показан в карточках тарифов выше.'],
+      refund_review: ['Возврат требует проверки', 'Обратитесь в поддержку по вопросам этого платежа. Действующий срок подписки показан в карточке тарифа.']
+    };
+    const caption = captions[order.status] || ['Проверяем статус платежа', 'Статус пока не определён. Запросите актуальные данные сервера.'];
+    $('paymentOrderTitle').textContent = caption[0]; $('paymentOrderMessage').textContent = caption[1];
+    const checkout = safeCheckoutUrl(order.checkoutUrl), canContinue = !!checkout && order.status === 'pending' && enabled() && user.emailVerified === true;
+    $('continuePayment').hidden = !canContinue;
+    if (canContinue) $('continuePayment').href = checkout; else $('continuePayment').removeAttribute('href');
+    $('newPayment').hidden = !terminalStatuses.has(order.status);
+    $('recheckPayment').disabled = checking || busy;
+    $('recheckPayment').textContent = checking ? 'Проверяем…' : 'Проверить статус';
+    updateCheckoutButton();
+  }
+  function scheduleCheck() {
+    clearTimeout(pollTimer);
+    if (order && (['creating', 'pending', 'crediting', 'refund_pending'].includes(order.status) || (order.status === 'paid' && !subscribed(order.plan)))) pollTimer = setTimeout(() => { if (!document.hidden) checkOrder(); else scheduleCheck(); }, 10000);
+  }
+  async function checkOrder() {
+    if (checking || busy || !order?.id) return;
+    checking = true; renderOrder();
+    try {
+      const response = await api('/api/payments/orders/' + encodeURIComponent(order.id));
+      if (!response.order || response.order.id !== order.id || !orderId(response.order.id) || !plans.has(response.order.plan)) throw Error('Сервер вернул некорректные данные заказа.');
+      order = response.order;
+      user = await A.current();
+      if (!user) { location.replace('/account.html?next=/subscriptions.html'); return; }
+      identity();
+      if (selected) choose(selected, false);
+      $('subscriptionError').textContent = '';
+      if (order.status === 'paid' || terminalStatuses.has(order.status)) { request = null; saveRequest(); }
+    } catch (error) {
+      $('subscriptionError').textContent = error.message;
+      if (error.status === 404) { order = null; request = null; saveRequest(); }
+      if (error.status === 401) location.replace('/account.html?next=/subscriptions.html');
+    } finally { checking = false; renderOrder(); scheduleCheck(); }
+  }
+  async function startCheckout() {
+    if (busy || checking || !selected || !enabled() || user.emailVerified !== true || user.security?.adminEnrollmentRequired) return;
+    if (order && pendingStatuses.has(order.status) && (order.plan !== selected || order.status !== 'creating')) return;
+    if (request && request.plan !== selected && !order) { $('checkoutMessage').textContent = 'Сначала повторите предыдущий запрос оплаты: его результат пока не подтверждён.'; return; }
+    if (!request) request = { plan: selected, requestId: crypto.randomUUID(), orderId: null };
+    saveRequest(); busy = true; $('subscriptionError').textContent = ''; updateCheckoutButton();
+    try {
+      const response = await api('/api/payments/checkout', { method: 'POST', body: JSON.stringify({ plan: request.plan, requestId: request.requestId }) });
+      if (!response.order || !orderId(response.order.id) || response.order.plan !== selected) throw Error('Сервер вернул некорректный заказ. Повторите тот же запрос.');
+      order = response.order; request.orderId = order.id; saveRequest();
+      if (order.status === 'paid') { user = await A.current(); request = null; saveRequest(); }
+      identity(); renderOrder();
+      const checkout = safeCheckoutUrl(order.checkoutUrl);
+      if (order.checkoutUrl && !checkout) throw Error('Ссылка оплаты не прошла проверку. Не переходите по ней; проверьте статус заказа или обратитесь в поддержку.');
+      if (checkout && order.status === 'pending') location.assign(checkout);
+      else $('paymentOrder').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+      $('subscriptionError').textContent = error.message;
+      if (error.status === 401) location.replace('/account.html?next=/subscriptions.html');
+      if (error.code === 'EMAIL_NOT_VERIFIED') { try { user = await A.current(); if (user) identity(); } catch {} }
+    } finally { busy = false; renderOrder(); scheduleCheck(); }
+  }
+  document.querySelectorAll('[data-select]').forEach(button => button.onclick = () => choose(button.dataset.select));
+  $('createCheckout').onclick = startCheckout;
+  $('recheckPayment').onclick = checkOrder;
+  $('newPayment').onclick = () => { if (!order || !terminalStatuses.has(order.status)) return; const plan = order.plan; order = null; request = null; saveRequest(); renderOrder(); choose(plan); };
+  $('subscriptionLogout').onclick = async () => { try { await A.request('/api/logout', { method: 'POST', body: '{}' }); location.assign('/account.html'); } catch (error) { $('subscriptionError').textContent = error.message; } };
+  document.addEventListener('visibilitychange', async () => {
+    if (document.hidden) return;
+    if (order) { checkOrder(); return; }
+    try {
+      user = await A.current();
+      if (!user) { location.replace('/account.html?next=/subscriptions.html'); return; }
+      identity(); if (selected) choose(selected, false);
+    } catch (error) { $('subscriptionError').textContent = error.message; }
+  });
+  window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
+  try {
+    user = await A.current();
+    if (!user) { location.replace('/account.html?next=/subscriptions.html'); return; }
+    storageKey = 'orbita.checkout.v1.' + user.id;
+    config = await A.request('/api/public-config');
+    try { paymentConfig = await A.request('/api/payments/config'); }
+    catch (error) { paymentConfig = { configured: false, provider: 'cloudpayments', plans: [] }; $('subscriptionError').textContent = error.message; }
+    identity(); request = readRequest();
+    const returningOrder = orderId(query.get('paymentOrder'));
+    if (returningOrder || request?.orderId) { order = { id: returningOrder || request.orderId, plan: request?.plan || selected || 'pro', status: 'creating' }; await checkOrder(); }
+    if (!selected && request) selected = request.plan;
+    if (selected) choose(selected, false);
+  } catch (error) { $('subscriptionError').textContent = error.message; }
 })();
