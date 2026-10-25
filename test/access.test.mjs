@@ -74,7 +74,7 @@ test('server enforces subscriptions and administrator permissions on direct and 
         const member=await request(base,path,{cookie:unpaid.cookie});assert.equal(member.status,303,path);assert.match(member.headers.location,/^\/subscriptions\.html\?/);
       }
       assert.equal((await request(base,'/%61pp.html',{method:'HEAD'})).status,303);
-      for(const path of ['/assets/app.js','/assets/%61pp.js','/assets//app.js','/assets/learning-data.js','/assets/news.js']){
+      for(const path of ['/assets/app.js','/assets/%61pp.js','/assets//app.js','/assets/signal-visual.js','/assets/learning-data.js','/assets/news.js']){
         assert.equal((await request(base,path)).status,401,path);assert.equal((await request(base,path,{cookie:unpaid.cookie})).status,403,path);
       }
       for(const path of ['/api/ideas','/api/lessons','/api/news','/api/watchlist','/api/positions']){

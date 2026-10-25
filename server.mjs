@@ -29,7 +29,7 @@ const types={'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg
 const memberPages=new Set(['/app.html','/calculator.html','/learn.html']);
 const accountPages=new Set(['/subscriptions.html','/security.html','/notifications.html']);
 const adminPages=new Set(['/admin.html']);
-const paidAssets=new Set(['/assets/app.js','/assets/calculator.js','/assets/learning-data.js','/assets/learning.js','/assets/news.js','/assets/personal.js']);
+const paidAssets=new Set(['/assets/app.js','/assets/signal-visual.js','/assets/calculator.js','/assets/learning-data.js','/assets/learning.js','/assets/news.js','/assets/personal.js']);
 const adminAssets=new Set(['/assets/admin.js']);
 const removedAssets=new Set(['/assets/editor-seed.js']);
 function redirect(res,destination){res.writeHead(303,{Location:destination,'Cache-Control':'no-store','Vary':'Cookie'});res.end();}
