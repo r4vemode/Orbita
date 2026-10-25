@@ -10,6 +10,7 @@ import {createNotifications} from './lib/notifications.mjs';
 import {createBackup} from './lib/backups.mjs';
 import {LEGAL_VERSION,PLANS,activePlans,hasSubscription,isAdmin,requireAdmin,requireMember} from './lib/access.mjs';
 import {json,readJson,error} from './lib/http.mjs';
+if(Number(process.versions.node.split('.')[0])<20)throw Error(`Для ORBITA нужен Node.js 20 или новее. Сейчас установлен Node.js ${process.versions.node}. Обновите Node.js и повторите npm start.`);
 const root=await realpath(fileURLToPath(new URL('./public/',import.meta.url)));
 const configuredDirectory=process.env.ORBITA_DATA_DIR||fileURLToPath(new URL('./data/',import.meta.url));
 await mkdir(configuredDirectory,{recursive:true,mode:0o700});
