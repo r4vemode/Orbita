@@ -19,13 +19,15 @@
   }
   function go(user) {
     if (!user) throw Error('Сервер не подтвердил вход. Попробуйте ещё раз.');
+    if (plan) A.rememberPlan(user.id, plan);
+    const chosenPlan = plan || A.preferredPlan(user.id);
     if (user.security?.adminEnrollmentRequired) { location.assign('/security.html?enroll=1'); return; }
-    if (!user.emailVerified) { location.assign('/security.html?verify=1' + (plan ? '&plan=' + plan : '')); return; }
+    if (!user.emailVerified) { location.assign('/security.html?verify=1' + (chosenPlan ? '&plan=' + chosenPlan : '')); return; }
     const next = parameters.get('next');
     if (next && (user.access?.hasSubscription || /^\/(?:security|subscriptions)\.html(?:\?|$)/.test(next))) { location.assign(A.safeNext(next, '/subscriptions.html')); return; }
     if (user.access?.isAdmin) location.assign('/admin.html');
     else if (user.access?.hasSubscription) location.assign('/app.html');
-    else location.assign('/subscriptions.html' + (plan ? '?plan=' + plan : ''));
+    else location.assign('/subscriptions.html' + (chosenPlan ? '?plan=' + chosenPlan : ''));
   }
   switcher.onclick = () => { register = !register; form.elements.password.value = ''; render(); };
   $('cancelMfa').onclick = () => { challenge = null; form.elements.password.value = ''; form.elements.code.value = ''; render(); form.elements.email.focus(); };
@@ -38,7 +40,7 @@
       if (location.protocol === 'file:') throw Error('Регистрация работает через сервер. Запустите npm start и откройте адрес из терминала.');
       if (challenge) { const data = await A.request('/api/security/mfa/login', { method: 'POST', body: JSON.stringify({ challenge, code: form.elements.code.value.trim() }) }); form.elements.code.value = ''; go(data.user); return; }
       const body = { email: form.elements.email.value.trim(), password: form.elements.password.value };
-      if (register) Object.assign(body, { acceptTerms: form.elements.acceptTerms.checked, acceptPrivacy: form.elements.acceptPrivacy.checked, legalVersion });
+      if (register) Object.assign(body, { acceptTerms: form.elements.acceptTerms.checked, acceptPrivacy: form.elements.acceptPrivacy.checked, legalVersion, ...(plan ? {plan} : {}) });
       const data = await A.request(register ? '/api/register' : '/api/login', { method: 'POST', body: JSON.stringify(body) });
       form.elements.password.value = '';
       if (data.mfaRequired) {

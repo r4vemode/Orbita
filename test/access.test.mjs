@@ -105,6 +105,15 @@ test('server enforces subscriptions and administrator permissions on direct and 
       for(const path of ['/app.html','/%61pp.html','/calculator.html','/learn.html'])assert.equal((await request(base,path,{cookie:pro.cookie})).status,200,path);
     });
 
+    await t.test('incompatible market and strategy cannot be published through HTTP',async()=>{
+      const before=(await request(base,'/api/admin/ideas',{cookie:admin.cookie})).data;
+      for(const mode of ['quick','full','draft']){
+        const result=await request(base,'/api/admin/ideas',{method:'POST',cookie:admin.cookie,body:{mode,d:{ticker:'BTCUSDT',dir:'ЛОНГ',market:'crypto',strategy:'Orbita Exclusive',entry:100,stop:95,target:110,entryRule:'Вход',cancelRule:'Выход'}}});
+        assert.equal(result.status,400,mode);assert.match(result.data.error,/Стратегия не соответствует/);
+      }
+      assert.deepEqual((await request(base,'/api/admin/ideas',{cookie:admin.cookie})).data,before);
+    });
+
     await t.test('only trusted administrator can grant access or publish and mutate ideas',async()=>{
       for(const account of [unpaid,pro,exclusive]){
         for(const page of ['/content-admin.html','/settings-admin.html','/launch-admin.html','/%63ontent-admin.html','/settings-admin.html%2f..%2fsettings-admin.html'])assert.equal((await request(base,page,{cookie:account.cookie})).status,303,page);

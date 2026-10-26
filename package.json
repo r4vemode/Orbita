@@ -11,6 +11,7 @@
     "dev": "node server.mjs",
     "preflight": "node scripts/preflight.mjs",
     "check:mvp": "node scripts/check-mvp.mjs",
+    "beta:local": "node scripts/beta-local.mjs",
     "test": "node --test test/*.test.mjs"
   }
 }

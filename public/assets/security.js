@@ -1,5 +1,8 @@
 (async () => {
   const A = OrbitaAccess, $ = id => document.getElementById(id), page = document.body.dataset.securityPage;
+  const requestedPlan = new URLSearchParams(location.search).get('plan');
+  const selectedPlan = account => ['pro','exclusive'].includes(requestedPlan) ? requestedPlan : account ? A.preferredPlan(account.id) : null;
+  function subscriptionsLink(account){const plan=selectedPlan(account);if(account&&plan)A.rememberPlan(account.id,plan);return 'subscriptions.html'+(plan?'?plan='+plan:'');}
   const post = (path, data = {}) => A.request('/api/security/' + path, { method: 'POST', body: JSON.stringify(data) });
   function message(element, text, type = '') { if (!element) return; element.textContent = text; element.className = (element.id === 'securityStatus' ? 'security-status' : 'status') + (type ? ' ' + type : ''); }
   function takeToken() { const value = new URLSearchParams(location.hash.slice(1)).get('token') || ''; if (location.hash) history.replaceState(null, '', location.pathname + location.search); return value.length <= 512 ? value : ''; }
@@ -12,7 +15,7 @@
     if (!token) { form.hidden = true; message(output, 'В ссылке нет токена подтверждения. Запросите новую ссылку в настройках email.', 'error'); }
     form.onsubmit = async event => {
       event.preventDefault(); if (!token) return; button.disabled = true; message(output, 'Проверяем ссылку…');
-      try { await post('verify-email', { token }); token = ''; form.hidden = true; message(output, 'Email подтверждён. Теперь можно перейти к подпискам.', 'success'); $('verifiedContinue').hidden = false; }
+      try { await post('verify-email', { token }); token = ''; form.hidden = true; message(output, 'Email подтверждён. Теперь можно перейти к подпискам.', 'success');let account=null;try{account=await A.current();}catch{}$('verifiedContinue').href=subscriptionsLink(account);$('verifiedContinue').hidden = false; }
       catch (error) { message(output, error.message, 'error'); button.disabled = false; }
     };
     window.addEventListener('pagehide', () => { token = ''; });
@@ -73,7 +76,7 @@
     $('enrollmentNotice').hidden = !security.adminEnrollmentRequired;
     const continueLink = $('continueAccount');
     if (user.access?.isAdmin && !security.adminEnrollmentRequired) { continueLink.href = 'admin.html'; continueLink.textContent = 'К панели администратора →'; }
-    else { const plan = new URLSearchParams(location.search).get('plan'); continueLink.href = 'subscriptions.html' + (['pro', 'exclusive'].includes(plan) ? '?plan=' + plan : ''); continueLink.textContent = 'К подпискам →'; }
+    else { continueLink.href = subscriptionsLink(user); continueLink.textContent = 'К подпискам →'; }
   }
   async function refreshSettings() {
     settings = await A.request('/api/security/status'); user = settings.user;
@@ -89,7 +92,7 @@
   $('resendVerification').onclick = async () => {
     const button = $('resendVerification'); button.disabled = true; message($('verificationMessage'), 'Отправляем запрос…');
     try {
-      const response = await post('resend-verification');
+      const plan=selectedPlan(user),response = await post('resend-verification', plan?{plan}:{});
       if (response.sent) message($('verificationMessage'), 'Ссылка подтверждения отправлена на ваш email. Проверьте также папку «Спам».', 'success');
       else if (response.reason === 'not_configured') message($('verificationMessage'), 'Отправка писем пока не настроена. Письмо не отправлено.', 'error');
       else message($('verificationMessage'), 'Письмо не удалось отправить. Попробуйте позже.', 'error');

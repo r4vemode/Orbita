@@ -49,6 +49,35 @@ test('quick publication needs only ticker and direction and never fabricates exe
   assert.equal((await ideas.list(admin)).revision,1);
   const staleValues=(await ideas.create(admin,{mode:'quick',d:{ticker:'BTC/USDT',dir:'ШОРТ',market:'crypto',entry:100,stop:110,target:90}})).record;
   assert.equal(staleValues.d.entry,null);assert.equal(staleValues.d.stop,null);assert.equal(staleValues.d.target,null);
+  assert.equal(staleValues.d.strategy,'Crypto Momentum');
+});
+
+test('strategy and market must match and omitted counterparts are inferred before publication',async t=>{
+  const {ideas}=await fixture(t);
+  const markets={'Momentum RU':'stocks','Trend RU':'stocks','Импульс':'futures','Crypto Momentum':'crypto','Crypto Trend':'crypto','Orbita Exclusive':'stocks'};
+  for(const [strategy,market]of Object.entries(markets)){
+    const mismatched=market==='stocks'?'crypto':'stocks';
+    for(const mode of ['quick','full','draft']){
+      const payload={...full({strategy,market:mismatched}),mode};
+      await rejected(ideas.create(admin,payload),400);
+    }
+  }
+  assert.equal((await ideas.list(admin)).revision,0,'invalid pairs do not write records or revisions');
+  for(const [strategy,market]of Object.entries(markets)){
+    for(const mode of ['quick','full']){
+      const created=(await ideas.create(admin,{...full({strategy}),mode})).record;
+      assert.equal(created.d.strategy,strategy);assert.equal(created.d.market,market);
+    }
+  }
+  for(const [market,strategy]of Object.entries({stocks:'Momentum RU',futures:'Импульс',crypto:'Crypto Momentum'})){
+    for(const mode of ['quick','full']){
+      const created=(await ideas.create(admin,{...full({market}),mode})).record;
+      assert.equal(created.d.market,market);assert.equal(created.d.strategy,strategy);
+    }
+  }
+  const draft=(await ideas.create(admin,{mode:'draft',d:{ticker:'DRAFT'}})).record,before=await ideas.list(admin);
+  await rejected(ideas.update(admin,draft.id,{mode:'full',d:full({market:'crypto',strategy:'Orbita Exclusive'}).d}),400);
+  assert.deepEqual(await ideas.list(admin),before,'invalid draft publication preserves the stored draft');
 });
 
 test('quick signal gains levels in a dated event while its publication snapshot remains unchanged',async t=>{

@@ -7,9 +7,23 @@
   const number = value => value === null || value === undefined || value === '' ? '—' : Number(value).toLocaleString('ru-RU',{maximumFractionDigits:8});
   const fields = ['ticker','name','market','dir','title','summary','entry','stop','target','horizon','strategy','thesis','entryRule','cancelRule'];
   const numericFields = ['entry','stop','target'];
+  const strategyMarkets={'Momentum RU':'stocks','Trend RU':'stocks','Импульс':'futures','Crypto Momentum':'crypto','Crypto Trend':'crypto','Orbita Exclusive':'stocks'};
+  const defaultStrategies={stocks:'Momentum RU',futures:'Импульс',crypto:'Crypto Momentum'};
+  const eventFieldIds=['levelEntry','levelStop','levelTarget','levelHorizon','levelEntryRule','levelCancelRule','exitPrice','eventNote'];
+  const eventDrafts=new Map();let eventDirty=false;
   const ideaSummary = d => window.OrbitaIdeaCopy?.summary?.(d) ?? d.summary ?? '';
   let db = {revision:0,records:[]}, users = [], current = null, draftId = null, dirty = false, mutating = false, accountsRevision;
   const form = $('ideaForm');
+  const eventDraftStatus=document.createElement('p');eventDraftStatus.id='eventDraftStatus';eventDraftStatus.className='form-note';eventDraftStatus.setAttribute('role','status');$('eventForm').prepend(eventDraftStatus);
+  const discardEvent=document.createElement('button');discardEvent.type='button';discardEvent.id='discardEvent';discardEvent.className='text-button';discardEvent.textContent='Сбросить черновик обновления';discardEvent.hidden=true;$('eventForm').append(discardEvent);
+  discardEvent.addEventListener('click',()=>{if(mutating||!current||!confirm('Сбросить несохранённое обновление этой идеи?'))return;eventDrafts.delete(current);eventDirty=false;select(current);});
+  function rememberEvent(){
+    if(!current||!eventDirty)return;
+    const previous=eventDrafts.get(current);
+    eventDrafts.set(current,{action:$('eventAction').value||previous?.action||'',values:Object.fromEntries(eventFieldIds.map(id=>[id,$(id).value]))});
+    discardEvent.hidden=false;
+    eventDraftStatus.textContent=$('eventAction').value?'Есть несохранённое обновление. Оно сохранится в форме при переключении идей и обновлении списка.':'Действие из черновика больше недоступно: статус идеи изменился. Поля сохранены; выберите подходящее действие перед публикацией.';
+  }
   function message(text, error = false) { $('message').textContent = text; $('message').classList.toggle('error', error); }
   async function api(path, options = {}) {
     let response;
@@ -30,9 +44,10 @@
   async function mutation(work) {
     if (mutating) return;
     mutating = true;
-    document.querySelectorAll('[data-mutation]').forEach(button => button.disabled = true);
+    const controls=[...document.querySelectorAll('[data-mutation],#quickForm input,#quickForm select,#ideaForm input,#ideaForm textarea,#ideaForm select,#eventForm input,#eventForm textarea,#eventForm select,#eventForm button,#subscriptionForm input,#subscriptionForm select,#subscriptionForm textarea')].filter(control=>!control.disabled);
+    controls.forEach(control=>control.disabled=true);
     try { await work(); } catch (error) { message(error.message,true); }
-    finally { mutating = false; document.querySelectorAll('[data-mutation]').forEach(button => button.disabled = false); }
+    finally { mutating = false;controls.forEach(control=>control.disabled=false); }
   }
   function readFullData() { return Object.fromEntries(fields.map(key => { const value = form.elements[key].value.trim(); return [key,numericFields.includes(key) ? value === '' ? null : Number(value) : value]; })); }
   function validateLevels(data) {
@@ -40,10 +55,16 @@
     if (data.dir === 'ЛОНГ' && !(data.stop < data.entry && data.entry < data.target)) throw new Error('Для лонга: стоп < вход < цель.');
     if (data.dir === 'ШОРТ' && !(data.target < data.entry && data.entry < data.stop)) throw new Error('Для шорта: цель < вход < стоп.');
   }
-  function strategyOptions() {
+  function compatibleStrategies(market,select,preferred=select.value) {
     const names = (window.ORBITA_STRATEGIES || []).map(strategy => strategy.name);
-    if (!names.length) names.push('Momentum RU','Trend RU','Импульс','Crypto Momentum','Crypto Trend','Orbita Exclusive');
-    for (const id of ['quickStrategy','fullStrategy']) $(id).innerHTML = names.map(name => `<option>${escape(name)}</option>`).join('');
+    if (!names.length) names.push(...Object.keys(strategyMarkets));
+    const compatible=names.filter(name=>strategyMarkets[name]===market);
+    select.innerHTML=compatible.map(name=>`<option>${escape(name)}</option>`).join('');
+    select.value=compatible.includes(preferred)?preferred:defaultStrategies[market];
+  }
+  function strategyOptions() {
+    compatibleStrategies($('quickMarket').value,$('quickStrategy'));
+    compatibleStrategies(form.elements.market.value,$('fullStrategy'));
   }
   function ideaCard(record) {
     const d = record.d || {};
@@ -82,6 +103,7 @@
   function select(id) {
     const record = db.records.find(item => item.id === id);
     if (record && !record.published && dirty && draftId !== record.id && !confirm('Открыть черновик без сохранения текущей формы?')) return;
+    rememberEvent();eventDirty=false;eventDraftStatus.textContent='';discardEvent.hidden=true;
     current = id;
     $('deleteIdea').hidden = !record || !!record.published;
     $('publishedActions').hidden = !record?.published;
@@ -92,12 +114,22 @@
       const actions = [['note','Комментарий автора'],...(active && state === 'announced' ? [['levels','Добавить уровни входа, стопа и цели']] : []),...(active && ['waiting','active'].includes(state) ? [['stop-change','Изменить стоп']] : []),...(active && state === 'waiting' ? [['activate','Подтвердить вход']] : []),...(active && ['announced','waiting'].includes(state) ? [['cancel','Отменить до входа']] : []),...(active && state === 'active' ? [['target','Закрыть по цели'],['stop','Закрыть по стопу'],['manual','Закрыть вручную']] : []),...(active ? [['error','Пометить ошибочную публикацию']] : [])];
       $('eventAction').innerHTML = actions.map(([value,label]) => `<option value="${value}">${label}</option>`).join('');
       $('eventForm').reset();
+      $('eventAction').required=true;
+      const pending=eventDrafts.get(record.id);
+      if(pending){
+        for(const fieldId of eventFieldIds)$(fieldId).value=pending.values[fieldId]||'';
+        if(actions.some(([value])=>value===pending.action))$('eventAction').value=pending.action;
+        else{const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Выберите действие для нового статуса';placeholder.disabled=true;$('eventAction').prepend(placeholder);$('eventAction').value='';}
+        eventDirty=true;rememberEvent();
+      }
       eventFields();
       audit(record);
     } else if (record && !(dirty && draftId === record.id)) {
       draftId = record.id;
       form.reset();
+      form.elements.market.value=record.d.market||'stocks';compatibleStrategies(form.elements.market.value,$('fullStrategy'),record.d.strategy);
       fields.forEach(key => { if (record.d[key] !== null && record.d[key] !== undefined) form.elements[key].value = record.d[key]; });
+      if(!$('fullStrategy').value){$('fullStrategy').required=true;message('Рынок старого черновика не соответствует стратегии. Выберите подходящую стратегию перед сохранением.',true);}
       dirty = false;
       $('fullComposer').open = true;
       $('fullFormTitle').textContent = `Черновик ${record.d.ticker || ''}`;
@@ -105,7 +137,7 @@
     }
     renderList();
   }
-  function clearFull() { draftId = null; dirty = false; form.reset(); $('fullFormTitle').textContent = 'Подготовить полный сценарий'; preview(); }
+  function clearFull() { draftId = null; dirty = false; form.reset();compatibleStrategies(form.elements.market.value,$('fullStrategy')); $('fullFormTitle').textContent = 'Подготовить полный сценарий'; preview(); }
   async function loadIdeas(preferred = current) {
     const result = await api('/api/admin/ideas');
     if (!Array.isArray(result.records) || !Number.isInteger(result.revision)) throw new Error('Сервер не вернул список идей.');
@@ -132,7 +164,8 @@
       message(`${d.ticker}: ${d.dir.toLowerCase()} опубликован. Уровни и комментарий можно добавить ниже.`);
     });
   });
-  $('quickMarket').addEventListener('change', () => { $('quickStrategy').value = {stocks:'Momentum RU',futures:'Импульс',crypto:'Crypto Momentum'}[$('quickMarket').value]; });
+  $('quickMarket').addEventListener('change', () => compatibleStrategies($('quickMarket').value,$('quickStrategy')));
+  form.elements.market.addEventListener('change',()=>{compatibleStrategies(form.elements.market.value,$('fullStrategy'));preview();});
   form.addEventListener('input', () => { dirty = true; preview(); });
   form.addEventListener('change', () => { dirty = true; preview(); });
   async function saveFull(mode) {
@@ -150,12 +183,15 @@
   $('clearFullForm').addEventListener('click', () => { if (!dirty || confirm('Очистить несохранённую форму?')) clearFull(); });
   $('newIdea').addEventListener('click', () => { $('quickTicker').focus(); $('quickForm').scrollIntoView({behavior:'smooth',block:'center'}); });
   $('eventAction').addEventListener('change', eventFields);
+  $('eventForm').addEventListener('input',()=>{eventDirty=true;rememberEvent();});
+  $('eventForm').addEventListener('change',()=>{eventDirty=true;rememberEvent();});
   $('eventForm').addEventListener('submit', event => {
     event.preventDefault();
     mutation(async () => {
       const record = db.records.find(item => item.id === current);
       if (!record?.published) throw new Error('Выберите опубликованную идею.');
       const action = $('eventAction').value, note = $('eventNote').value.trim();
+      if(!action)throw new Error('Выберите действие, доступное для текущего статуса идеи. Черновик полей сохранён.');
       if (!note) throw new Error('Добавьте пояснение к изменению.');
       const payload = {revision:db.revision,action,note};
       if (['manual','stop-change'].includes(action)) {
@@ -169,6 +205,7 @@
         if (!payload.d.horizon) delete payload.d.horizon;
       }
       const result = await api(`/api/admin/ideas/${encodeURIComponent(current)}/events`,{method:'POST',body:JSON.stringify(payload)});
+      eventDrafts.delete(record.id);if(current===record.id)eventDirty=false;
       acceptChange(result);
       message('Обновление опубликовано. Первоначальная запись и предыдущая история сохранены.');
     });
@@ -232,7 +269,7 @@
       message(action === 'revoke' ? 'Доступ отозван. Изменение сохранено на сервере.' : 'Доступ сохранён. Клиенту достаточно обновить страницу кабинета.');
     });
   });
-  window.addEventListener('beforeunload', event => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
+  window.addEventListener('beforeunload', event => { if (dirty||eventDirty||eventDrafts.size) { event.preventDefault(); event.returnValue = ''; } });
   async function start() {
     try {
       const data = await api('/api/me');
