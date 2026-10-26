@@ -15,7 +15,6 @@ const MARKET_INFO = Object.freeze({
     features: ['Доступность биржи в вашей стране', 'Комиссии за сделки, ввод и вывод средств', 'Различия спота, деривативов и хранения активов']
   }
 });
-const STORAGE_KEY = 'orbita.partnerOffers.v1';
 
 export function safePartnerUrl(value) {
   if (typeof value !== 'string' || !value.trim()) return null;
@@ -41,17 +40,6 @@ function element(tag, className, text) {
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
   return node;
-}
-
-function readOffers(fallback) {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved !== null) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) return normalisePartnerOffers(parsed);
-    }
-  } catch { /* Fall back to the shared configuration if storage is unavailable. */ }
-  return normalisePartnerOffers(fallback);
 }
 
 function card(offer, market) {
@@ -89,7 +77,12 @@ export async function initPartnersPage() {
   const parameters = new URLSearchParams(window.location.search);
   const requestedMarket = parameters.get('market');
   let selectedMarket = Object.hasOwn(MARKET_INFO, requestedMarket) ? requestedMarket : 'all';
-  let offers = readOffers(window.ORBITA_PARTNER_OFFERS);
+  let offers = [], unavailable = false;
+  try {
+    const response = await fetch('/api/product-settings', {cache:'no-store'});
+    if (!response.ok) throw Error();
+    offers = normalisePartnerOffers((await response.json()).partnerOffers);
+  } catch { unavailable = true; }
   const filters = [...document.querySelectorAll('[data-market]')];
 
   function render() {
@@ -108,7 +101,7 @@ export async function initPartnersPage() {
     });
     filters.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.market === selectedMarket)));
     const status = document.getElementById('offersStatus');
-    status.textContent = activeCount
+    status.textContent = unavailable ? 'Не удалось загрузить предложения. Обновите страницу, чтобы повторить.' : activeCount
       ? 'Сравните условия на сайте партнёра перед открытием счёта.'
       : 'Подбираем партнёров для этого рынка. Предложения появятся здесь.';
   }
@@ -124,81 +117,14 @@ export async function initPartnersPage() {
     render();
   }));
 
-  const settings = document.getElementById('partnerSettings');
-  let administrator=false;
-  if(parameters.get('settings')==='1'){try{const response=await fetch('/api/me',{cache:'no-store'});administrator=response.ok&&(await response.json()).user?.role==='admin';}catch{}}
-  if (parameters.get('settings') === '1' && settings && administrator) {
-    settings.hidden = false;
-    const fields = document.getElementById('partnerFields');
-    Object.entries(MARKET_INFO).forEach(([market, info]) => {
-      const group = element('fieldset');
-      group.append(element('legend', '', info.title));
-      for (const [field, title, type] of [['name', 'Название брокера или биржи', 'text'], ['url', 'Партнёрская HTTPS-ссылка', 'url']]) {
-        const label = element('label', '', title);
-        const input = element('input');
-        input.name = `${market}-${field}`;
-        input.id = `partner-${market}-${field}`;
-        input.type = type;
-        input.autocomplete = 'off';
-        input.maxLength = field === 'name' ? 100 : 2048;
-        if (field === 'url') { input.spellcheck = false; input.inputMode = 'url'; }
-        label.append(input);
-        group.append(label);
-      }
-      fields.append(group);
-    });
-
-    function fillFields() {
-      Object.keys(MARKET_INFO).forEach(market => {
-        const offer = offers.find(item => item.markets.includes(market));
-        document.getElementById(`partner-${market}-name`).value = offer?.name || '';
-        document.getElementById(`partner-${market}-url`).value = offer?.url || '';
-      });
+  if (parameters.get('settings') === '1') {
+    const response = await fetch('/api/me', {cache:'no-store'}).catch(() => null);
+    const user = response?.ok ? (await response.json()).user : null;
+    if (user?.access?.isAdmin) {
+      const link = element('a', 'guide-link', 'Настроить общие партнёрские ссылки →');
+      link.href = 'settings-admin.html#partners';
+      offersNode.before(link);
     }
-    const message = document.getElementById('partnerSettingsMessage');
-    function feedback(text, isError = false) {
-      message.textContent = text;
-      message.classList.toggle('error', isError);
-    }
-    document.getElementById('partnerSettingsForm').addEventListener('submit', event => {
-      event.preventDefault();
-      let invalidInput = null;
-      const nextOffers = Object.keys(MARKET_INFO).map(market => {
-        const nameInput = document.getElementById(`partner-${market}-name`);
-        const urlInput = document.getElementById(`partner-${market}-url`);
-        const name = nameInput.value.trim();
-        const value = urlInput.value.trim();
-        const url = safePartnerUrl(value);
-        nameInput.removeAttribute('aria-invalid');
-        urlInput.removeAttribute('aria-invalid');
-        if (value && !url) { urlInput.setAttribute('aria-invalid', 'true'); invalidInput ||= urlInput; }
-        if (value && !name) { nameInput.setAttribute('aria-invalid', 'true'); invalidInput ||= nameInput; }
-        return { id: market, markets: [market], name, url: url || '' };
-      });
-      if (invalidInput) {
-        feedback('Укажите название и полную HTTPS-ссылку без логина и пароля. Незаполненные предложения можно оставить пустыми.', true);
-        invalidInput.focus();
-        return;
-      }
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(nextOffers));
-      } catch {
-        feedback('Браузер не разрешил сохранить настройки. Разрешите локальное хранилище и попробуйте снова.', true);
-        return;
-      }
-      offers = normalisePartnerOffers(nextOffers);
-      render();
-      feedback('Ссылки сохранены в этом браузере. Предложения с заполненными названием и ссылкой уже доступны.');
-    });
-    document.getElementById('resetPartnerSettings').addEventListener('click', () => {
-      try { localStorage.removeItem(STORAGE_KEY); }
-      catch { feedback('Браузер не разрешил сбросить настройки.', true); return; }
-      offers = normalisePartnerOffers(window.ORBITA_PARTNER_OFFERS);
-      fillFields();
-      render();
-      feedback('Общие настройки восстановлены.');
-    });
-    fillFields();
   }
   render();
 }

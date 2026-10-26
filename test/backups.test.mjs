@@ -41,8 +41,8 @@ async function alterAuthenticatedArchive(original,destination,mutate){
 
 test('encrypted backup restores all file stores and security key with private permissions',async()=>{
   const f=await fixture();try{
-    await writeFile(path.join(f.dataDir,'telegram.session'),'excluded-session');await writeFile(path.join(f.dataDir,'ideas.json.tmp-old'),'incomplete write');
-    const result=await createBackup({...f,passphrase});assert.equal(result.files.length,Object.keys(f.files).length);assert.ok(result.skipped.includes('telegram.session'));
+    await writeFile(path.join(f.dataDir,'telegram.session'),'excluded-session');await writeFile(path.join(f.dataDir,'ideas.json.tmp-old'),'incomplete write');await writeFile(path.join(f.dataDir,'.orbita-readiness-probe.ok'),'orbita-readiness');
+    const result=await createBackup({...f,passphrase});assert.equal(result.files.length,Object.keys(f.files).length);assert.ok(result.skipped.includes('telegram.session'));assert.ok(result.skipped.includes('.orbita-readiness-probe.ok'));
     assert.equal((await lstat(result.file)).mode&0o777,0o600);assert.equal((await lstat(f.backupDir)).mode&0o777,0o700);
     const encrypted=await readFile(result.file);assert.ok(!encrypted.includes(Buffer.from('backup-user@example.test')));assert.ok(!encrypted.includes(f.files['.security-key']));
     const verified=await verifyBackup({file:result.file,passphrase});assert.equal(verified.files.length,7);assert.ok(verified.files.every(file=>/^[a-f0-9]{64}$/.test(file.sha256)));

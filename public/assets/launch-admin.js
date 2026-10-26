@@ -1,0 +1,22 @@
+(async()=>{
+  const A=OrbitaAccess,$=id=>document.getElementById(id),button=$('refreshReport');
+  const element=(tag,text)=>{const node=document.createElement(tag);node.textContent=text;return node;};
+  const names={NODE_VERSION:'Версия Node.js',ORBITA_PUBLIC_ORIGIN:'Адрес HTTPS',ORBITA_SUPPORT_EMAIL:'Поддержка',CLOUDPAYMENTS:'CloudPayments',CLOUDPAYMENTS_TEST_MODE:'Режим оплаты',RESEND_MAIL:'Сервисные письма',ORBITA_REQUIRE_ADMIN_MFA:'Защита администратора',ENCRYPTED_BACKUPS:'Резервные копии',TELEGRAM:'Telegram'};
+  const reasons={configured:'настроено',missing:'не подключено',partial_configuration:'заполнена часть настроек',supported:'поддерживается',https_origin:'настроено',invalid_https_origin:'проверьте HTTPS-адрес',valid:'формат корректен',missing_or_invalid:'не заполнено или неверный формат',live_or_default:'рабочий режим',test_mode_enabled:'тестовый режим',must_be_explicit:'нужно явно выбрать рабочий режим',enabled:'включено',true_required:'требуется включить',optional_not_configured:'пока отключено',invalid_sender:'проверьте отправителя',invalid_format:'проверьте формат',invalid_boolean:'проверьте значение',passphrase_too_short:'слишком короткая фраза шифрования',backup_overlaps_data:'каталог совпадает с данными',backup_overlaps_public:'каталог пересекается с public'};
+  const pct=value=>value===null?'Пока нет данных':(100*value).toLocaleString('ru-RU',{maximumFractionDigits:1})+'%';
+  function metric(title,value,description){const card=element('article','');card.append(element('h3',title),element('strong',value),element('p',description));$('mvpMetrics').append(card);}
+  async function refresh(){button.disabled=true;$('launchStatus').textContent='Обновляем отчёт…';try{
+    const [report,{metrics:m,checkedAt}]=await Promise.all([A.request('/api/admin/readiness'),A.request('/api/admin/metrics')]);
+    $('launchWorkspace').hidden=false;$('readinessSummary').textContent=report.ready?'Хранилище приложения доступно.':'Хранилище требует внимания.';
+    $('configurationChecks').replaceChildren();for(const check of report.configuration){const li=element('li',(names[check.name]||check.name)+': '+(reasons[check.reason]||'требует проверки'));li.dataset.status=check.status;$('configurationChecks').append(li);}
+    $('mvpMetrics').replaceChildren();
+    const since=m.registration.measurementStartedAt?new Date(m.registration.measurementStartedAt).toLocaleDateString('ru-RU',{timeZone:'Europe/Moscow'}):null;
+    metric('Успешность регистрации',pct(m.registration.rate),m.registration.attempts===null?`${m.registration.successful} клиентских аккаунтов. Замеры начнутся с первой валидной отправки формы в этой версии.`:`Создано ${m.registration.measuredSuccessful} аккаунтов из ${m.registration.attempts} валидных отправок с ${since}. Повторы учитываются; неверные формы, блокировки частоты и сбои диска исключены. Это создание аккаунта, а не подтверждение доставки письма.`);
+    metric('Подтверждение email',pct(m.emailVerification.rate),`${m.emailVerification.verifiedMembers} из ${m.emailVerification.registeredMembers} клиентов подтвердили адрес.`);
+    metric('Конверсия в оплату',pct(m.paymentConversion.rate),`${m.paymentConversion.paidMembers} клиентов с подтверждённым рабочим платежом из ${m.paymentConversion.registeredMembers} зарегистрированных.`);
+    metric('Время активации',m.activationLatency.medianMs===null?'Пока нет данных':(m.activationLatency.medianMs/1000).toLocaleString('ru-RU',{maximumFractionDigits:2})+' с',`Медиана от времени подтверждённого платежа до выдачи доступа. Платежей в выборке: ${m.activationLatency.sampleCount}.`);
+    metric('Продление через 30 дней',pct(m.renewal30d.rate),`${m.renewal30d.renewed} продлений из ${m.renewal30d.eligible} пар «клиент — тариф», достигших 30 дней с первой активации по оплате. Окно наблюдения: ещё 7 дней; незавершённых окон: ${m.renewal30d.pendingGrace}.`);
+    $('metricsCheckedAt').textContent='Обновлено '+new Date(checkedAt).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})+' МСК';$('launchStatus').textContent='Отчёт обновлён.';
+  }catch(error){$('launchStatus').textContent=error.message;}finally{button.disabled=false;}}
+  if(!await A.requireAdmin())return;button.onclick=refresh;await refresh();
+})().catch(error=>{document.getElementById('launchStatus').textContent=error.message;});

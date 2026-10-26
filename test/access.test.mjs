@@ -107,6 +107,9 @@ test('server enforces subscriptions and administrator permissions on direct and 
 
     await t.test('only trusted administrator can grant access or publish and mutate ideas',async()=>{
       for(const account of [unpaid,pro,exclusive]){
+        for(const page of ['/content-admin.html','/settings-admin.html','/launch-admin.html','/%63ontent-admin.html','/settings-admin.html%2f..%2fsettings-admin.html'])assert.equal((await request(base,page,{cookie:account.cookie})).status,303,page);
+        for(const asset of ['/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/%63ontent-admin.js'])assert.equal((await request(base,asset,{cookie:account.cookie})).status,403,asset);
+        for(const route of ['/api/admin/content','/api/admin/settings','/api/admin/metrics'])assert.equal((await request(base,route,{cookie:account.cookie})).status,403,route);
         assert.equal((await request(base,'/api/admin/users',{cookie:account.cookie})).status,403);
         assert.equal((await request(base,'/api/admin/subscriptions',{method:'POST',cookie:account.cookie,body:{userId:account.data.user.id,plan:'exclusive',expiresAt:new Date(Date.now()+86400000).toISOString(),reason:'Forged grant'}})).status,403);
         assert.equal((await request(base,'/api/admin/ideas',{method:'POST',cookie:account.cookie,body:{mode:'quick',d:{ticker:'FORGED',dir:'ЛОНГ',strategy:'Momentum RU'}}})).status,403);
@@ -116,6 +119,10 @@ test('server enforces subscriptions and administrator permissions on direct and 
         assert.equal((await request(base,'/assets/%61dmin.js',{cookie:account.cookie})).status,403);
       }
       assert.equal((await request(base,'/api/admin/users')).status,401);
+      for(const route of ['/api/admin/content','/api/admin/settings','/api/admin/metrics'])assert.equal((await request(base,route)).status,401,route);
+      for(const page of ['/content-admin.html','/settings-admin.html','/launch-admin.html']){assert.equal((await request(base,page)).status,303,page);assert.equal((await request(base,page,{cookie:admin.cookie})).status,200,page);}
+      for(const asset of ['/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js'])assert.equal((await request(base,asset)).status,401,asset);
+      const metrics=await request(base,'/api/admin/metrics',{cookie:admin.cookie});assert.equal(metrics.status,200);assert.ok(!JSON.stringify(metrics.data).includes('example.test'));assert.equal(metrics.data.metrics.paymentConversion.liveOrders,0);
       assert.equal((await request(base,'/admin.html',{cookie:admin.cookie})).status,200);
       assert.equal((await request(base,'/api/admin/ideas',{cookie:admin.cookie})).data.records.length,2);
       assert.equal((await request(base,'/api/admin/subscriptions',{method:'POST',cookie:admin.cookie,origin:'https://outside.example',body:{userId:pro.data.user.id,plan:'pro',expiresAt:null,reason:'Cross-origin revocation'}})).status,403);
