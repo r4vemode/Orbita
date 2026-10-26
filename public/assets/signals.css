@@ -2,3 +2,5 @@ a{color:inherit;text-decoration:none}.paid-app{width:100%;margin:auto}.app-statu
 
 .signal-arrow{display:inline-block;width:10px;height:10px;border-top:1.4px solid currentColor;border-right:1.4px solid currentColor;position:relative;flex-shrink:0}.signal-arrow:after{content:'';position:absolute;right:0;top:0;width:13px;border-top:1.4px solid currentColor;transform:rotate(-45deg);transform-origin:right top}.signal-card .signal-open{display:flex;align-items:center;gap:9px}.signal-card .signal-open .signal-arrow{width:7px;height:7px}.signal-card .signal-open .signal-arrow:after{width:9px}
 .signal-stage.detail-mode .intro,.signal-stage.detail-mode .story,.signal-stage.detail-mode .caption{display:none!important}@media(max-width:600px){.signal-stage .signal-plot-label{font-size:23px}.signal-stage .signal-plot-note{font-size:18px}}
+
+@media(max-width:600px){.account-toolbar a,.account-toolbar button,.feed-tabs button,.feed-filters button{min-height:44px;display:inline-flex;align-items:center;justify-content:center}.account-toolbar{flex-wrap:wrap}}

@@ -13,7 +13,7 @@
   async function api(url) {
     const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw Object.assign(new Error(body.error || 'Обновления временно недоступны.'), { status: response.status });
+    if (!response.ok) throw Object.assign(new Error(OrbitaAccess.supportMessage(body,'Обновления временно недоступны.')), { status: response.status });
     return body;
   }
   function entitled(account) {

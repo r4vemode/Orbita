@@ -8,7 +8,7 @@
     let response;try{response=await fetch(path,{credentials:'same-origin',cache:'no-store',...options,headers:{'Content-Type':'application/json',...options.headers}});}catch{throw new Error('Не удалось связаться с сервером. Попробуйте ещё раз.');}
     let data;try{data=await response.json();}catch{throw new Error('Не удалось получить настройки. Обновите страницу.');}
     if(response.status===401){location.replace('account.html?next=%2Fnotifications.html');throw new Error('Войдите в аккаунт.');}
-    if(!response.ok)throw new Error(data.error||'Не удалось сохранить настройки.');return data;
+    if(!response.ok)throw new Error(OrbitaAccess.supportMessage(data,'Не удалось сохранить настройки.'));return data;
   }
   function stopPolling(){if(poll){clearInterval(poll);poll=null;}}
   function render(updateFields=true){

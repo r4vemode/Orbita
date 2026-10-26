@@ -10,7 +10,7 @@ const secret='test-local-hmac-secret',config={publicId:'test-merchant',apiSecret
 async function fixture(options={}){
  const calls=[];
  const fetchImpl=options.fetchImpl|| (async(url,init)=>{calls.push({url,init});return {ok:true,json:async()=>({Success:true,Model:{Id:'provider-order',Url:'https://orders.cloudpayments.ru/d/test'}})};});
- const f=await serviceFixture(({directory,accounts})=>createPayments(directory,{accounts,config,...options,fetchImpl}));
+ const f=await serviceFixture(({directory,accounts})=>createPayments(directory,{accounts:typeof options.accountsOverride==='function'?options.accountsOverride(accounts):accounts,config,...options,fetchImpl}));
  f.calls=calls;
  f.checkout=(account,plan='pro',requestId=randomUUID())=>f.request('/api/payments/checkout',{method:'POST',cookie:account.cookie,body:{plan,requestId}});
  f.callback=(kind,fields,{signed=true,raw=JSON.stringify(fields),headers={}}={})=>f.request('/api/payments/cloudpayments/'+kind,{method:'POST',body:raw,headers:{Origin:'',...(signed?{'Content-HMAC':createHmac('sha256',secret).update(raw).digest('base64')}:{}),...headers}});
@@ -70,4 +70,15 @@ test('provider timeouts keep the same order and unsafe payment links never escap
 test('unconfigured payments stay unavailable and signed form bodies use exact raw bytes',async()=>{
  const absent=await fixture({config:{publicId:'',apiSecret:'',publicOrigin:''}});try{assert.equal((await absent.request('/api/payments/config')).data.configured,false);const u=await absent.register('absent@example.test');await absent.verify(u);assert.equal((await absent.checkout(u)).status,503);}finally{await absent.close();}
  const f=await fixture();try{const u=await f.register('form@example.test');await f.verify(u);const order=(await f.checkout(u)).data.order,values=fields(order,u.data.user),raw=new URLSearchParams(values).toString();assert.equal((await f.callback('pay',values,{raw,headers:{'Content-Type':'application/x-www-form-urlencoded'}})).status,200);const altered=raw+'&Currency=RUB';assert.equal((await f.callback('pay',values,{raw:altered,headers:{'Content-Type':'application/x-www-form-urlencoded'}})).status,400);}finally{await f.close();}
+});
+
+test('unexpected signed callback keeps CloudPayments retry code and a safe support reference',async t=>{
+ const logs=[];t.mock.method(console,'error',(...values)=>logs.push(values.join(' ')));
+ const f=await fixture({accountsOverride:accounts=>({...accounts,creditPayment:async()=>{const failure=Error('private callback detail');failure.code='EFAULT';throw failure;}})});
+ try{
+  const member=await f.register('callback-fault@example.test');await f.verify(member);const order=(await f.checkout(member)).data.order;
+  const response=await f.callback('pay',fields(order,member.data.user));
+  assert.equal(response.status,500);assert.equal(response.data.code,13);assert.equal(response.data.reason,'PAYMENT_REQUEST_FAILED');assert.match(response.data.errorId,/^[a-f0-9-]{36}$/);
+  assert.ok(logs.some(line=>line.includes(response.data.errorId)&&line.includes('code=EFAULT')));assert.doesNotMatch(JSON.stringify(response.data)+logs.join('\n'),/private callback detail/);
+ }finally{await f.close();}
 });

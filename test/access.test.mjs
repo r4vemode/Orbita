@@ -85,7 +85,7 @@ test('server enforces subscriptions and administrator permissions on direct and 
     });
 
     await t.test('public pages and metadata reveal no paid records or downloadable seeds',async()=>{
-      for(const path of ['/','/strategies.html','/strategy.html?strategy=orbita-exclusive','/offer.html','/privacy.html','/refunds.html'])assert.equal((await request(base,path)).status,200,path);
+      for(const path of ['/','/strategies.html','/strategy.html?strategy=orbita-exclusive','/guide.html','/assets/guide.css','/assets/guide.js','/offer.html','/privacy.html','/refunds.html'])assert.equal((await request(base,path)).status,200,path);
       for(const path of ['/assets/editor-seed.js','/assets/%65ditor-seed.js','/assets//editor-seed.js','/fixtures/demo-ideas.json','/data/ideas.json','/data/accounts.json'])assert.equal((await request(base,path)).status,404,path);
       const catalog=await request(base,'/assets/strategy-data.js');assert.equal(catalog.status,200);
       assert.ok(!catalog.text.includes(proId)&&!catalog.text.includes(exclusiveId));assert.ok(!catalog.text.includes('exclusive-sber'));

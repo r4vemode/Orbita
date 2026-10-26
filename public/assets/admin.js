@@ -7,6 +7,7 @@
   const number = value => value === null || value === undefined || value === '' ? '—' : Number(value).toLocaleString('ru-RU',{maximumFractionDigits:8});
   const fields = ['ticker','name','market','dir','title','summary','entry','stop','target','horizon','strategy','thesis','entryRule','cancelRule'];
   const numericFields = ['entry','stop','target'];
+  const ideaSummary = d => window.OrbitaIdeaCopy?.summary?.(d) ?? d.summary ?? '';
   let db = {revision:0,records:[]}, users = [], current = null, draftId = null, dirty = false, mutating = false, accountsRevision;
   const form = $('ideaForm');
   function message(text, error = false) { $('message').textContent = text; $('message').classList.toggle('error', error); }
@@ -19,7 +20,7 @@
     if (!response.ok) {
       if (response.status === 401) location.replace('account.html?next=%2Fadmin.html');
       if (response.status === 403) { $('adminMain').hidden = true; showForbidden(); }
-      const error = new Error(response.status === 409 ? 'Список изменился в другой вкладке. Нажмите «Обновить» и повторите действие после проверки данных.' : data.error || 'Не удалось сохранить изменение.');
+      const error = new Error(response.status === 409 ? 'Список изменился в другой вкладке. Нажмите «Обновить» и повторите действие после проверки данных.' : OrbitaAccess.supportMessage(data,'Не удалось сохранить изменение.'));
       error.status = response.status;
       throw error;
     }
@@ -47,7 +48,7 @@
   function ideaCard(record) {
     const d = record.d || {};
     const levels = [d.entry,d.stop,d.target].every(value => Number.isFinite(value) && value > 0);
-    return `<div class="selected-identity"><span class="preview-tag">${escape(d.dir)} · ${escape(d.strategy)}</span><h2>${escape(d.ticker || 'Черновик')}</h2>${d.name ? `<p>${escape(d.name)}</p>` : ''}${d.title ? `<h3>${escape(d.title)}</h3>` : ''}${d.summary ? `<p>${escape(d.summary)}</p>` : ''}${levels ? `<div class="selected-levels"><span>Вход<b>${escape(number(d.entry))}</b></span><span>Стоп<b>${escape(number(d.stop))}</b></span><span>Цель<b>${escape(number(d.target))}</b></span></div>` : `<p class="no-levels">${record.published ? 'Тикер и направление опубликованы. Уровни ещё не заданы.' : 'Укажите уровни для полного сценария. Черновик можно сохранить без них.'}</p>`}${record.demo ? '<p class="demo-label">Учебный пример</p>' : ''}${record.erroneous ? '<p class="error-label">Ошибочная публикация · сохранена в истории</p>' : ''}</div>`;
+    return `<div class="selected-identity"><span class="preview-tag">${escape(d.dir)} · ${escape(d.strategy)}</span><h2>${escape(d.ticker || 'Черновик')}</h2>${d.name ? `<p>${escape(d.name)}</p>` : ''}${d.title ? `<h3>${escape(d.title)}</h3>` : ''}${d.summary ? `<p>${escape(ideaSummary(d))}</p>` : ''}${levels ? `<div class="selected-levels"><span>Вход<b>${escape(number(d.entry))}</b></span><span>Стоп<b>${escape(number(d.stop))}</b></span><span>Цель<b>${escape(number(d.target))}</b></span></div>` : `<p class="no-levels">${record.published ? 'Тикер и направление опубликованы. Уровни ещё не заданы.' : 'Укажите уровни для полного сценария. Черновик можно сохранить без них.'}</p>`}${record.demo ? '<p class="demo-label">Учебный пример</p>' : ''}${record.erroneous ? '<p class="error-label">Ошибочная публикация · сохранена в истории</p>' : ''}</div>`;
   }
   function preview() {
     const data = readFullData();

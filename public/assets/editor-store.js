@@ -27,7 +27,8 @@
       if (!response.ok) {
         replace({ revision: 0, records: [] });
         if ([401, 403].includes(response.status)) window.dispatchEvent(new CustomEvent('orbita:access-denied', { detail: { status: response.status } }));
-        const error = new Error(data.error || (response.status === 401 ? 'Войдите в аккаунт.' : response.status === 403 ? 'Для просмотра идей нужна действующая подписка.' : 'Не удалось загрузить идеи.'));
+        const fallback=response.status === 401 ? 'Войдите в аккаунт.' : response.status === 403 ? 'Для просмотра идей нужна действующая подписка.' : 'Не удалось загрузить идеи.';
+        const error = new Error(window.OrbitaAccess?.supportMessage?.(data,fallback) ?? data.error ?? fallback);
         error.status = response.status;
         throw error;
       }

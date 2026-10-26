@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node server.mjs",
     "dev": "node server.mjs",
+    "preflight": "node scripts/preflight.mjs",
     "test": "node --test test/*.test.mjs"
   }
 }
