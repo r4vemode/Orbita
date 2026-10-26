@@ -26,7 +26,7 @@ async function request(base,route,body,cookie,signal){
 }
 
 export async function startLocalBeta({environment=process.env,signal}={}){
-  if(Number(process.versions.node.split('.')[0])<20)throw Error('Для локальной беты нужен Node.js 20 или новее.');
+  if(Number(process.versions.node.split('.')[0])<22)throw Error('Для локальной беты нужен Node.js 22 или новее.');
   signal?.throwIfAborted();
   const root=await mkdtemp(path.join(tmpdir(),`orbita-local-beta-${process.pid}-`)),directory=path.join(root,'data');
   let child,closed=null,childExited=false,prepared=false,resolveExit;
@@ -108,7 +108,7 @@ export async function runLocalBeta(args=process.argv.slice(2)){
     console.log('Ctrl+C остановит учебный процесс и удалит его временную базу. Следующий запуск начнётся с чистой учебной среды.');
     const result=await session.done;
     if(!controller.signal.aborted&&result.code!==0)throw Error('Учебный процесс неожиданно завершился.');
-  }catch(cause){if(!controller.signal.aborted){console.error('Локальная бета не запущена. '+(cause?.message==='Для локальной беты нужен Node.js 20 или новее.'?cause.message:'Проверьте версию Node.js и доступность временного каталога.'));process.exitCode=1;}}
+  }catch(cause){if(!controller.signal.aborted){console.error('Локальная бета не запущена. '+(cause?.message==='Для локальной беты нужен Node.js 22 или новее.'?cause.message:'Проверьте версию Node.js и доступность временного каталога.'));process.exitCode=1;}}
   finally{process.removeListener('SIGINT',stop);process.removeListener('SIGTERM',stop);if(session)try{await session.close();}catch{console.error('Учебный процесс не остановлен; временные данные не удалены.');process.exitCode=1;}}
 }
 

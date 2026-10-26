@@ -14,7 +14,8 @@ import {buildMvpMetrics} from './lib/mvp-metrics.mjs';
 import {LEGAL_VERSION,PLANS,hasSubscription,isAdmin,requireAdmin,requireMember} from './lib/access.mjs';
 import {json,readJson,error,safeFailure} from './lib/http.mjs';
 import {checkStorage,createReadiness} from './lib/operations.mjs';
-if(Number(process.versions.node.split('.')[0])<20)throw Error(`Для ORBITA нужен Node.js 20 или новее. Сейчас установлен Node.js ${process.versions.node}. Обновите Node.js и повторите npm start.`);
+import {createRequestSecurity} from './lib/request-security.mjs';
+if(Number(process.versions.node.split('.')[0])<22)throw Error(`Для ORBITA нужен Node.js 22 или новее; рекомендуется Node.js 24 LTS. Сейчас установлен Node.js ${process.versions.node}. Обновите Node.js и повторите npm start.`);
 const root=await realpath(fileURLToPath(new URL('./public/',import.meta.url)));
 const configuredDirectory=process.env.ORBITA_DATA_DIR||fileURLToPath(new URL('./data/',import.meta.url));
 const startupStorage=await checkStorage({directory:configuredDirectory,publicDir:root,write:true,validate:true});
@@ -24,12 +25,14 @@ const directory=await realpath(configuredDirectory);
 if(directory===root||directory.startsWith(root+path.sep))throw Error('ORBITA_DATA_DIR должен находиться вне публичной папки public.');
 const mfaSetting=process.env.ORBITA_REQUIRE_ADMIN_MFA;
 if(mfaSetting!==undefined&&!['true','false','1','0'].includes(mfaSetting))throw Error('ORBITA_REQUIRE_ADMIN_MFA: используйте true или false.');
+if(process.env.ORBITA_PUBLIC_ORIGIN?.startsWith('https://')&&['false','0'].includes(mfaSetting))throw Error('Для публичного HTTPS-сайта MFA администратора нельзя отключить.');
 const accounts=await createAccounts(directory,mfaSetting===undefined?{}:{requireAdminMfa:['true','1'].includes(mfaSetting)}),ideas=await createIdeas(directory),news=createNews(directory);
 const payments=await createPayments(directory,{accounts});
 const notifications=await createNotifications(directory,{accounts,ideas});
 const content=await createContent(directory),productSettings=await createProductSettings(directory);
 const readiness=createReadiness({directory,publicDir:root});
 const webhooks=new Set([...payments.webhookPaths,...notifications.webhookPaths]);
+const requestSecurity=createRequestSecurity({trustedProxyIps:process.env.ORBITA_TRUSTED_PROXY_IPS||''});
 const port=Number(process.env.PORT||3000),host=process.env.HOST||'127.0.0.1';
 if(!Number.isInteger(port)||port<0||port>65535)throw Error('PORT должен быть числом от 0 до 65535.');
 const types={'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
@@ -41,10 +44,13 @@ const adminAssets=new Set(['/assets/admin.js','/assets/content-admin.js','/asset
 const removedAssets=new Set(['/assets/editor-seed.js']);
 function redirect(res,destination){res.writeHead(303,{Location:destination,'Cache-Control':'no-store','Vary':'Cookie'});res.end();}
 function probe(res,status,data,head=false){const body=JSON.stringify(data);res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Content-Length':Buffer.byteLength(body)});res.end(head?undefined:body);}
-const server=http.createServer(async(req,res)=>{
+const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,requestTimeout:20000,keepAliveTimeout:5000,connectionsCheckingInterval:1000},async(req,res)=>{
  let requestRoute='unknown';
  try{
   res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');res.setHeader('X-Frame-Options','DENY');
+  res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+  res.setHeader('Cross-Origin-Opener-Policy','same-origin');res.setHeader('Cross-Origin-Resource-Policy','same-origin');
+  if(process.env.ORBITA_PUBLIC_ORIGIN?.startsWith('https://'))res.setHeader('Strict-Transport-Security','max-age=31536000');
   res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'");
   if(!req.url?.startsWith('/')||req.url.startsWith('//'))throw error(400,'Некорректный путь.');
   const url=new URL(req.url,'http://localhost');
@@ -60,11 +66,14 @@ const server=http.createServer(async(req,res)=>{
   const target=path.resolve(root,'.'+(pathname==='/'?'/index.html':pathname));
   if(!target.startsWith(root+path.sep))throw error(403,'Доступ запрещён.');
   const canonical='/'+path.relative(root,target).split(path.sep).join('/');
+  if(canonical.split('/').some((segment,index)=>segment.startsWith('.')&&!(index===1&&segment==='.well-known')))throw error(403,'Доступ запрещён.');
   if(pathname.startsWith('/api/')){
    // Only these provider callbacks bypass the browser Origin requirement. Each
    // service authenticates the untouched body or the provider's secret header.
-   if(webhooks.has(url.pathname)){
-    accounts.checkRequest({method:'GET',headers:req.headers});
+   const webhook=webhooks.has(url.pathname);
+   accounts.checkRequest(webhook?{method:'GET',headers:req.headers}:req);
+   if(!requestSecurity.enter(req,res,{webhook}))return;
+   if(webhook){
     if(await payments.handle(req,res,url,null)||await notifications.handle(req,res,url,null))return;
    }
    accounts.checkRequest(req);
@@ -102,6 +111,7 @@ const server=http.createServer(async(req,res)=>{
   const bytes=await readFile(real);res.writeHead(200,{'Content-Type':(types[path.extname(real)]||'application/octet-stream')+'; charset=utf-8','Cache-Control':'no-store','Vary':'Cookie'});res.end(req.method==='HEAD'?undefined:bytes);
  }catch(e){if(!res.headersSent){if(e.status)json(res,e.status,{error:e.message,...(e.code?{code:e.code}:{})});else safeFailure(res,e,{scope:'server',route:requestRoute});}else res.end();}
 });
+server.maxHeadersCount=100;server.maxRequestsPerSocket=1000;
 server.on('error',e=>{const code=typeof e.code==='string'&&/^[A-Z][A-Z0-9_]{1,63}$/.test(e.code)?e.code:'UNEXPECTED';console.error(code==='EADDRINUSE'?`Port ${port} is busy. Stop the other server or set PORT.`:`ORBITA server error code=${code}`);process.exitCode=1;});
 function interval(name,fallback,min,max){const value=Number(process.env[name]||fallback);if(!Number.isFinite(value)||value<min||value>max)throw Error(`${name}: допустимо от ${min} до ${max}.`);return value;}
 const timers=[],backgroundJobs=new Set();

@@ -28,14 +28,14 @@ test('storage probe validates known stores and removes its canary',async t=>{
 test('production preflight reports missing groups without exposing values',async t=>{
   const {root,publicDir,directory}=await temporary(t),backupDir=path.join(root,'backups');
   const secret='cloud-secret-must-never-appear',env={
-    ORBITA_PUBLIC_ORIGIN:'https://orbita.example',ORBITA_SUPPORT_EMAIL:'support@orbita.example',
+    ORBITA_PUBLIC_ORIGIN:'https://orbita.example',ORBITA_SUPPORT_EMAIL:'support@orbita.example',ORBITA_TRUSTED_PROXY_IPS:'127.0.0.1,::1',
     CLOUDPAYMENTS_PUBLIC_ID:'public-id',CLOUDPAYMENTS_API_SECRET:secret,CLOUDPAYMENTS_TEST_MODE:'false',
     RESEND_API_KEY:'resend-secret',ORBITA_MAIL_FROM:'ORBITA <mail@orbita.example>',ORBITA_REQUIRE_ADMIN_MFA:'true',
     ORBITA_BACKUP_DIR:backupDir,ORBITA_BACKUP_PASSPHRASE:'a-long-backup-passphrase'
   };
-  const ready=inspectConfiguration(env,{production:true,directory,publicDir,nodeVersion:'20.19.0'});
+  const ready=inspectConfiguration(env,{production:true,directory,publicDir,nodeVersion:'24.19.0'});
   assert.equal(ready.ok,true);assert.equal(ready.checks.find(check=>check.name==='TELEGRAM').status,'warn');assert.ok(!JSON.stringify(ready).includes(secret));
-  const partial=inspectConfiguration({CLOUDPAYMENTS_PUBLIC_ID:'only-half'},{production:false,directory,publicDir,nodeVersion:'20.19.0'});
+  const partial=inspectConfiguration({CLOUDPAYMENTS_PUBLIC_ID:'only-half'},{production:false,directory,publicDir,nodeVersion:'24.19.0'});
   assert.equal(partial.ok,false);assert.equal(partial.checks.find(check=>check.name==='CLOUDPAYMENTS').reason,'partial_configuration');
 });
 
