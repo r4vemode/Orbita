@@ -10,3 +10,7 @@ __pycache__/
 !.env.example
 /backups/
 *.orbita-backup
+
+# Optional browser acceptance dependencies and synthetic run artifacts
+/node_modules/
+/qa-artifacts/

@@ -43,3 +43,5 @@ npm run check:mvp
 Ваши данные хранятся в приватном `data/` или в заданном `ORBITA_DATA_DIR`. При обновлении используйте прежний каталог вместе с `.security-key`; порядок переноса — в `docs/testing.md` и `docs/backups.md`. Архив проекта не содержит ваших аккаунтов или секретов.
 
 Статус каждого пункта дорожной карты: [docs/MVP-status.md](docs/MVP-status.md). Сценарии для участников беты: [docs/beta-testing.md](docs/beta-testing.md).
+
+Повторяемый браузерный прогон четырёх ролей и установка его отдельного инструмента описаны в [docs/UI-acceptance.md](docs/UI-acceptance.md). Для вашей личной проверки достаточно `npm run beta:local`.

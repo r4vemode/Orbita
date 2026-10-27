@@ -6,7 +6,7 @@
   const account = await OrbitaAccess.current();
   if (!account) { location.replace('account.html?next=%2Flearn.html'); return; }
   const key = 'orbita.learning.v2.' + account.id;
-  let read = new Set(), category = 'Все темы', selected = 0;
+  let read = new Set(), category = 'Все темы', selected = 0, articleOrigin = null;
   try {
     const saved = JSON.parse(localStorage.getItem(key) || '[]');
     if (Array.isArray(saved)) read = new Set(saved.filter(id => lessons.some(l => l.id === id)));
@@ -43,6 +43,7 @@
     if (index < 0) { if (id) $('resultCount').textContent = 'Этот материал снят с публикации или недоступен по вашей подписке. Выберите другую тему.'; return; }
     selected = index;
     const lesson = lessons[index];
+    if (!$('article').open) articleOrigin = document.activeElement?.closest('[data-lesson]')?.dataset.lesson || id;
     $('articleCategory').textContent = lesson.category + (lesson.access === 'exclusive' ? ' · EXCLUSIVE' : '') + ' / ' + String(index + 1).padStart(2, '0');
     $('articleBody').innerHTML = `<h1 id="articleTitle">${esc(lesson.title)}</h1><p class="article-lead">${esc(lesson.intro)}</p>` + lesson.sections.map(s => `<section><h2>${esc(s.title)}</h2><p>${esc(s.text)}</p></section>`).join('') + (sources[id] ? `<p class="article-source"><a href="${sources[id][1]}" target="_blank" rel="noopener noreferrer">${sources[id][0]} ↗</a></p>` : '');
     $('markRead').textContent = read.has(id) ? '✓ Прочитано' : 'Отметить прочитанным';
@@ -67,7 +68,12 @@
   };
   $('search').oninput = render;
   $('closeArticle').onclick = () => $('article').close();
-  $('article').addEventListener('close', () => setArticleUrl(null));
+  $('article').addEventListener('close', () => {
+    setArticleUrl(null);
+    const cards = [...$('lessons').querySelectorAll('[data-lesson]')];
+    (cards.find(card => card.dataset.lesson === articleOrigin) || cards[0] || $('search')).focus();
+    articleOrigin = null;
+  });
   $('article').onclick = event => {
     if (event.target !== $('article')) return;
     const rect = event.target.getBoundingClientRect();

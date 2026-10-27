@@ -1,8 +1,14 @@
 (async () => {
   const parameters = new URLSearchParams(location.search), A = OrbitaAccess;
   const $ = id => document.getElementById(id), form = $('accountForm'), message = $('message'), submit = $('submit'), switcher = $('switch');
-  let register = parameters.get('mode') === 'register', legalVersion = 'ORBITA-2026-10-20', challenge = null;
-  const selected = parameters.get('plan'), plan = ['orbita-exclusive', 'exclusive'].includes(selected) ? 'exclusive' : selected === 'pro' ? 'pro' : null;
+  let register = parameters.get('mode') === 'register', legalVersion = null, challenge = null, submitting = false, configurationError = null, configurationPromise;
+  const normalizePlan = value => ['orbita-exclusive', 'exclusive'].includes(value) ? 'exclusive' : value === 'pro' ? 'pro' : null;
+  let inheritedPlan = null;
+  if (parameters.get('next')) {
+    const nextUrl = new URL(A.safeNext(parameters.get('next'), '/subscriptions.html'), location.origin);
+    if (nextUrl.pathname === '/subscriptions.html') inheritedPlan = normalizePlan(nextUrl.searchParams.get('plan'));
+  }
+  const plan = normalizePlan(parameters.get('plan')) || inheritedPlan;
   function render() {
     $('title').textContent = challenge ? 'Подтвердите вход.' : register ? 'Ваша новая орбита.' : 'С возвращением.';
     $('subtitle').textContent = challenge ? 'Введите код приложения-аутентификатора или один из сохранённых резервных кодов.' : register ? plan ? `Вы выбрали ${plan === 'exclusive' ? 'Orbita Exclusive — 4 999' : 'Orbita Pro — 2 999'} ₽ за 30 дней. Сначала создайте аккаунт и подтвердите email.` : 'Создайте аккаунт и подтвердите email. Доступ к сервисам открывается по подписке.' : 'Войдите в аккаунт, чтобы проверить подписку и открыть кабинет.';
@@ -29,16 +35,23 @@
     else if (user.access?.hasSubscription) location.assign('/app.html');
     else location.assign('/subscriptions.html' + (chosenPlan ? '?plan=' + chosenPlan : ''));
   }
+  async function loadConfiguration() {
+    configurationError = null;
+    try {
+      const configuration = await A.request('/api/public-config');
+      if (typeof configuration?.legalVersion !== 'string' || !configuration.legalVersion.trim()) throw Error('Не удалось загрузить условия регистрации. Повторите попытку.');
+      legalVersion = configuration.legalVersion;
+    } catch (error) { configurationError = error; if (!submitting) message.textContent = error.message; }
+  }
   switcher.onclick = () => { register = !register; form.elements.password.value = ''; render(); };
   $('cancelMfa').onclick = () => { challenge = null; form.elements.password.value = ''; form.elements.code.value = ''; render(); form.elements.email.focus(); };
   render();
-  try { const configuration = await A.request('/api/public-config'); if (configuration.legalVersion) legalVersion = configuration.legalVersion; }
-  catch (error) { message.textContent = error.message; }
   form.onsubmit = async event => {
-    event.preventDefault(); submit.disabled = switcher.disabled = $('cancelMfa').disabled = true; message.textContent = '';
+    event.preventDefault(); if (submitting) return; submitting = true; submit.disabled = switcher.disabled = $('cancelMfa').disabled = true; message.textContent = '';
     try {
       if (location.protocol === 'file:') throw Error('Регистрация работает через сервер. Запустите npm start и откройте адрес из терминала.');
       if (challenge) { const data = await A.request('/api/security/mfa/login', { method: 'POST', body: JSON.stringify({ challenge, code: form.elements.code.value.trim() }) }); form.elements.code.value = ''; go(data.user); return; }
+      if (register) { message.textContent = 'Загружаем условия регистрации…'; if (configurationError) configurationPromise = loadConfiguration(); await configurationPromise; if (configurationError) throw configurationError; message.textContent = ''; }
       const body = { email: form.elements.email.value.trim(), password: form.elements.password.value };
       if (register) Object.assign(body, { acceptTerms: form.elements.acceptTerms.checked, acceptPrivacy: form.elements.acceptPrivacy.checked, legalVersion, ...(plan ? {plan} : {}) });
       const data = await A.request(register ? '/api/register' : '/api/login', { method: 'POST', body: JSON.stringify(body) });
@@ -49,6 +62,11 @@
       }
       go(data.user);
     } catch (error) { message.textContent = error.message || 'Не удалось подключиться к серверу.'; }
-    finally { submit.disabled = switcher.disabled = $('cancelMfa').disabled = false; }
+    finally { submitting = false; submit.disabled = switcher.disabled = $('cancelMfa').disabled = false; }
   };
+  // Bind submit before the first asynchronous operation. The form must never
+  // fall back to browser GET submission while configuration is slow or missing.
+  configurationPromise = loadConfiguration();
+  submit.disabled = false;
+  await configurationPromise;
 })();

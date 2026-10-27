@@ -11,7 +11,11 @@
     "dev": "node server.mjs",
     "preflight": "node scripts/preflight.mjs",
     "check:mvp": "node scripts/check-mvp.mjs",
+    "check:ui": "node scripts/check-ui.mjs",
     "beta:local": "node scripts/beta-local.mjs",
     "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
   }
 }
