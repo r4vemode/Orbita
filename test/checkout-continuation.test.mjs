@@ -9,7 +9,7 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
 const key = 'orbita.checkout.v1.test-user';
 const makeOrder = (plan, status = 'pending', id = 'order-' + randomUUID()) => ({ id, plan, status, amount: plan === 'pro' ? 2999 : 4999, currency: 'RUB', checkoutUrl: 'https://orders.cloudpayments.ru/orders/' + id });
 
-async function page({ storage = new Map(), search = '?plan=pro', checkout, orders = new Map(), preferred = null, verified = true } = {}) {
+async function page({ storage = new Map(), search = '?plan=pro', checkout, orders = new Map(), preferred = null, verified = true, legalVersion,checkoutEnabled=true } = {}) {
   const nodes = new Map(), listeners = {}, calls = [], remembered = [], navigation = [];
   const element = () => ({ hidden: false, disabled: false, textContent: '', scrollIntoView() {}, removeAttribute(name) { delete this[name]; } });
   const node = id => { if (!nodes.has(id)) nodes.set(id, element()); return nodes.get(id); };
@@ -20,8 +20,8 @@ async function page({ storage = new Map(), search = '?plan=pro', checkout, order
     plans: { pro: { name: 'Orbita Pro', price: 2999 }, exclusive: { name: 'Orbita Exclusive', price: 4999 } },
     current: async () => user, preferredPlan: () => preferred, rememberPlan: (...args) => remembered.push(args),
     request: async (url, options = {}) => {
-      if (url === '/api/public-config') return { paymentsAvailable: true, mailEnabled: true };
-      if (url === '/api/payments/config') return { configured: true, provider: 'cloudpayments' };
+      if (url === '/api/public-config') return { paymentsAvailable: true, mailEnabled: true,legalVersion:typeof legalVersion==='function'?legalVersion():legalVersion };
+      if (url === '/api/payments/config') return { configured: true, checkoutEnabled, provider: 'cloudpayments' };
       if (url === '/api/payments/checkout') { const body = JSON.parse(options.body); calls.push(body); return checkout ? checkout(body, calls.length) : { order: makeOrder(body.plan) }; }
       if (url.startsWith('/api/payments/orders/')) {
         const order = orders.get(url.split('/').at(-1));
@@ -116,4 +116,20 @@ test('returning creating order without its original request allows status checks
   await p.choose('exclusive'); assert.equal(p.node('createCheckout').disabled, false);
   await p.choose('pro'); assert.equal(p.node('createCheckout').disabled, true);
   await p.start(); assert.equal(p.calls.length, 0);
+});
+
+test('checkout preserves a legal edition across unknown results and requires another explicit click after a stale-edition response',async()=>{
+  let current='ORBITA-2026-10-27-1';
+  const p=await page({legalVersion:()=>current,checkout:(body,count)=>{
+    if(count===1){current='ORBITA-2026-10-27-2';throw Object.assign(Error('Terms changed'),{status:409,code:'LEGAL_VERSION_CHANGED'});}
+    return {order:{...makeOrder(body.plan),legalVersion:body.legalVersion}};
+  }});
+  await p.start();assert.equal(p.calls.length,1);assert.equal(p.calls[0].legalVersion,'ORBITA-2026-10-27-1');assert.match(p.node('checkoutOfferLink').href,/version=ORBITA-2026-10-27-2/);assert.match(p.node('subscriptionError').textContent,/снова нажмите/);
+  await p.start();assert.equal(p.calls.length,2);assert.equal(p.calls[1].legalVersion,current);assert.equal(p.calls[1].requestId,p.calls[0].requestId);
+  const unknown=await page({legalVersion:'ORBITA-2026-10-27-1',checkout:()=>{throw Error('Connection interrupted');}});await unknown.start();
+  const reloaded=await page({storage:unknown.storage,legalVersion:current,checkout:()=>{throw Error('Still unknown');}});await reloaded.start();assert.equal(reloaded.calls[0].legalVersion,'ORBITA-2026-10-27-1');assert.equal(reloaded.calls[0].requestId,unknown.calls[0].requestId);
+});
+
+test('a configured provider with closed sales never enables checkout',async()=>{
+  const p=await page({checkoutEnabled:false});assert.equal(p.node('createCheckout').disabled,true);await p.start();assert.equal(p.calls.length,0);
 });

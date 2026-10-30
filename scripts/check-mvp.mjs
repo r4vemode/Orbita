@@ -50,7 +50,7 @@ async function start(directory){
 async function request(server,route,{method='GET',body,cookie}={}){
   const response=await fetch(server.base+route,{method,redirect:'manual',headers:{Origin:server.base,...(body!==undefined?{'Content-Type':'application/json'}:{}),...(cookie?{Cookie:cookie}:{})},...(body!==undefined?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(10000)});
   const raw=await response.text();let data;try{data=JSON.parse(raw);}catch{}
-  return {status:response.status,data,cookie:response.headers.get('set-cookie')?.split(';')[0],location:response.headers.get('location')};
+  return {status:response.status,data,text:raw,cookie:response.headers.get('set-cookie')?.split(';')[0],location:response.headers.get('location')};
 }
 function status(result,expected,message){if(result.status!==expected)throw Error(message);return result;}
 function full(ticker,strategy='Momentum RU'){return {mode:'full',d:{ticker,name:'Учебный инструмент',dir:'ЛОНГ',market:'stocks',strategy,title:'Проверка локального MVP',summary:'Вымышленный сценарий для проверки.',entry:100,stop:95,target:110,horizon:'1–5 дней',thesis:'Учебные условия без связи с рыночными данными.',entryRule:'Подтверждение автора.',cancelRule:'Выход по стопу.'}};}
@@ -122,21 +122,63 @@ async function main(){
     if(failures)throw Error('Локальная нагрузочная репетиция обнаружила ошибки.');samples.sort((a,b)=>a-b);const percentile=fraction=>Math.round(samples[Math.min(samples.length-1,Math.ceil(samples.length*fraction)-1)]);
     mark(`Локальная нагрузка: ${total} запросов, ${workers} параллельно, ошибок 0, p50 ${percentile(.5)} мс, p95 ${percentile(.95)} мс`);
 
+    stage='юридические документы и согласия';
+    const originalOffer=status(await request(server,'/offer.html?version='+LEGAL_VERSION),200,'Не открылась исходная редакция оферты.').text;
+    status(await request(server,'/api/admin/legal'),401,'Гость получил юридический черновик.');
+    status(await request(server,'/api/admin/legal',{cookie:client.cookie}),403,'Клиент получил юридический черновик.');
+    status(await request(server,'/api/admin/legal/preview?document=offer'),401,'Гость открыл юридический предпросмотр.');
+    const legalState=status(await request(server,'/api/admin/legal',{cookie:owner.cookie}),200,'Не открылись реквизиты.').data;
+    assert.equal(legalState.currentVersion,null);assert.equal(legalState.readiness.ready,false);
+    // A checksum-valid, explicitly synthetic identity, used only in this temporary
+    // rehearsal. These details must never become defaults for a real operator.
+    const digit=(value,weights)=>String(weights.reduce((sum,weight,index)=>sum+weight*Number(value[index]),0)%11%10),prefix='9900000000',eleven=prefix+digit(prefix,[7,2,4,10,3,5,9,4,6,8]);
+    const profile={ownerKind:'self-employed',ownerName:'Вымышленный исполнитель репетиции',inn:eleven+digit(eleven,[3,7,2,4,10,3,5,9,4,6,8]),ogrn:'',address:'Учебный адрес изолированной проверки',supportEmail:'support@example.test',privacyEmail:'privacy@example.test',hostingDetails:'Временная локальная среда репетиции; настоящее размещение не настроено.',processorsDetails:'Учебная проверка: внешние провайдеры не подключены, реальные данные не передаются.'};
+    const savedLegal=status(await request(server,'/api/admin/legal',{method:'PUT',cookie:owner.cookie,body:{revision:legalState.revision,profile}}),200,'Не сохранён юридический черновик.').data;
+    assert.equal(savedLegal.readiness.ready,true);
+    const publicDraft=status(await request(server,'/api/legal'),200,'Не открылась публичная версия документов.').data;
+    assert.equal(publicDraft.published,false);assert.equal(publicDraft.profile.ownerName,'');
+    assert.equal((await request(server,'/offer.html')).text,originalOffer);
+    const preview=status(await request(server,'/api/admin/legal/preview?document=offer',{cookie:owner.cookie}),200,'Не открылся приватный предпросмотр.').text;assert.ok(preview.includes(profile.ownerName));
+    status(await admin('/api/admin/legal/publish',{revision:savedLegal.revision}),400,'Публикация разрешена без свежего подтверждения.');
+    status(await admin('/api/admin/legal/publish',{revision:savedLegal.revision,password:'incorrect-rehearsal-password'}),401,'Публикация разрешена с неверным паролем.');
+    assert.equal((await request(server,'/api/legal')).data.published,false);
+    const publishedLegal=status(await admin('/api/admin/legal/publish',{revision:savedLegal.revision,password}),200,'Документы не опубликованы после свежего подтверждения.').data;
+    const legalVersion=publishedLegal.currentVersion;assert.notEqual(legalVersion,LEGAL_VERSION);assert.equal(publishedLegal.versions.length,1);
+    const publicLegal=status(await request(server,'/api/legal'),200,'Не открылась опубликованная редакция.').data;
+    assert.equal(publicLegal.version,legalVersion);assert.equal(publicLegal.profile.ownerName,profile.ownerName);assert.equal(publicLegal.published,true);
+    const publishedOffer=status(await request(server,'/offer.html?version='+encodeURIComponent(legalVersion)),200,'Не открылась опубликованная оферта.').text;
+    assert.ok(publishedOffer.includes(profile.ownerName));assert.ok(publishedOffer.includes(legalVersion));assert.ok(!publishedOffer.includes('class="legal-placeholder"'));
+    assert.equal((await request(server,'/offer.html?version='+LEGAL_VERSION)).text,originalOffer);
+    assert.equal((await request(server,'/api/public-config')).data.legalVersion,legalVersion);
+    const staleConsent=status(await request(server,'/api/register',{method:'POST',body:{email:'rehearsal-new-client@example.test',password,acceptTerms:true,acceptPrivacy:true,legalVersion:LEGAL_VERSION}}),409,'Принято согласие с устаревшей редакцией.');assert.equal(staleConsent.data.code,'LEGAL_VERSION_CHANGED');
+    const newClient=status(await request(server,'/api/register',{method:'POST',body:{email:'rehearsal-new-client@example.test',password,acceptTerms:true,acceptPrivacy:true,legalVersion}}),200,'Не зарегистрирован клиент с актуальным согласием.');
+    const consentDatabase=await accounts.readDatabase();assert.equal(consentDatabase.users.find(user=>user.id===newClient.data.user.id).consents.legalVersion,legalVersion);assert.equal(consentDatabase.users.find(user=>user.id===client.data.user.id).consents.legalVersion,LEGAL_VERSION);
+    const laterDraftOwner='Следующий приватный черновик репетиции';
+    status(await request(server,'/api/admin/legal',{method:'PUT',cookie:owner.cookie,body:{revision:publishedLegal.revision,profile:{...profile,ownerName:laterDraftOwner}}}),200,'Не сохранён последующий черновик.');
+    assert.equal((await request(server,'/api/legal')).data.profile.ownerName,profile.ownerName);assert.equal((await request(server,'/offer.html')).text,publishedOffer);
+    mark('Приватные реквизиты, свежее подтверждение публикации, архив редакций и согласия клиентов');
+
     stage='перезапуск';await server.stop();server=await start(directory);servers.push(server);
     assert.equal((await request(server,'/api/me',{cookie:client.cookie})).data.user.id,client.data.user.id);assert.equal((await request(server,'/api/positions',{cookie:client.cookie})).data.positions[0].entry,101);assert.deepEqual((await request(server,'/api/watchlist',{cookie:client.cookie})).data.ids,[long.id]);
     status(await request(server,'/api/ideas/'+quick.id,{cookie:client.cookie}),200,'История не пережила перезапуск.');
     assert.equal((await request(server,'/api/product-settings')).data.authorName,'Редакция теста');assert.ok((await request(server,'/api/lessons',{cookie:client.cookie})).data.lessons.some(lesson=>lesson.id===published.id));
+    assert.equal((await request(server,'/api/public-config')).data.legalVersion,legalVersion);assert.equal((await request(server,'/offer.html?version='+encodeURIComponent(legalVersion))).text,publishedOffer);
     mark('Перезапуск сохраняет аккаунты, сессии, подписки, историю, материалы и настройки');
 
     stage='копия и восстановление';await server.stop();
     const passphrase='isolated rehearsal backup passphrase',backup=await createBackup({dataDir:directory,backupDir:path.join(root,'backups'),passphrase,publicDir:path.join(project,'public')});
-    const verified=await verifyBackup({file:backup.file,passphrase});for(const name of ['.security-key','content.json','product-settings.json'])assert.ok(verified.files.some(file=>file.path===name));const restored=path.join(root,'restored');
+    const verified=await verifyBackup({file:backup.file,passphrase});for(const name of ['.security-key','content.json','product-settings.json','legal.json'])assert.ok(verified.files.some(file=>file.path===name));const restored=path.join(root,'restored');
     await restoreBackup({file:backup.file,destination:restored,passphrase,publicDir:path.join(project,'public')});
     assert.deepEqual(await readFile(path.join(directory,'.security-key')),await readFile(path.join(restored,'.security-key')));
     server=await start(restored);servers.push(server);assert.equal((await request(server,'/api/positions',{cookie:client.cookie})).data.positions[0].exit,108);assert.equal((await request(server,'/api/ideas/'+quick.id,{cookie:client.cookie})).data.record.meta.events.length,5);
     const recoveredSettings=status(await request(server,'/api/admin/settings',{cookie:owner.cookie}),200,'Настройки не восстановлены.').data.settings;
     assert.equal(recoveredSettings.authorName,'Редакция теста');assert.equal(recoveredSettings.supportEmail,'');assert.ok(recoveredSettings.partnerOffers.every(offer=>offer.url===''));
     const recoveredMaterial=(await request(server,'/api/lessons',{cookie:client.cookie})).data.lessons.find(lesson=>lesson.id===published.id);assert.equal(recoveredMaterial?.title,material.title);assert.equal(recoveredMaterial?.access,'exclusive');
+    const recoveredLegal=status(await request(server,'/api/admin/legal',{cookie:owner.cookie}),200,'Юридическая история не восстановлена.').data;
+    assert.equal(recoveredLegal.currentVersion,legalVersion);assert.equal(recoveredLegal.draft.ownerName,laterDraftOwner);assert.equal(recoveredLegal.versions.length,1);
+    assert.equal((await request(server,'/api/legal')).data.profile.ownerName,profile.ownerName);assert.equal((await request(server,'/api/public-config')).data.legalVersion,legalVersion);
+    assert.equal((await request(server,'/offer.html?version='+encodeURIComponent(legalVersion))).text,publishedOffer);assert.equal((await request(server,'/offer.html?version='+LEGAL_VERSION)).text,originalOffer);
+    const recoveredAccounts=JSON.parse(await readFile(path.join(restored,'accounts.json'),'utf8'));assert.equal(recoveredAccounts.users.find(user=>user.id===newClient.data.user.id).consents.legalVersion,legalVersion);assert.equal(recoveredAccounts.users.find(user=>user.id===client.data.user.id).consents.legalVersion,LEGAL_VERSION);
     status(await request(server,'/api/admin/ideas',{cookie:owner.cookie}),200,'Права редакции не восстановлены.');mark('Зашифрованная копия восстановлена в отдельную базу; приложение открыло её');
     stage='отзыв';
     for(const plan of ['pro','exclusive'])status(await request(server,'/api/admin/subscriptions',{method:'POST',cookie:owner.cookie,body:{userId:client.data.user.id,plan,expiresAt:null,reason:'Проверка отзыва после восстановления'}}),200,'Не отозван доступ после восстановления.');

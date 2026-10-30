@@ -8,7 +8,7 @@ export async function runLayoutFlows({session,browser,record,outputDir}){
     const owner=session.accounts.find(account=>account.role==='admin');
     const login=await context.request.post(session.base+'/api/login',{headers:{Origin:session.base},data:{email:owner.email,password:owner.password}});assert.equal(login.status(),200);
     const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.name));
-    const widths=[320,390,768,1440],pages=['index.html','account.html?mode=register','subscriptions.html','security.html','notifications.html','strategies.html','strategy.html?strategy=orbita-exclusive','calculator.html','learn.html','app.html','admin.html','content-admin.html','settings-admin.html','launch-admin.html','guide.html','brokers.html','offer.html','privacy.html','refunds.html'];
+    const widths=[320,390,768,1440],pages=['index.html','account.html?mode=register','subscriptions.html','security.html','notifications.html','strategies.html','strategy.html?strategy=orbita-exclusive','calculator.html','learn.html','app.html','admin.html','content-admin.html','settings-admin.html','launch-admin.html','legal-admin.html','guide.html','brokers.html','offer.html','privacy.html','refunds.html'];
     async function inspect(label){
       for(const width of widths)await record(`Адаптивность: ${label}, ${width}px`,async()=>{
         await page.setViewportSize({width,height:1000});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));

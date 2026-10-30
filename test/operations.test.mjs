@@ -29,7 +29,7 @@ test('production preflight reports missing groups without exposing values',async
   const {root,publicDir,directory}=await temporary(t),backupDir=path.join(root,'backups');
   const secret='cloud-secret-must-never-appear',env={
     ORBITA_PUBLIC_ORIGIN:'https://orbita.example',ORBITA_SUPPORT_EMAIL:'support@orbita.example',ORBITA_TRUSTED_PROXY_IPS:'127.0.0.1,::1',
-    CLOUDPAYMENTS_PUBLIC_ID:'public-id',CLOUDPAYMENTS_API_SECRET:secret,CLOUDPAYMENTS_TEST_MODE:'false',
+    CLOUDPAYMENTS_PUBLIC_ID:'public-id',CLOUDPAYMENTS_API_SECRET:secret,CLOUDPAYMENTS_TEST_MODE:'false',ORBITA_LIVE_PAYMENTS_ENABLED:'true',ORBITA_RECEIPTS_CONFIRMED:'true',
     RESEND_API_KEY:'resend-secret',ORBITA_MAIL_FROM:'ORBITA <mail@orbita.example>',ORBITA_REQUIRE_ADMIN_MFA:'true',
     ORBITA_BACKUP_DIR:backupDir,ORBITA_BACKUP_PASSPHRASE:'a-long-backup-passphrase'
   };

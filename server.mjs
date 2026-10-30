@@ -11,10 +11,12 @@ import {createBackup} from './lib/backups.mjs';
 import {createContent} from './lib/content.mjs';
 import {createProductSettings} from './lib/product-settings.mjs';
 import {buildMvpMetrics} from './lib/mvp-metrics.mjs';
-import {LEGAL_VERSION,PLANS,hasSubscription,isAdmin,requireAdmin,requireMember} from './lib/access.mjs';
+import {PLANS,hasSubscription,isAdmin,requireAdmin,requireMember} from './lib/access.mjs';
 import {json,readJson,error,safeFailure} from './lib/http.mjs';
 import {checkStorage,createReadiness} from './lib/operations.mjs';
 import {createRequestSecurity} from './lib/request-security.mjs';
+import {createLegal} from './lib/legal.mjs';
+import {createSalesGate} from './lib/sales-gate.mjs';
 if(Number(process.versions.node.split('.')[0])<22)throw Error(`Для ORBITA нужен Node.js 22 или новее; рекомендуется Node.js 24 LTS. Сейчас установлен Node.js ${process.versions.node}. Обновите Node.js и повторите npm start.`);
 const root=await realpath(fileURLToPath(new URL('./public/',import.meta.url)));
 const configuredDirectory=process.env.ORBITA_DATA_DIR||fileURLToPath(new URL('./data/',import.meta.url));
@@ -26,8 +28,11 @@ if(directory===root||directory.startsWith(root+path.sep))throw Error('ORBITA_DAT
 const mfaSetting=process.env.ORBITA_REQUIRE_ADMIN_MFA;
 if(mfaSetting!==undefined&&!['true','false','1','0'].includes(mfaSetting))throw Error('ORBITA_REQUIRE_ADMIN_MFA: используйте true или false.');
 if(process.env.ORBITA_PUBLIC_ORIGIN?.startsWith('https://')&&['false','0'].includes(mfaSetting))throw Error('Для публичного HTTPS-сайта MFA администратора нельзя отключить.');
-const accounts=await createAccounts(directory,mfaSetting===undefined?{}:{requireAdminMfa:['true','1'].includes(mfaSetting)}),ideas=await createIdeas(directory),news=createNews(directory);
-const payments=await createPayments(directory,{accounts});
+let accounts;
+const legal=await createLegal(directory,{templateDir:root,authorizePublish:(req,credentials)=>accounts.authorizeSensitive(req,credentials)});
+accounts=await createAccounts(directory,{...(mfaSetting===undefined?{}:{requireAdminMfa:['true','1'].includes(mfaSetting)}),legalVersionProvider:async()=>(await legal.readPublic()).version});
+const ideas=await createIdeas(directory),news=createNews(directory);
+const payments=await createPayments(directory,{accounts,checkoutGate:createSalesGate({legal})});
 const notifications=await createNotifications(directory,{accounts,ideas});
 const content=await createContent(directory),productSettings=await createProductSettings(directory);
 const readiness=createReadiness({directory,publicDir:root});
@@ -38,9 +43,9 @@ if(!Number.isInteger(port)||port<0||port>65535)throw Error('PORT должен б
 const types={'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
 const memberPages=new Set(['/app.html','/calculator.html','/learn.html']);
 const accountPages=new Set(['/subscriptions.html','/security.html','/notifications.html']);
-const adminPages=new Set(['/admin.html','/content-admin.html','/settings-admin.html','/launch-admin.html']);
+const adminPages=new Set(['/admin.html','/content-admin.html','/settings-admin.html','/launch-admin.html','/legal-admin.html']);
 const paidAssets=new Set(['/assets/app.js','/assets/signal-visual.js','/assets/calculator.js','/assets/learning-data.js','/assets/learning.js','/assets/news.js','/assets/personal.js']);
-const adminAssets=new Set(['/assets/admin.js','/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js']);
+const adminAssets=new Set(['/assets/admin.js','/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js']);
 const removedAssets=new Set(['/assets/editor-seed.js']);
 function redirect(res,destination){res.writeHead(303,{Location:destination,'Cache-Control':'no-store','Vary':'Cookie'});res.end();}
 function probe(res,status,data,head=false){const body=JSON.stringify(data);res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Content-Length':Buffer.byteLength(body)});res.end(head?undefined:body);}
@@ -80,8 +85,8 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
    if(await accounts.handle(req,res,url))return;
    const user=await accounts.identify(req);
    if(await payments.handle(req,res,url,user)||await notifications.handle(req,res,url,user))return;
-   if(await content.handle(req,res,url,user)||await productSettings.handle(req,res,url,user))return;
-   if(url.pathname==='/api/public-config'&&req.method==='GET'){const settings=await productSettings.readPublic();json(res,200,{legalVersion:LEGAL_VERSION,plans:PLANS,paymentsAvailable:payments.configured,mailEnabled:accounts.emailConfigured,telegramEnabled:notifications.configured,supportEmail:settings.supportEmail||process.env.ORBITA_SUPPORT_EMAIL||null,authorName:settings.authorName,editorialNote:settings.editorialNote});return;}
+   if(await legal.handle(req,res,url,user)||await content.handle(req,res,url,user)||await productSettings.handle(req,res,url,user))return;
+   if(url.pathname==='/api/public-config'&&req.method==='GET'){const settings=await productSettings.readPublic(),paymentConfig=await payments.publicConfig(),publication=await legal.readPublic();json(res,200,{legalVersion:await accounts.currentLegalVersion(),plans:PLANS,paymentsAvailable:paymentConfig.checkoutEnabled,mailEnabled:accounts.emailConfigured,telegramEnabled:notifications.configured,supportEmail:settings.supportEmail||process.env.ORBITA_SUPPORT_EMAIL||publication.profile.supportEmail||null,authorName:settings.authorName,editorialNote:settings.editorialNote});return;}
    if(url.pathname==='/api/admin/readiness'){requireAdmin(user);if(req.method!=='GET')throw error(405,'Метод не поддерживается.');const settings=await productSettings.readPublic();json(res,200,await readiness.adminReport({supportEmail:settings.supportEmail}));return;}
    if(url.pathname==='/api/admin/metrics'){requireAdmin(user);if(req.method!=='GET')throw error(405,'Метод не поддерживается.');let billing;try{billing=JSON.parse(await readFile(path.join(directory,'billing.json'),'utf8'));}catch(cause){if(cause.code!=='ENOENT')throw cause;}json(res,200,{metrics:buildMvpMetrics({accounts:await accounts.readDatabase(),billing}),checkedAt:new Date().toISOString()});return;}
    if(url.pathname==='/api/ideas'&&req.method==='GET'){json(res,200,await ideas.list(user));return;}
@@ -108,7 +113,8 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
   }
   const real=await realpath(target).catch(e=>{if(e.code==='ENOENT'||e.code==='ENOTDIR')throw error(404,'Файл не найден.');throw e;});
   if(!real.startsWith(root+path.sep)||real!==target)throw error(403,'Доступ запрещён.');
-  const bytes=await readFile(real);res.writeHead(200,{'Content-Type':(types[path.extname(real)]||'application/octet-stream')+'; charset=utf-8','Cache-Control':'no-store','Vary':'Cookie'});res.end(req.method==='HEAD'?undefined:bytes);
+  const documentName={'/offer.html':'offer','/privacy.html':'privacy','/refunds.html':'refunds'}[canonical];
+  const bytes=documentName?Buffer.from(await legal.renderPage(documentName,{version:url.searchParams.get('version')||undefined})):await readFile(real);res.writeHead(200,{'Content-Type':(types[path.extname(real)]||'application/octet-stream')+'; charset=utf-8','Cache-Control':'no-store','Vary':'Cookie'});res.end(req.method==='HEAD'?undefined:bytes);
  }catch(e){if(!res.headersSent){if(e.status)json(res,e.status,{error:e.message,...(e.code?{code:e.code}:{})});else safeFailure(res,e,{scope:'server',route:requestRoute});}else res.end();}
 });
 server.maxHeadersCount=100;server.maxRequestsPerSocket=1000;
@@ -131,7 +137,7 @@ let stopping=false;
 async function stop(){
  if(stopping)return;stopping=true;readiness.setDraining();timers.forEach(clearInterval);
  const closeHttp=server.listening?new Promise(resolve=>server.close(()=>resolve())):Promise.resolve();
- server.closeIdleConnections?.();const work=Promise.allSettled([closeHttp,notifications.close(),accounts.flushMail(),content.close(),Promise.allSettled([...backgroundJobs])]);let timer;
+ server.closeIdleConnections?.();const work=Promise.allSettled([closeHttp,notifications.close(),accounts.flushMail(),content.close(),legal.close(),Promise.allSettled([...backgroundJobs])]);let timer;
  const outcome=await Promise.race([work.then(()=>true),new Promise(resolve=>{timer=setTimeout(()=>resolve(false),10000);})]);clearTimeout(timer);
  if(!outcome){console.error('ORBITA shutdown timeout: процесс завершён принудительно.');server.closeAllConnections?.();process.exit(1);}
 }
