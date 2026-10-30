@@ -12,6 +12,8 @@ import {runLayoutFlows} from './qa-layout-flows.mjs';
 import {runLegalFlows} from './qa-legal-flows.mjs';
 import {runRadarFlows} from './qa-radar-flows.mjs';
 import {runRadarAdminFlows} from './qa-radar-admin-flows.mjs';
+import {runIdeaAlertFlows} from './qa-idea-alerts-flows.mjs';
+import {runParticipantsFlows} from './qa-participants-flows.mjs';
 
 const project=fileURLToPath(new URL('../',import.meta.url));
 export async function runUiAcceptance(args=process.argv.slice(2)){
@@ -31,7 +33,7 @@ export async function runUiAcceptance(args=process.argv.slice(2)){
   let browser,failed=false;
   try{
     browser=await playwright[engine].launch({headless:!args.includes('--headed'),...(executablePath?{executablePath}:{})});report.browserVersion=browser.version();
-    for(const [name,run]of [['Аккаунт',runAuthFlows],['Редакция',runAdminFlows],['Кабинеты клиентов',runClientFlows],['Документы и реквизиты',runLegalFlows],['Radar',runRadarFlows],['Редакция Radar',runRadarAdminFlows],['Адаптивность',runLayoutFlows]]){
+    for(const [name,run]of [['Аккаунт',runAuthFlows],['Редакция',runAdminFlows],['Кабинеты клиентов',runClientFlows],['Документы и реквизиты',runLegalFlows],['Radar',runRadarFlows],['Редакция Radar',runRadarAdminFlows],['Уведомления идей',runIdeaAlertFlows],['Позиции участников',runParticipantsFlows],['Адаптивность',runLayoutFlows]]){
       controller.signal.throwIfAborted();let session;const suite={name,status:'running',checks:0};report.suites.push(suite);
       try{
         session=await startLocalBeta({signal:controller.signal});

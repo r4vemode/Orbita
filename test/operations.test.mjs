@@ -37,6 +37,8 @@ test('production preflight reports missing groups without exposing values',async
   assert.equal(ready.ok,true);assert.equal(ready.checks.find(check=>check.name==='TELEGRAM').status,'warn');assert.ok(!JSON.stringify(ready).includes(secret));
   const partial=inspectConfiguration({CLOUDPAYMENTS_PUBLIC_ID:'only-half'},{production:false,directory,publicDir,nodeVersion:'24.19.0'});
   assert.equal(partial.ok,false);assert.equal(partial.checks.find(check=>check.name==='CLOUDPAYMENTS').reason,'partial_configuration');
+  const invalidPositions=inspectConfiguration({...env,MOEX_POSITIONS_MODE:'invalid',MOEX_API_KEY:'private-value-not-for-diagnostics'},{production:true,directory,publicDir,nodeVersion:'24.19.0'});
+  assert.equal(invalidPositions.ok,false);assert.equal(invalidPositions.checks.find(check=>check.name==='MOEX_POSITIONS_CONFIGURATION').reason,'invalid_positions_configuration');assert.ok(!JSON.stringify(invalidPositions).includes('private-value-not-for-diagnostics'));
 });
 
 async function startServer(t,directory){

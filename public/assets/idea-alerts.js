@@ -1,9 +1,16 @@
 (async () => {
   if (new URLSearchParams(location.search).has('embed') || !window.OrbitaStore || !document.querySelector('header')) return;
+  // Keep the shared dialog independent of each page's forms and modal styles.
+  const stylesReady = new Promise(resolve => {
+    const existing = document.getElementById('orbitaIdeaAlertsStyles');
+    if (existing) { resolve(); return; }
+    const link = document.createElement('link'); link.id = 'orbitaIdeaAlertsStyles'; link.rel = 'stylesheet'; link.href = '/assets/idea-alerts.css';
+    link.onload = resolve; link.onerror = resolve; document.head.append(link);
+  });
   const S = window.OrbitaStore, esc = S.escape;
   const initial = () => ({ initialized: false, seen: [], itemIds: [], readIds: [], strategies: [], popups: true });
   let user = null, key = null, state = initial(), items = [], records = [], watched = new Set(), personal = new Set();
-  let allowedStrategies = [], busy = false, queued = false, timer, active = false;
+  let allowedStrategies = [], busy = false, queued = false, timer, active = false, lastDialogFocus = null;
 
   // Older versions saved signal text. Keep only preferences and event IDs from now on.
   try {
@@ -53,11 +60,12 @@
 
   const trigger = document.createElement('button');
   trigger.className = 'alerts-trigger'; trigger.type = 'button'; trigger.hidden = true;
+  trigger.setAttribute('aria-haspopup', 'dialog'); trigger.setAttribute('aria-controls', 'ideaAlertsDialog'); trigger.setAttribute('aria-expanded', 'false');
   trigger.innerHTML = 'Обновления идей <b>0</b>';
   document.querySelector('header').append(trigger);
-  const dialog = document.createElement('dialog'); dialog.className = 'alerts-dialog';
+  const dialog = document.createElement('dialog'); dialog.className = 'alerts-dialog'; dialog.id = 'ideaAlertsDialog';
   dialog.setAttribute('aria-labelledby', 'ideaAlertsTitle');
-  dialog.innerHTML = '<div class="alerts-head"><h2 id="ideaAlertsTitle">Обновления идей</h2><button class="alerts-close" aria-label="Закрыть обновления">×</button></div><p>Изменения отслеживаемых идей и ваших позиций. Новые сигналы — по выбранным стратегиям вашей подписки. Обновления появляются, пока сайт открыт.</p><details class="alerts-settings"><summary>Настроить уведомления</summary><label><input id="ideaPopups" type="checkbox">Показывать сообщения на открытом сайте</label><p>Новые сигналы по стратегиям:</p><div id="strategySubscriptions"></div></details><div class="alerts-tools"><button id="alertsRead">Прочитать всё</button><span role="status" id="alertsStatus"></span></div><div id="ideaAlertsFeed"></div>';
+  dialog.innerHTML = '<div class="alerts-head"><h2 id="ideaAlertsTitle">Обновления идей</h2><button type="button" class="alerts-close" aria-label="Закрыть обновления">×</button></div><p class="alerts-description">Изменения отслеживаемых идей и ваших позиций. Новые сигналы — по выбранным стратегиям вашей подписки. Обновления появляются, пока сайт открыт.</p><details class="alerts-settings"><summary>Настроить уведомления</summary><label><input id="ideaPopups" type="checkbox"><span>Показывать сообщения на открытом сайте</span></label><p>Новые сигналы по стратегиям:</p><div id="strategySubscriptions"></div></details><div class="alerts-tools"><button type="button" id="alertsRead">Прочитать всё</button><span role="status" id="alertsStatus"></span></div><div id="ideaAlertsFeed"></div>';
   document.body.append(dialog);
   const toast = document.createElement('aside'); toast.className = 'idea-alert-toast'; toast.hidden = true;
   toast.setAttribute('role', 'status'); document.body.append(toast);
@@ -88,7 +96,7 @@
     dialog.querySelector('#ideaPopups').checked = state.popups;
     dialog.querySelector('#ideaAlertsFeed').innerHTML = items.length ? items.map(item => `<article class="alert-item ${item.read ? '' : 'unread'}"><a href="app.html?idea=${encodeURIComponent(item.ideaId)}" data-alert="${esc(item.id)}">${esc(item.title)} →</a><small>${esc(item.date)} МСК · ${esc(item.strategy)}</small><p>${esc(item.body)}</p></article>`).join('') : '<p class="alerts-empty">Пока нет обновлений. Следите за идеями или выберите стратегии в настройках. Предыдущие события не рассылаются повторно.</p>';
     dialog.querySelectorAll('[data-alert]').forEach(link => { link.onclick = () => { state.readIds = [...new Set([...state.readIds, link.dataset.alert])].slice(-200); items.forEach(item => { item.read = state.readIds.includes(item.id); }); save(); render(); }; });
-    dialog.querySelector('#strategySubscriptions').innerHTML = allowedStrategies.map(name => `<label><input type="checkbox" value="${esc(name)}" ${state.strategies.includes(name) ? 'checked' : ''}>${esc(name)}</label>`).join('');
+    dialog.querySelector('#strategySubscriptions').innerHTML = allowedStrategies.map(name => `<label><input type="checkbox" value="${esc(name)}" ${state.strategies.includes(name) ? 'checked' : ''}><span>${esc(name)}</span></label>`).join('');
     dialog.querySelectorAll('#strategySubscriptions input').forEach(input => { input.onchange = () => { state.strategies = input.checked ? [...new Set([...state.strategies, input.value])] : state.strategies.filter(name => name !== input.value); save(); }; });
   }
   function popup(item) {
@@ -146,8 +154,10 @@
       if (queued) { queued = false; queueMicrotask(() => refresh(showPopup)); }
     }
   }
-  trigger.onclick = () => { render(); dialog.showModal(); refresh(false); };
+  trigger.onclick = async () => { await stylesReady; if (!active || dialog.open) return; lastDialogFocus = document.activeElement; render(); dialog.showModal(); trigger.setAttribute('aria-expanded', 'true'); refresh(false); };
   dialog.querySelector('.alerts-close').onclick = () => dialog.close();
+  dialog.addEventListener('close', () => { trigger.setAttribute('aria-expanded', 'false'); const focus = lastDialogFocus; lastDialogFocus = null; if (focus?.isConnected && !focus.disabled && focus.getClientRects().length) focus.focus(); });
+  dialog.addEventListener('click', event => { if (event.target !== dialog) return; const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close(); });
   dialog.querySelector('#alertsRead').onclick = () => { state.readIds = state.itemIds.slice(); items.forEach(item => { item.read = true; }); save(); render(); };
   dialog.querySelector('#ideaPopups').onchange = event => { state.popups = event.target.checked; toast.hidden = true; save(); };
   window.addEventListener('storage', event => { if (event.key === key || event.key === null) refresh(false); });

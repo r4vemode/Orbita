@@ -137,6 +137,17 @@ async function main(){
     assert.equal(radarSubscriptions.length,1);assert.deepEqual((await request(server,'/api/radar/subscriptions',{cookie:other.cookie})).data.subscriptions,[]);
     mark('Radar: учебная лента, полный разбор, изоляция редакции и отслеживания компаний');
 
+    stage='позиции участников';
+    status(await request(server,'/api/participants'),401,'Гость открыл позиции участников.');
+    const liveParticipants=status(await request(server,'/api/participants',{cookie:client.cookie}),200,'Не открылись позиции участников.').data;
+    assert.equal(liveParticipants.isDemo,false);assert.equal(liveParticipants.instruments.length,0);
+    const participantDemo=status(await request(server,'/api/participants/demo',{cookie:client.cookie}),200,'Не открылась явная демонстрация позиций.').data;
+    assert.equal(participantDemo.isDemo,true);const participantSber=participantDemo.instruments.find(row=>row.underlyingTicker==='SBER');assert.ok(participantSber);assert.equal(participantSber.market,'futures');assert.equal(participantSber.longShares.individual,70);assert.equal(participantSber.shortShares.legal,65);
+    status(await request(server,'/api/participants/watchlist',{method:'PUT',cookie:client.cookie,body:{symbols:[participantSber.symbol]}}),200,'Не сохранено отслеживание инструмента.');
+    assert.deepEqual((await request(server,'/api/participants/watchlist',{cookie:other.cookie})).data.symbols,[]);
+    assert.equal((await request(server,'/api/participants',{cookie:client.cookie})).data.instruments.length,0,'Демонстрация подменила реальный источник.');
+    mark('Позиции участников: отдельные доли лонга/шорта, явное демо и личное отслеживание');
+
     stage='юридические документы и согласия';
     const originalOffer=status(await request(server,'/offer.html?version='+LEGAL_VERSION),200,'Не открылась исходная редакция оферты.').text;
     status(await request(server,'/api/admin/legal'),401,'Гость получил юридический черновик.');
@@ -183,7 +194,7 @@ async function main(){
 
     stage='копия и восстановление';await server.stop();
     const passphrase='isolated rehearsal backup passphrase',backup=await createBackup({dataDir:directory,backupDir:path.join(root,'backups'),passphrase,publicDir:path.join(project,'public')});
-    const verified=await verifyBackup({file:backup.file,passphrase});for(const name of ['.security-key','content.json','product-settings.json','legal.json','radar.json'])assert.ok(verified.files.some(file=>file.path===name));const restored=path.join(root,'restored');
+    const verified=await verifyBackup({file:backup.file,passphrase});for(const name of ['.security-key','content.json','product-settings.json','legal.json','radar.json','participants.json'])assert.ok(verified.files.some(file=>file.path===name));const restored=path.join(root,'restored');
     await restoreBackup({file:backup.file,destination:restored,passphrase,publicDir:path.join(project,'public')});
     assert.deepEqual(await readFile(path.join(directory,'.security-key')),await readFile(path.join(restored,'.security-key')));
     server=await start(restored);servers.push(server);assert.equal((await request(server,'/api/positions',{cookie:client.cookie})).data.positions[0].exit,108);assert.equal((await request(server,'/api/ideas/'+quick.id,{cookie:client.cookie})).data.record.meta.events.length,5);
@@ -196,6 +207,7 @@ async function main(){
     assert.equal((await request(server,'/offer.html?version='+encodeURIComponent(legalVersion))).text,publishedOffer);assert.equal((await request(server,'/offer.html?version='+LEGAL_VERSION)).text,originalOffer);
     const recoveredAccounts=JSON.parse(await readFile(path.join(restored,'accounts.json'),'utf8'));assert.equal(recoveredAccounts.users.find(user=>user.id===newClient.data.user.id).consents.legalVersion,legalVersion);assert.equal(recoveredAccounts.users.find(user=>user.id===client.data.user.id).consents.legalVersion,LEGAL_VERSION);
     assert.equal((await request(server,'/api/radar/'+radarEvent.id,{cookie:client.cookie})).data.event.headline,radarDetail.headline);assert.equal((await request(server,'/api/radar/subscriptions',{cookie:client.cookie})).data.subscriptions[0].id,radarSubscriptions[0].id);
+    assert.deepEqual((await request(server,'/api/participants/watchlist',{cookie:client.cookie})).data.symbols,[participantSber.symbol]);assert.equal((await request(server,'/api/participants',{cookie:client.cookie})).data.instruments.length,0);
     status(await request(server,'/api/admin/ideas',{cookie:owner.cookie}),200,'Права редакции не восстановлены.');mark('Зашифрованная копия восстановлена в отдельную базу; приложение открыло её');
     stage='отзыв';
     for(const plan of ['pro','exclusive'])status(await request(server,'/api/admin/subscriptions',{method:'POST',cookie:owner.cookie,body:{userId:client.data.user.id,plan,expiresAt:null,reason:'Проверка отзыва после восстановления'}}),200,'Не отозван доступ после восстановления.');
