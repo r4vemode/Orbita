@@ -10,6 +10,7 @@ import {performance} from 'node:perf_hooks';
 import {createAccounts} from '../lib/accounts.mjs';
 import {createBackup,verifyBackup,restoreBackup} from '../lib/backups.mjs';
 import {LEGAL_VERSION} from '../lib/access.mjs';
+import {createRadar} from '../lib/radar/service.mjs';
 
 const project=fileURLToPath(new URL('../',import.meta.url));
 const args=process.argv.slice(2);
@@ -122,6 +123,20 @@ async function main(){
     if(failures)throw Error('Локальная нагрузочная репетиция обнаружила ошибки.');samples.sort((a,b)=>a-b);const percentile=fraction=>Math.round(samples[Math.min(samples.length-1,Math.ceil(samples.length*fraction)-1)]);
     mark(`Локальная нагрузка: ${total} запросов, ${workers} параллельно, ошибок 0, p50 ${percentile(.5)} мс, p95 ${percentile(.95)} мс`);
 
+    stage='Radar';
+    const radarSeeder=await createRadar(directory,{accounts,env:{}});
+    try{assert.ok((await radarSeeder.seedDemo()).inserted>=15);}finally{await radarSeeder.close();}
+    status(await request(server,'/api/radar'),401,'Гость открыл Radar.');
+    const radarFeed=status(await request(server,'/api/radar?importance=0&limit=50',{cookie:client.cookie}),200,'Не открылась лента Radar.').data;
+    assert.ok(radarFeed.events.length>=15);assert.ok(radarFeed.events.every(event=>event.isDemo&&!Object.hasOwn(event,'rawText')));
+    const radarEvent=radarFeed.events.find(event=>event.ticker==='SBER');assert.ok(radarEvent);
+    status(await request(server,'/api/admin/radar',{cookie:client.cookie}),403,'Клиент открыл редакцию Radar.');
+    const radarDetail=status(await request(server,'/api/radar/'+radarEvent.id,{cookie:client.cookie}),200,'Не открылась карточка Radar.').data.event;
+    assert.ok(radarDetail.sources.length>0);assert.ok(radarDetail.summary);assert.ok(radarDetail.marketReaction?.isDemo);
+    const radarSubscriptions=status(await request(server,'/api/radar/subscriptions',{method:'POST',cookie:client.cookie,body:{companyId:radarEvent.companyId,eventType:null,minimumImportance:9,enabled:true}}),201,'Не сохранено отслеживание компании.').data.subscriptions;
+    assert.equal(radarSubscriptions.length,1);assert.deepEqual((await request(server,'/api/radar/subscriptions',{cookie:other.cookie})).data.subscriptions,[]);
+    mark('Radar: учебная лента, полный разбор, изоляция редакции и отслеживания компаний');
+
     stage='юридические документы и согласия';
     const originalOffer=status(await request(server,'/offer.html?version='+LEGAL_VERSION),200,'Не открылась исходная редакция оферты.').text;
     status(await request(server,'/api/admin/legal'),401,'Гость получил юридический черновик.');
@@ -163,11 +178,12 @@ async function main(){
     status(await request(server,'/api/ideas/'+quick.id,{cookie:client.cookie}),200,'История не пережила перезапуск.');
     assert.equal((await request(server,'/api/product-settings')).data.authorName,'Редакция теста');assert.ok((await request(server,'/api/lessons',{cookie:client.cookie})).data.lessons.some(lesson=>lesson.id===published.id));
     assert.equal((await request(server,'/api/public-config')).data.legalVersion,legalVersion);assert.equal((await request(server,'/offer.html?version='+encodeURIComponent(legalVersion))).text,publishedOffer);
+    assert.equal((await request(server,'/api/radar/'+radarEvent.id,{cookie:client.cookie})).data.event.headline,radarDetail.headline);
     mark('Перезапуск сохраняет аккаунты, сессии, подписки, историю, материалы и настройки');
 
     stage='копия и восстановление';await server.stop();
     const passphrase='isolated rehearsal backup passphrase',backup=await createBackup({dataDir:directory,backupDir:path.join(root,'backups'),passphrase,publicDir:path.join(project,'public')});
-    const verified=await verifyBackup({file:backup.file,passphrase});for(const name of ['.security-key','content.json','product-settings.json','legal.json'])assert.ok(verified.files.some(file=>file.path===name));const restored=path.join(root,'restored');
+    const verified=await verifyBackup({file:backup.file,passphrase});for(const name of ['.security-key','content.json','product-settings.json','legal.json','radar.json'])assert.ok(verified.files.some(file=>file.path===name));const restored=path.join(root,'restored');
     await restoreBackup({file:backup.file,destination:restored,passphrase,publicDir:path.join(project,'public')});
     assert.deepEqual(await readFile(path.join(directory,'.security-key')),await readFile(path.join(restored,'.security-key')));
     server=await start(restored);servers.push(server);assert.equal((await request(server,'/api/positions',{cookie:client.cookie})).data.positions[0].exit,108);assert.equal((await request(server,'/api/ideas/'+quick.id,{cookie:client.cookie})).data.record.meta.events.length,5);
@@ -179,6 +195,7 @@ async function main(){
     assert.equal((await request(server,'/api/legal')).data.profile.ownerName,profile.ownerName);assert.equal((await request(server,'/api/public-config')).data.legalVersion,legalVersion);
     assert.equal((await request(server,'/offer.html?version='+encodeURIComponent(legalVersion))).text,publishedOffer);assert.equal((await request(server,'/offer.html?version='+LEGAL_VERSION)).text,originalOffer);
     const recoveredAccounts=JSON.parse(await readFile(path.join(restored,'accounts.json'),'utf8'));assert.equal(recoveredAccounts.users.find(user=>user.id===newClient.data.user.id).consents.legalVersion,legalVersion);assert.equal(recoveredAccounts.users.find(user=>user.id===client.data.user.id).consents.legalVersion,LEGAL_VERSION);
+    assert.equal((await request(server,'/api/radar/'+radarEvent.id,{cookie:client.cookie})).data.event.headline,radarDetail.headline);assert.equal((await request(server,'/api/radar/subscriptions',{cookie:client.cookie})).data.subscriptions[0].id,radarSubscriptions[0].id);
     status(await request(server,'/api/admin/ideas',{cookie:owner.cookie}),200,'Права редакции не восстановлены.');mark('Зашифрованная копия восстановлена в отдельную базу; приложение открыло её');
     stage='отзыв';
     for(const plan of ['pro','exclusive'])status(await request(server,'/api/admin/subscriptions',{method:'POST',cookie:owner.cookie,body:{userId:client.data.user.id,plan,expiresAt:null,reason:'Проверка отзыва после восстановления'}}),200,'Не отозван доступ после восстановления.');

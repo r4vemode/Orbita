@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const $=id=>document.getElementById(id),flags=['ideaUpdates','newSignals','expiryReminders'];
+  const $=id=>document.getElementById(id),flags=['ideaUpdates','newSignals','expiryReminders','radarEvents'];
   let state=null,poll=null,dirty=false;
   const form=$('notificationForm');
   function status(text,isError=false){$('notificationStatus').textContent=text;$('notificationStatus').classList.toggle('error',isError);}

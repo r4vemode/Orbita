@@ -8,12 +8,13 @@ import {fileURLToPath} from 'node:url';
 import {createAccounts} from '../lib/accounts.mjs';
 import {createIdeas} from '../lib/ideas.mjs';
 import {LEGAL_VERSION} from '../lib/access.mjs';
+import {createRadar} from '../lib/radar/service.mjs';
 
 const project=fileURLToPath(new URL('../',import.meta.url));
 export function localBetaEnvironment(directory,source=process.env){
   const environment={};
   for(const key of ['PATH','SystemRoot','SYSTEMROOT','WINDIR','TEMP','TMP','TMPDIR'])if(source[key]!==undefined)environment[key]=source[key];
-  return {...environment,HOST:'127.0.0.1',PORT:'0',ORBITA_DATA_DIR:directory,ORBITA_PUBLIC_ORIGIN:'',ORBITA_REQUIRE_ADMIN_MFA:'false',CLOUDPAYMENTS_PUBLIC_ID:'',CLOUDPAYMENTS_API_SECRET:'',RESEND_API_KEY:'',ORBITA_MAIL_FROM:'',TELEGRAM_BOT_TOKEN:'',TELEGRAM_BOT_USERNAME:'',TELEGRAM_WEBHOOK_SECRET:'',ORBITA_BACKUP_DIR:'',ORBITA_BACKUP_PASSPHRASE:''};
+  return {...environment,HOST:'127.0.0.1',PORT:'0',ORBITA_DATA_DIR:directory,ORBITA_PUBLIC_ORIGIN:'',ORBITA_REQUIRE_ADMIN_MFA:'false',CLOUDPAYMENTS_PUBLIC_ID:'',CLOUDPAYMENTS_API_SECRET:'',RESEND_API_KEY:'',ORBITA_MAIL_FROM:'',TELEGRAM_BOT_TOKEN:'',TELEGRAM_BOT_USERNAME:'',TELEGRAM_WEBHOOK_SECRET:'',ORBITA_BACKUP_DIR:'',ORBITA_BACKUP_PASSPHRASE:'',RADAR_ENABLED:'true',RADAR_PROVIDER_MODE:'off',RADAR_NOTIFICATIONS_ENABLED:'true'};
 }
 
 async function request(base,route,body,cookie,signal){
@@ -84,6 +85,8 @@ export async function startLocalBeta({environment=process.env,signal}={}){
     }
     signal?.throwIfAborted();
     const ideas=await createIdeas(directory);await ideas.importDemo({id:owner.user.id,role:'admin'});
+    const radar=await createRadar(directory,{accounts,ideas,env:localBetaEnvironment(directory,environment)});
+    try{await radar.seedDemo();}finally{await radar.close();}
     signal?.throwIfAborted();
     const fixtures=registered.map(({role,label,email,password})=>({role,label,email,password}));prepared=true;
     return {base,directory,root,accounts:fixtures,done,close:async()=>{signal?.removeEventListener('abort',abort);return close();}};
@@ -103,6 +106,7 @@ export async function runLocalBeta(args=process.argv.slice(2)){
     for(const account of session.accounts)console.log(`${account.label}: ${account.email} | ${account.password}`);
     console.log('После входа откройте редакцию: '+session.base+'/admin.html');
     console.log('Или кабинет клиента: '+session.base+'/app.html');
+    console.log('Radar с учебными событиями (Pro или редакция): '+session.base+'/radar.html');
     console.log('Email учебных аккаунтов не подтверждён; после входа настройки email могут открыться первыми. Выданные учебные подписки доступны по ссылке кабинета.');
     console.log('Для одновременной проверки ролей используйте разные браузеры или отдельное приватное окно.');
     console.log('Ctrl+C остановит учебный процесс и удалит его временную базу. Следующий запуск начнётся с чистой учебной среды.');

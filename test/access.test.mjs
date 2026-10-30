@@ -69,19 +69,20 @@ test('server enforces subscriptions and administrator permissions on direct and 
     });
 
     await t.test('guest and unpaid accounts cannot use member pages, assets or APIs',async()=>{
-      for(const path of ['/app.html','/%61pp.html','/assets/../app.html','/assets/%2e%2e/app.html','/app.html%2f..%2fapp.html','/calculator.html','/learn.html']){
+      for(const path of ['/app.html','/%61pp.html','/assets/../app.html','/assets/%2e%2e/app.html','/app.html%2f..%2fapp.html','/calculator.html','/learn.html','/radar.html','/%72adar.html']){
         const guest=await request(base,path);assert.equal(guest.status,303,path);assert.match(guest.headers.location,/^\/account\.html\?/);
         const member=await request(base,path,{cookie:unpaid.cookie});assert.equal(member.status,303,path);assert.match(member.headers.location,/^\/subscriptions\.html\?/);
       }
       assert.equal((await request(base,'/%61pp.html',{method:'HEAD'})).status,303);
-      for(const path of ['/assets/app.js','/assets/%61pp.js','/assets//app.js','/assets/signal-visual.js','/assets/learning-data.js','/assets/news.js']){
+      for(const path of ['/assets/app.js','/assets/%61pp.js','/assets//app.js','/assets/signal-visual.js','/assets/learning-data.js','/assets/news.js','/assets/radar.js','/assets/%72adar.js']){
         assert.equal((await request(base,path)).status,401,path);assert.equal((await request(base,path,{cookie:unpaid.cookie})).status,403,path);
       }
-      for(const path of ['/api/ideas','/api/lessons','/api/news','/api/watchlist','/api/positions']){
+      for(const path of ['/api/ideas','/api/lessons','/api/news','/api/watchlist','/api/positions','/api/radar','/api/radar/companies','/api/radar/stream','/api/radar/subscriptions']){
         assert.equal((await request(base,path)).status,401,path);assert.equal((await request(base,path,{cookie:unpaid.cookie})).status,403,path);
       }
       for(const path of ['/api%2fideas','/%61pi/ideas','/api//ideas','/api/%2e/ideas'])assert.notEqual((await request(base,path,{cookie:unpaid.cookie})).status,200,path);
       assert.equal((await request(base,'/api/ideas',{cookie:unpaid.cookie,headers:{'X-Orbita-Plan':'exclusive','X-Orbita-Role':'admin'}})).status,403);
+      assert.equal((await request(base,'/api/radar',{cookie:unpaid.cookie,headers:{'X-Orbita-Plan':'pro','X-Orbita-Role':'admin'}})).status,403);
     });
 
     await t.test('public pages and metadata reveal no paid records or downloadable seeds',async()=>{
@@ -103,6 +104,7 @@ test('server enforces subscriptions and administrator permissions on direct and 
       assert.ok(proLessons.data.lessons.length>0);assert.ok(proLessons.data.lessons.every(l=>!l.id.startsWith('exclusive-')));
       assert.ok(exclusiveLessons.data.lessons.some(l=>l.id.startsWith('exclusive-')));
       for(const path of ['/app.html','/%61pp.html','/calculator.html','/learn.html'])assert.equal((await request(base,path,{cookie:pro.cookie})).status,200,path);
+      for(const path of ['/radar.html','/assets/radar.js','/api/radar']){assert.equal((await request(base,path,{cookie:pro.cookie})).status,200,path);assert.equal((await request(base,path,{cookie:exclusive.cookie})).status,path.endsWith('.html')?303:403,path);}
     });
 
     await t.test('incompatible market and strategy cannot be published through HTTP',async()=>{
@@ -150,6 +152,8 @@ test('server enforces subscriptions and administrator permissions on direct and 
       assert.equal((await request(base,'/api/ideas',{cookie:exclusive.cookie})).status,403);
       assert.equal((await request(base,'/api/lessons',{cookie:exclusive.cookie})).status,403);
       assert.equal((await request(base,'/api/news',{cookie:exclusive.cookie})).status,403);
+      assert.equal((await request(base,'/api/radar',{cookie:pro.cookie})).status,403);
+      assert.equal((await request(base,'/radar.html',{cookie:pro.cookie})).status,303);
       const me=await request(base,'/api/me',{cookie:exclusive.cookie});assert.deepEqual(me.data.user.access.activePlans,[]);
       assert.equal((await request(base,'/api/admin/users',{cookie:admin.cookie})).status,200);
     });

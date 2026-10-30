@@ -13,6 +13,7 @@
     "check:mvp": "node scripts/check-mvp.mjs",
     "check:ui": "node scripts/check-ui.mjs",
     "beta:local": "node scripts/beta-local.mjs",
+    "seed:radar": "node scripts/seed-radar.mjs",
     "test": "node --test test/*.test.mjs"
   },
   "devDependencies": {

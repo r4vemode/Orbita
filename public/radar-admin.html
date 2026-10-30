@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ORBITA · Редакция Radar</title>
+  <link rel="stylesheet" href="assets/content-admin.css">
+  <link rel="stylesheet" href="assets/radar-admin.css">
+</head>
+<body>
+  <header class="content-header">
+    <a class="brand" href="admin.html">◌ ORBITA <span>/ редакция Radar</span></a>
+    <nav aria-label="Навигация редакции"><a href="admin.html">Сигналы и клиенты</a><a href="content-admin.html">Уроки и статьи</a><a href="legal-admin.html">Реквизиты и документы</a><a href="settings-admin.html">Настройки</a><a href="launch-admin.html">Проверка MVP</a><a href="radar.html">Открыть Radar ↗</a></nav>
+  </header>
+  <section id="radarAdminAuth" class="auth-state" role="status"><p>Проверяем доступ к редакции Radar…</p></section>
+  <main id="radarAdminMain" hidden>
+    <div class="content-heading"><div><div class="eyebrow">RADAR / КОРПОРАТИВНЫЕ СОБЫТИЯ</div><h1>Событие.<br><em>Контекст. Значение.</em></h1><p>Проверяйте анализ и первоисточники. Событие Radar не создаёт торговый сигнал автоматически.</p></div><button id="newRadarEvent" class="primary" type="button">＋ Ручное событие</button></div>
+    <p id="radarAdminMessage" class="message" role="status" aria-live="polite"></p>
+    <section id="radarAdminRetry" class="conflict" hidden><h2>Не удалось загрузить редакцию</h2><p>Проверьте соединение и повторите запрос. Несохранённый текст остаётся в форме.</p><button id="retryRadarAdmin" type="button">Повторить загрузку</button></section>
+    <section id="radarConflict" class="conflict" hidden aria-labelledby="radarConflictTitle"><h2 id="radarConflictTitle">Событие изменилось в другой вкладке</h2><p>Ваши правки остались в форме. Скопируйте нужный текст, затем загрузите актуальную версию и повторите действие.</p><button id="loadLatestRadar" type="button">Загрузить актуальную версию</button></section>
+    <details class="radar-provider-panel" open><summary>DATA SOURCES <span>Состояние источников</span></summary><div class="radar-provider-heading"><p>Показатели относятся к подключённым адаптерам. Отключённый источник не получает сообщения; демонстрационные события обозначены отдельно.</p><button id="syncRadarProviders" type="button">Проверить источники</button></div><div id="radarProviders" class="radar-provider-grid" aria-live="polite"><p class="empty">Загружаем состояние источников…</p></div></details>
+    <div class="content-workspace radar-admin-workspace">
+      <aside class="content-sidebar" aria-label="Список событий Radar">
+        <div class="sidebar-heading"><h2>События <span id="radarAdminCount"></span></h2><button id="refreshRadarAdmin" type="button">Обновить</button></div>
+        <form id="radarAdminFilters" method="post"><label>Поиск<input id="radarAdminSearch" type="search" maxlength="160" placeholder="Тикер, компания или текст" autocomplete="off"></label><div class="radar-filter-grid"><label>Состояние<select id="radarAdminStatus"><option value="">Все</option><option value="published">Опубликованные</option><option value="draft">Черновики / неразобранные</option><option value="hidden">Скрытые</option><option value="duplicate">Дубли</option></select></label><label>Тип<select id="radarAdminType"><option value="">Все типы</option></select></label></div><button id="applyRadarFilters" type="submit">Применить фильтры</button></form>
+        <div id="radarAdminList" class="content-list" aria-busy="false"></div><p id="radarAdminEmpty" class="empty" hidden>Событий по этому запросу нет. Создайте ручное событие или проверьте подключённые источники.</p><button id="moreRadarAdmin" class="radar-more" type="button" hidden>Показать ещё</button>
+      </aside>
+      <section class="content-editor" aria-labelledby="radarEditorHeading">
+        <div class="editor-heading"><div><div class="eyebrow" id="radarEditorState">РУЧНОЕ СОБЫТИЕ</div><h2 id="radarEditorHeading">Подготовить событие</h2></div><span id="radarUnsaved" class="unsaved" hidden>Есть несохранённые изменения</span></div>
+        <p id="radarEventMeta" class="muted"></p>
+        <form id="radarEventForm" method="post">
+          <fieldset id="radarEventFields">
+            <div class="form-grid"><label>Компания<select id="radarEventCompany" name="companyId" required><option value="">Выберите компанию</option></select></label><label>Тип события<select id="radarEventType" name="eventType" required></select></label></div>
+            <label>Заголовок<input id="radarEventHeadline" name="headline" maxlength="180" required placeholder="Что произошло с компанией"></label>
+            <label>Что произошло<textarea id="radarEventSummary" name="summary" rows="4" maxlength="3000" required placeholder="Кратко и по существу, без HTML-разметки"></textarea></label>
+            <label>Почему это важно<textarea id="radarEventWhy" name="whyImportant" rows="3" maxlength="3000" placeholder="Объяснение возможного значения события"></textarea></label>
+            <div class="form-grid"><label>Потенциальное влияние<select id="radarEventImpact" name="impact"><option value="POSITIVE">Положительное · Positive</option><option value="NEGATIVE">Отрицательное · Negative</option><option value="NEUTRAL" selected>Нейтральное · Neutral</option><option value="MIXED">Смешанное · Mixed</option></select></label><label>Важность · от 0 до 10<input id="radarEventImportance" name="importanceScore" type="number" min="0" max="10" step="0.1" value="6" required inputmode="decimal"></label></div>
+            <div id="radarManualSource"><label>Ссылка на первоисточник<input id="radarEventSource" name="source" type="url" maxlength="2000" required placeholder="https://…" autocomplete="off"></label><label>Время публикации первоисточника · МСК<input id="radarEventPublishedAt" name="publishedAt" type="datetime-local" required></label></div>
+            <label id="radarIncorrectLabel" class="radar-checkbox" hidden><input id="radarAnalysisIncorrect" name="aiIncorrect" type="checkbox"><span>Исходный анализ неверен. Отметить для последующей проверки.</span></label>
+          </fieldset>
+          <p class="access-note">Оценка влияния не является рекомендацией купить или продать инструмент. Исправление сохраняется отдельно от исходного анализа.</p>
+          <div class="content-actions"><button id="saveRadarDraft" type="submit" data-action="draft">Сохранить черновик</button><button id="publishRadarEvent" class="primary" type="submit" data-action="publish">Опубликовать</button><button id="hideRadarEvent" type="button" hidden>Скрыть событие</button></div>
+        </form>
+        <div id="radarExistingActions" class="radar-existing-actions" hidden><button id="openRadarMerge" type="button">Объединить с другим событием</button><button id="duplicateRadarEvent" class="danger" type="button">Пометить дублем</button><a id="viewRadarEvent" href="radar.html">Открыть в Radar ↗</a></div>
+        <details id="radarSourceDetails" class="content-preview" hidden><summary>Источники и исходный текст</summary><div id="radarEventSources" class="radar-source-links"></div><pre id="radarEventRaw" class="radar-raw"></pre></details>
+        <details id="radarAnalysisDetails" class="content-preview" hidden><summary>Обработка и исходный анализ</summary><p id="radarAnalysisMeta" class="muted"></p><ol id="radarEventTrace" class="radar-trace"></ol><pre id="radarOriginalAnalysis" class="radar-raw"></pre></details>
+      </section>
+    </div>
+  </main>
+  <dialog id="radarMergeDialog" aria-labelledby="radarMergeTitle"><h2 id="radarMergeTitle">Объединить источники события</h2><p>Текущее событие будет помечено дублем. Его источники дополнят выбранное событие; исходные записи сохранятся в истории.</p><form id="radarMergeForm" method="post"><label>Сохранить основным событием<select id="radarMergeTarget" required><option value="">Выберите другое событие</option></select></label><p id="radarMergeMessage" class="message" role="status"></p><div class="dialog-actions"><button id="cancelRadarMerge" type="button">Отмена</button><button id="confirmRadarMerge" class="primary" type="submit">Объединить источники</button></div></form></dialog>
+  <script src="assets/access.js"></script><script src="assets/radar-admin.js"></script>
+</body>
+</html>
