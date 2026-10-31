@@ -18,6 +18,7 @@ import {runAdminRaceFlows} from './qa-admin-race-flows.mjs';
 import {runSecurityRaceFlows} from './qa-security-race-flows.mjs';
 import {runMemberSessionFlows} from './qa-member-session-flows.mjs';
 import {runAdminPrivacyFlows} from './qa-admin-privacy-flows.mjs';
+import {runSupportFlows} from './qa-support-flows.mjs';
 
 const project=fileURLToPath(new URL('../',import.meta.url));
 export async function runUiAcceptance(args=process.argv.slice(2)){
@@ -37,7 +38,7 @@ export async function runUiAcceptance(args=process.argv.slice(2)){
   let browser,failed=false;
   try{
     browser=await playwright[engine].launch({headless:!args.includes('--headed'),...(executablePath?{executablePath}:{})});report.browserVersion=browser.version();
-    for(const [name,run]of [['Аккаунт',runAuthFlows],['Редакция',runAdminFlows],['Редакция — параллельные действия',runAdminRaceFlows],['Безопасность — смена аккаунта',runSecurityRaceFlows],['Редакция — приватность',runAdminPrivacyFlows],['Кабинеты клиентов',runClientFlows],['Открытые кабинеты — смена доступа',runMemberSessionFlows],['Документы и реквизиты',runLegalFlows],['Radar',runRadarFlows],['Редакция Radar',runRadarAdminFlows],['Уведомления идей',runIdeaAlertFlows],['Позиции участников',runParticipantsFlows],['Адаптивность',runLayoutFlows]]){
+    for(const [name,run]of [['Аккаунт',runAuthFlows],['Редакция',runAdminFlows],['Редакция — параллельные действия',runAdminRaceFlows],['Безопасность — смена аккаунта',runSecurityRaceFlows],['Редакция — приватность',runAdminPrivacyFlows],['Кабинеты клиентов',runClientFlows],['Открытые кабинеты — смена доступа',runMemberSessionFlows],['Документы и реквизиты',runLegalFlows],['Radar',runRadarFlows],['Редакция Radar',runRadarAdminFlows],['Уведомления идей',runIdeaAlertFlows],['Позиции участников',runParticipantsFlows],['Поддержка',runSupportFlows],['Адаптивность',runLayoutFlows]]){
       controller.signal.throwIfAborted();let session;const suite={name,status:'running',checks:0};report.suites.push(suite);
       try{
         session=await startLocalBeta({signal:controller.signal});

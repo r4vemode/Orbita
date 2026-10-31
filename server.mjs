@@ -19,6 +19,7 @@ import {createLegal} from './lib/legal.mjs';
 import {createSalesGate} from './lib/sales-gate.mjs';
 import {createRadar} from './lib/radar/service.mjs';
 import {createParticipants} from './lib/participants.mjs';
+import {createSupport} from './lib/support.mjs';
 if(Number(process.versions.node.split('.')[0])<22)throw Error(`Для ORBITA нужен Node.js 22 или новее; рекомендуется Node.js 24 LTS. Сейчас установлен Node.js ${process.versions.node}. Обновите Node.js и повторите npm start.`);
 const root=await realpath(fileURLToPath(new URL('./public/',import.meta.url)));
 const configuredDirectory=process.env.ORBITA_DATA_DIR||fileURLToPath(new URL('./data/',import.meta.url));
@@ -37,6 +38,7 @@ const ideas=await createIdeas(directory),news=createNews(directory);
 const payments=await createPayments(directory,{accounts,checkoutGate:createSalesGate({legal})});
 const radar=await createRadar(directory,{accounts,ideas});
 const participants=await createParticipants(directory,{accounts});
+const support=await createSupport(directory,{accounts});
 const notifications=await createNotifications(directory,{accounts,ideas,radar});
 const content=await createContent(directory,{accounts}),productSettings=await createProductSettings(directory,{accounts});
 const readiness=createReadiness({directory,publicDir:root});
@@ -46,11 +48,12 @@ const port=Number(process.env.PORT||3000),host=process.env.HOST||'127.0.0.1';
 if(!Number.isInteger(port)||port<0||port>65535)throw Error('PORT должен быть числом от 0 до 65535.');
 const types={'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
 const memberPages=new Set(['/app.html','/calculator.html','/learn.html','/participants.html']);
-const accountPages=new Set(['/subscriptions.html','/security.html','/notifications.html']);
-const adminPages=new Set(['/admin.html','/content-admin.html','/settings-admin.html','/launch-admin.html','/legal-admin.html','/radar-admin.html']);
+const accountPages=new Set(['/subscriptions.html','/security.html','/notifications.html','/support.html']);
+const accountAssets=new Set(['/assets/support.js']);
+const adminPages=new Set(['/admin.html','/content-admin.html','/settings-admin.html','/launch-admin.html','/legal-admin.html','/radar-admin.html','/support-admin.html']);
 const radarPages=new Set(['/radar.html']),radarAssets=new Set(['/assets/radar.js']);
 const paidAssets=new Set(['/assets/app.js','/assets/signal-visual.js','/assets/calculator.js','/assets/learning-data.js','/assets/learning.js','/assets/news.js','/assets/personal.js','/assets/participants.js','/assets/member-session.js']);
-const adminAssets=new Set(['/assets/admin.js','/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js','/assets/radar-admin.js','/assets/admin-session.js']);
+const adminAssets=new Set(['/assets/admin.js','/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js','/assets/radar-admin.js','/assets/admin-session.js','/assets/support-admin.js']);
 const removedAssets=new Set(['/assets/editor-seed.js']);
 function redirect(res,destination){res.writeHead(303,{Location:destination,'Cache-Control':'no-store','Vary':'Cookie'});res.end();}
 function probe(res,status,data,head=false){const body=JSON.stringify(data);res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Content-Length':Buffer.byteLength(body)});res.end(head?undefined:body);}
@@ -90,7 +93,7 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
    if(await accounts.handle(req,res,url))return;
    const user=await accounts.identify(req);
    if(await payments.handle(req,res,url,user)||await notifications.handle(req,res,url,user))return;
-   if(await participants.handle(req,res,url,user)||await radar.handle(req,res,url,user)||await legal.handle(req,res,url,user)||await content.handle(req,res,url,user)||await productSettings.handle(req,res,url,user))return;
+   if(await support.handle(req,res,url,user)||await participants.handle(req,res,url,user)||await radar.handle(req,res,url,user)||await legal.handle(req,res,url,user)||await content.handle(req,res,url,user)||await productSettings.handle(req,res,url,user))return;
    if(url.pathname==='/api/public-config'&&req.method==='GET'){const settings=await productSettings.readPublic(),paymentConfig=await payments.publicConfig(),publication=await legal.readPublic();json(res,200,{legalVersion:await accounts.currentLegalVersion(),plans:PLANS,paymentsAvailable:paymentConfig.checkoutEnabled,mailEnabled:accounts.emailConfigured,telegramEnabled:notifications.configured,supportEmail:settings.supportEmail||process.env.ORBITA_SUPPORT_EMAIL||publication.profile.supportEmail||null,authorName:settings.authorName,editorialNote:settings.editorialNote});return;}
    if(url.pathname==='/api/admin/readiness'){requireAdmin(user);if(req.method!=='GET')throw error(405,'Метод не поддерживается.');const settings=await productSettings.readPublic();json(res,200,await readiness.adminReport({supportEmail:settings.supportEmail}));return;}
    if(url.pathname==='/api/admin/metrics'){requireAdmin(user);if(req.method!=='GET')throw error(405,'Метод не поддерживается.');let billing;try{billing=JSON.parse(await readFile(path.join(directory,'billing.json'),'utf8'));}catch(cause){if(cause.code!=='ENOENT')throw cause;}json(res,200,{metrics:buildMvpMetrics({accounts:await accounts.readDatabase(),billing}),checkedAt:new Date().toISOString()});return;}
@@ -109,14 +112,14 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
   if(!['GET','HEAD'].includes(req.method)){res.writeHead(405,{Allow:'GET, HEAD'}).end();return;}
   if(removedAssets.has(canonical))throw error(404,'Файл не найден.');
   const protectedPage=memberPages.has(canonical)||adminPages.has(canonical)||accountPages.has(canonical)||radarPages.has(canonical);
-  const protectedAsset=paidAssets.has(canonical)||adminAssets.has(canonical)||radarAssets.has(canonical);
+  const protectedAsset=paidAssets.has(canonical)||accountAssets.has(canonical)||adminAssets.has(canonical)||radarAssets.has(canonical);
   if(protectedPage||protectedAsset){
    if(!requestSecurity.enter(req,res))return;
    const user=await accounts.identify(req);
    if(!user){if(protectedAsset)throw error(401,'Войдите в аккаунт.');redirect(res,'/account.html?next='+encodeURIComponent(canonical+url.search));return;}
    if(adminPages.has(canonical)||adminAssets.has(canonical)){if(!isAdmin(user)){if(protectedAsset)throw error(403,'Доступ только для администратора.');redirect(res,user.security?.adminEnrollmentRequired?'/security.html?setup=1':'/subscriptions.html?error=admin');return;}}
    else if(radarPages.has(canonical)||radarAssets.has(canonical)){if(!radar.canAccess(user)){if(protectedAsset)throw error(403,'Radar доступен по подключённому тарифу.','SUBSCRIPTION_REQUIRED');redirect(res,'/subscriptions.html?plan='+encodeURIComponent(radar.config.allowedPlans[0])+'&next='+encodeURIComponent(canonical+url.search));return;}}
-   else if(!accountPages.has(canonical)&&!hasSubscription(user)){if(protectedAsset)throw error(403,'Для доступа нужна действующая подписка.');redirect(res,'/subscriptions.html?next='+encodeURIComponent(canonical+url.search));return;}
+   else if(!accountPages.has(canonical)&&!accountAssets.has(canonical)&&!hasSubscription(user)){if(protectedAsset)throw error(403,'Для доступа нужна действующая подписка.');redirect(res,'/subscriptions.html?next='+encodeURIComponent(canonical+url.search));return;}
   }
   const real=await realpath(target).catch(e=>{if(e.code==='ENOENT'||e.code==='ENOTDIR')throw error(404,'Файл не найден.');throw e;});
   if(!real.startsWith(root+path.sep)||real!==target)throw error(403,'Доступ запрещён.');
@@ -147,7 +150,7 @@ let stopping=false;
 async function stop(){
  if(stopping)return;stopping=true;readiness.setDraining();timers.forEach(clearInterval);
  const closeHttp=server.listening?new Promise(resolve=>server.close(()=>resolve())):Promise.resolve();
- server.closeIdleConnections?.();const work=Promise.allSettled([closeHttp,participants.close(),radar.close(),notifications.close(),accounts.flushMail(),content.close(),legal.close(),Promise.allSettled([...backgroundJobs])]);let timer;
+ server.closeIdleConnections?.();const work=Promise.allSettled([closeHttp,support.close(),participants.close(),radar.close(),notifications.close(),accounts.flushMail(),content.close(),legal.close(),Promise.allSettled([...backgroundJobs])]);let timer;
  const outcome=await Promise.race([work.then(()=>true),new Promise(resolve=>{timer=setTimeout(()=>resolve(false),10000);})]);clearTimeout(timer);
  if(!outcome){console.error('ORBITA shutdown timeout: процесс завершён принудительно.');server.closeAllConnections?.();process.exit(1);}
 }

@@ -53,3 +53,7 @@ npm run check:mvp
 Статус каждого пункта дорожной карты: [docs/MVP-status.md](docs/MVP-status.md). Сценарии для участников беты: [docs/beta-testing.md](docs/beta-testing.md).
 
 Повторяемый браузерный прогон четырёх ролей и установка его отдельного инструмента описаны в [docs/UI-acceptance.md](docs/UI-acceptance.md). Для вашей личной проверки достаточно `npm run beta:local`.
+
+## Перейти к серверу
+
+Серверная подготовка начата. Требования к VPS и порядок — в [START-SERVER.md](START-SERVER.md); сервер ещё не выбран. В локальном проекте уже можно проверить клиентские обращения (`/support.html`) и ответы редакции (`/support-admin.html`) без подключения почты.

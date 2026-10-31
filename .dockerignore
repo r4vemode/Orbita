@@ -1,0 +1,53 @@
+# Allow only runtime sources. Never send a local database, .env, backup,
+# Telegram session, Git history or personal admin bundle to the build daemon.
+**
+!Dockerfile
+!.dockerignore
+!package.json
+!package-lock.json
+!server.mjs
+!lib/
+!lib/**
+!public/
+!public/**
+!fixtures/
+!fixtures/**
+!scripts/
+!scripts/preflight.mjs
+!scripts/manage-access.mjs
+!scripts/backup.mjs
+
+# Keep these exclusions last, even if a private file was accidentally placed
+# inside an otherwise allowed source directory.
+**/.env
+**/.env.*
+**/.security-key
+**/.git/**
+**/.aws/**
+**/.ssh/**
+**/.orbita/**
+**/data/**
+**/*.session*
+**/*.sqlite*
+**/*.db
+**/*.orbita-backup
+**/*.env
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/id_rsa*
+**/id_ed25519*
+**/admin-download/**
+**/accounts.json
+**/ideas.json
+**/billing.json
+**/payments.json
+**/notifications.json
+**/support.json
+**/participants.json
+**/content.json
+**/product-settings.json
+**/legal.json
+**/news.json
+**/radar.json

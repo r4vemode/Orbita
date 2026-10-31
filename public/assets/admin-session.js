@@ -17,7 +17,7 @@
    try{return await pending;}finally{pending=null;schedule();}
   }
   async function ensure(){if(!await check())throw Object.assign(Error(invalidated?'Аккаунт изменился.':'Не удалось проверить доступ к редакции.'),{status:invalidated?403:503,code:invalidated?'ACCOUNT_CHANGED':'ACCOUNT_UNCONFIRMED'});}
-  async function request(...args){await ensure();const result=await A.request(...args);await ensure();return result;}
+  async function request(...args){await ensure();let result,failure;try{result=await A.request(...args);}catch(cause){failure=cause;}await ensure();if(failure)throw failure;return result;}
   function visible(){if(document.hidden){clearTimeout(timer);mask('Проверяем доступ к редакции…');}else void check();}
   retry.onclick=()=>{void check();};document.addEventListener('visibilitychange',visible);window.addEventListener('pagehide',stop);schedule();return {check,ensure,request,stop};
  }

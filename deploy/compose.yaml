@@ -1,0 +1,108 @@
+name: orbita
+
+services:
+  app:
+    image: orbita-app:local
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    init: true
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=1024
+      HOST: 0.0.0.0
+      PORT: "3000"
+      ORBITA_PUBLIC_ORIGIN: https://${ORBITA_DOMAIN:?Set ORBITA_DOMAIN in deploy/.env}
+      ORBITA_REQUIRE_ADMIN_MFA: "true"
+      ORBITA_TRUSTED_PROXY_IPS: 172.30.87.2
+      ORBITA_DATA_DIR: /var/lib/orbita
+      ORBITA_BACKUP_DIR: /var/backups/orbita
+      ORBITA_BACKUP_PASSPHRASE: ${ORBITA_BACKUP_PASSPHRASE:?Set a private backup passphrase in deploy/.env}
+    volumes:
+      - type: bind
+        source: ${ORBITA_DATA_PATH:-/srv/orbita/private/data}
+        target: /var/lib/orbita
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${ORBITA_BACKUP_PATH:-/srv/orbita/private/backups}
+        target: /var/backups/orbita
+        bind:
+          create_host_path: false
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1536m
+    cpus: 1.5
+    pids_limit: 128
+    stop_grace_period: 20s
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/readyz',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    networks:
+      application:
+        ipv4_address: 172.30.87.3
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  caddy:
+    image: caddy:2-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      ORBITA_DOMAIN: ${ORBITA_DOMAIN:?Set ORBITA_DOMAIN in deploy/.env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,mode=1777
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
+    stop_grace_period: 20s
+    networks:
+      application:
+        ipv4_address: 172.30.87.2
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+networks:
+  application:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.87.0/29
+
+volumes:
+  caddy_data:
+  caddy_config:

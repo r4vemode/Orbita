@@ -11,6 +11,7 @@ import {createAccounts} from '../lib/accounts.mjs';
 import {createBackup,verifyBackup,restoreBackup} from '../lib/backups.mjs';
 import {LEGAL_VERSION} from '../lib/access.mjs';
 import {createRadar} from '../lib/radar/service.mjs';
+import {randomUUID} from 'node:crypto';
 
 const project=fileURLToPath(new URL('../',import.meta.url));
 const args=process.argv.slice(2);
@@ -148,6 +149,17 @@ async function main(){
     assert.equal((await request(server,'/api/participants',{cookie:client.cookie})).data.instruments.length,0,'Демонстрация подменила реальный источник.');
     mark('Позиции участников: отдельные доли лонга/шорта, явное демо и личное отслеживание');
 
+    stage='обращения в поддержку';
+    const supportRequest={requestId:randomUUID(),subject:'Учебная заявка репетиции',category:'account',message:'Вымышленная проблема для проверки поддержки и восстановления.',page:'/app.html',reference:''};
+    status(await request(server,'/api/support'),401,'Поддержка раскрылась гостю.');
+    const supportTicket=status(await request(server,'/api/support',{method:'POST',cookie:other.cookie,body:supportRequest}),201,'Бесплатный клиент не создал обращение.').data.ticket;
+    assert.equal(status(await request(server,'/api/support',{method:'POST',cookie:other.cookie,body:supportRequest}),200,'Повтор создал другую заявку.').data.ticket.id,supportTicket.id);
+    status(await request(server,'/api/support/'+supportTicket.id,{cookie:client.cookie}),404,'Клиент открыл чужую заявку.');
+    const supportReply=status(await request(server,'/api/admin/support/'+supportTicket.id+'/messages',{method:'POST',cookie:owner.cookie,body:{requestId:randomUUID(),revision:supportTicket.revision,message:'Учебный ответ редакции, доступен только владельцу заявки.'}}),200,'Ответ редакции не сохранён.').data.ticket;
+    assert.equal(supportReply.status,'waiting_customer');assert.equal(supportReply.messages.length,2);
+    assert.equal((await request(server,'/api/support/'+supportTicket.id,{cookie:other.cookie})).data.ticket.messages[1].text,supportReply.messages[1].text);
+    mark('Поддержка без подписки: личные обращения, безопасный повтор и ответ редакции');
+
     stage='юридические документы и согласия';
     const originalOffer=status(await request(server,'/offer.html?version='+LEGAL_VERSION),200,'Не открылась исходная редакция оферты.').text;
     status(await request(server,'/api/admin/legal'),401,'Гость получил юридический черновик.');
@@ -190,11 +202,12 @@ async function main(){
     assert.equal((await request(server,'/api/product-settings')).data.authorName,'Редакция теста');assert.ok((await request(server,'/api/lessons',{cookie:client.cookie})).data.lessons.some(lesson=>lesson.id===published.id));
     assert.equal((await request(server,'/api/public-config')).data.legalVersion,legalVersion);assert.equal((await request(server,'/offer.html?version='+encodeURIComponent(legalVersion))).text,publishedOffer);
     assert.equal((await request(server,'/api/radar/'+radarEvent.id,{cookie:client.cookie})).data.event.headline,radarDetail.headline);
+    assert.equal((await request(server,'/api/support/'+supportTicket.id,{cookie:other.cookie})).data.ticket.messages.length,2);
     mark('Перезапуск сохраняет аккаунты, сессии, подписки, историю, материалы и настройки');
 
     stage='копия и восстановление';await server.stop();
     const passphrase='isolated rehearsal backup passphrase',backup=await createBackup({dataDir:directory,backupDir:path.join(root,'backups'),passphrase,publicDir:path.join(project,'public')});
-    const verified=await verifyBackup({file:backup.file,passphrase});for(const name of ['.security-key','content.json','product-settings.json','legal.json','radar.json','participants.json'])assert.ok(verified.files.some(file=>file.path===name));const restored=path.join(root,'restored');
+    const verified=await verifyBackup({file:backup.file,passphrase});for(const name of ['.security-key','content.json','product-settings.json','legal.json','radar.json','participants.json','support.json'])assert.ok(verified.files.some(file=>file.path===name));const restored=path.join(root,'restored');
     await restoreBackup({file:backup.file,destination:restored,passphrase,publicDir:path.join(project,'public')});
     assert.deepEqual(await readFile(path.join(directory,'.security-key')),await readFile(path.join(restored,'.security-key')));
     server=await start(restored);servers.push(server);assert.equal((await request(server,'/api/positions',{cookie:client.cookie})).data.positions[0].exit,108);assert.equal((await request(server,'/api/ideas/'+quick.id,{cookie:client.cookie})).data.record.meta.events.length,5);
@@ -208,10 +221,11 @@ async function main(){
     const recoveredAccounts=JSON.parse(await readFile(path.join(restored,'accounts.json'),'utf8'));assert.equal(recoveredAccounts.users.find(user=>user.id===newClient.data.user.id).consents.legalVersion,legalVersion);assert.equal(recoveredAccounts.users.find(user=>user.id===client.data.user.id).consents.legalVersion,LEGAL_VERSION);
     assert.equal((await request(server,'/api/radar/'+radarEvent.id,{cookie:client.cookie})).data.event.headline,radarDetail.headline);assert.equal((await request(server,'/api/radar/subscriptions',{cookie:client.cookie})).data.subscriptions[0].id,radarSubscriptions[0].id);
     assert.deepEqual((await request(server,'/api/participants/watchlist',{cookie:client.cookie})).data.symbols,[participantSber.symbol]);assert.equal((await request(server,'/api/participants',{cookie:client.cookie})).data.instruments.length,0);
+    const restoredSupport=(await request(server,'/api/support/'+supportTicket.id,{cookie:other.cookie})).data.ticket;assert.equal(restoredSupport.number,supportTicket.number);assert.equal(restoredSupport.status,'waiting_customer');assert.equal(restoredSupport.messages[1].text,supportReply.messages[1].text);status(await request(server,'/api/support/'+supportTicket.id,{cookie:client.cookie}),404,'Восстановление раскрыло чужое обращение.');
     status(await request(server,'/api/admin/ideas',{cookie:owner.cookie}),200,'Права редакции не восстановлены.');mark('Зашифрованная копия восстановлена в отдельную базу; приложение открыло её');
     stage='отзыв';
     for(const plan of ['pro','exclusive'])status(await request(server,'/api/admin/subscriptions',{method:'POST',cookie:owner.cookie,body:{userId:client.data.user.id,plan,expiresAt:null,reason:'Проверка отзыва после восстановления'}}),200,'Не отозван доступ после восстановления.');
-    status(await request(server,'/api/ideas',{cookie:client.cookie}),403,'Отзыв не закрыл API.');status(await request(server,'/app.html',{cookie:client.cookie}),303,'Отзыв не закрыл страницу кабинета.');mark('Отзыв обоих тарифов немедленно закрывает доступ');
+    status(await request(server,'/api/ideas',{cookie:client.cookie}),403,'Отзыв не закрыл API.');status(await request(server,'/app.html',{cookie:client.cookie}),303,'Отзыв не закрыл страницу кабинета.');status(await request(server,'/api/support',{cookie:client.cookie}),200,'Отзыв тарифа закрыл помощь.');mark('Отзыв обоих тарифов немедленно закрывает доступ');
     console.log(`Готово: ${checks.length} групп проверок. Использованы только временные вымышленные данные. Это локальная репетиция, не проверка реальных платежей или производительности рабочего хостинга.`);
   }catch(error){console.error(`MVP-проверка не пройдена: ${stage}. ${error instanceof assert.AssertionError?'Не совпало ожидаемое состояние.':typeof error.message==='string'&&!error.message.includes('http')?error.message:'Сбой локального сценария.'}`);process.exitCode=1;}
   finally{

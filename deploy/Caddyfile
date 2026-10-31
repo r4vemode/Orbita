@@ -1,0 +1,26 @@
+{
+	admin off
+	servers {
+		max_header_size 16KB
+		timeouts {
+			read_header 15s
+			read_body 20s
+			idle 2m
+		}
+	}
+}
+
+{$ORBITA_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000 {
+		# Replace, rather than append, untrusted forwarding headers.
+		header_up Host {$ORBITA_DOMAIN}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto https
+		flush_interval -1
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 25s
+		}
+	}
+}
