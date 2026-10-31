@@ -53,5 +53,6 @@
     };
     syncMutation(idea.id);
   }
-  window.OrbitaPersonal={init,mount,card,ids:()=>positions.map(p=>p.ideaId)};
+  function clear(){account=null;accountKey=null;positions=[];drafts.clear();pending.clear();mutationErrors.clear();onChange=()=>{};}
+  window.OrbitaPersonal={init,mount,card,clear,ids:()=>positions.map(p=>p.ideaId)};
 })();

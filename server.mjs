@@ -1,5 +1,5 @@
 import http from 'node:http';
-import {readFile,realpath} from 'node:fs/promises';
+import {readFile,realpath,stat} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {createAccounts} from './lib/accounts.mjs';
@@ -31,14 +31,14 @@ const mfaSetting=process.env.ORBITA_REQUIRE_ADMIN_MFA;
 if(mfaSetting!==undefined&&!['true','false','1','0'].includes(mfaSetting))throw Error('ORBITA_REQUIRE_ADMIN_MFA: используйте true или false.');
 if(process.env.ORBITA_PUBLIC_ORIGIN?.startsWith('https://')&&['false','0'].includes(mfaSetting))throw Error('Для публичного HTTPS-сайта MFA администратора нельзя отключить.');
 let accounts;
-const legal=await createLegal(directory,{templateDir:root,authorizePublish:(req,credentials)=>accounts.authorizeSensitive(req,credentials)});
+const legal=await createLegal(directory,{templateDir:root,accounts:{identify:req=>accounts.identify(req)},authorizePublish:(req,credentials)=>accounts.authorizeSensitive(req,credentials)});
 accounts=await createAccounts(directory,{...(mfaSetting===undefined?{}:{requireAdminMfa:['true','1'].includes(mfaSetting)}),legalVersionProvider:async()=>(await legal.readPublic()).version});
 const ideas=await createIdeas(directory),news=createNews(directory);
 const payments=await createPayments(directory,{accounts,checkoutGate:createSalesGate({legal})});
 const radar=await createRadar(directory,{accounts,ideas});
 const participants=await createParticipants(directory,{accounts});
 const notifications=await createNotifications(directory,{accounts,ideas,radar});
-const content=await createContent(directory),productSettings=await createProductSettings(directory);
+const content=await createContent(directory,{accounts}),productSettings=await createProductSettings(directory,{accounts});
 const readiness=createReadiness({directory,publicDir:root});
 const webhooks=new Set([...payments.webhookPaths,...notifications.webhookPaths]);
 const requestSecurity=createRequestSecurity({trustedProxyIps:process.env.ORBITA_TRUSTED_PROXY_IPS||''});
@@ -49,8 +49,8 @@ const memberPages=new Set(['/app.html','/calculator.html','/learn.html','/partic
 const accountPages=new Set(['/subscriptions.html','/security.html','/notifications.html']);
 const adminPages=new Set(['/admin.html','/content-admin.html','/settings-admin.html','/launch-admin.html','/legal-admin.html','/radar-admin.html']);
 const radarPages=new Set(['/radar.html']),radarAssets=new Set(['/assets/radar.js']);
-const paidAssets=new Set(['/assets/app.js','/assets/signal-visual.js','/assets/calculator.js','/assets/learning-data.js','/assets/learning.js','/assets/news.js','/assets/personal.js','/assets/participants.js']);
-const adminAssets=new Set(['/assets/admin.js','/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js','/assets/radar-admin.js']);
+const paidAssets=new Set(['/assets/app.js','/assets/signal-visual.js','/assets/calculator.js','/assets/learning-data.js','/assets/learning.js','/assets/news.js','/assets/personal.js','/assets/participants.js','/assets/member-session.js']);
+const adminAssets=new Set(['/assets/admin.js','/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js','/assets/radar-admin.js','/assets/admin-session.js']);
 const removedAssets=new Set(['/assets/editor-seed.js']);
 function redirect(res,destination){res.writeHead(303,{Location:destination,'Cache-Control':'no-store','Vary':'Cookie'});res.end();}
 function probe(res,status,data,head=false){const body=JSON.stringify(data);res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Content-Length':Buffer.byteLength(body)});res.end(head?undefined:body);}
@@ -99,10 +99,10 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
    if(single&&req.method==='GET'){json(res,200,{record:await ideas.get(single[1],user)});return;}
    if(url.pathname==='/api/news'){requireMember(user);if(await news(req,res,url))return;}
    if(url.pathname==='/api/admin/ideas'){
-    requireAdmin(user);if(req.method==='GET'){json(res,200,await ideas.list(user));return;}if(req.method==='POST'){json(res,201,await ideas.create(user,await readJson(req)));return;}
+    requireAdmin(user);if(req.method==='GET'){json(res,200,await ideas.list(user));return;}if(req.method==='POST'){const payload=await readJson(req),current=await accounts.identify(req);requireAdmin(current);json(res,201,await ideas.create(current,payload));return;}
    }
    const adminIdea=url.pathname.match(/^\/api\/admin\/ideas\/([a-zA-Z0-9_-]+)(\/events)?$/);
-   if(adminIdea){requireAdmin(user);if(adminIdea[2]&&req.method==='POST'){json(res,200,await ideas.update(user,adminIdea[1],await readJson(req)));return;}if(!adminIdea[2]&&req.method==='PUT'){json(res,200,await ideas.update(user,adminIdea[1],await readJson(req)));return;}if(!adminIdea[2]&&req.method==='DELETE'){json(res,200,await ideas.remove(user,adminIdea[1]));return;}}
+   if(adminIdea){requireAdmin(user);if(adminIdea[2]&&req.method==='POST'||!adminIdea[2]&&req.method==='PUT'){const payload=await readJson(req),current=await accounts.identify(req);requireAdmin(current);json(res,200,await ideas.update(current,adminIdea[1],payload));return;}if(!adminIdea[2]&&req.method==='DELETE'){const current=await accounts.identify(req);requireAdmin(current);json(res,200,await ideas.remove(current,adminIdea[1]));return;}}
    throw error(404,'Неизвестный запрос.');
   }
   accounts.checkRequest(req);
@@ -111,6 +111,7 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
   const protectedPage=memberPages.has(canonical)||adminPages.has(canonical)||accountPages.has(canonical)||radarPages.has(canonical);
   const protectedAsset=paidAssets.has(canonical)||adminAssets.has(canonical)||radarAssets.has(canonical);
   if(protectedPage||protectedAsset){
+   if(!requestSecurity.enter(req,res))return;
    const user=await accounts.identify(req);
    if(!user){if(protectedAsset)throw error(401,'Войдите в аккаунт.');redirect(res,'/account.html?next='+encodeURIComponent(canonical+url.search));return;}
    if(adminPages.has(canonical)||adminAssets.has(canonical)){if(!isAdmin(user)){if(protectedAsset)throw error(403,'Доступ только для администратора.');redirect(res,user.security?.adminEnrollmentRequired?'/security.html?setup=1':'/subscriptions.html?error=admin');return;}}
@@ -119,6 +120,7 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
   }
   const real=await realpath(target).catch(e=>{if(e.code==='ENOENT'||e.code==='ENOTDIR')throw error(404,'Файл не найден.');throw e;});
   if(!real.startsWith(root+path.sep)||real!==target)throw error(403,'Доступ запрещён.');
+  if(!(await stat(real)).isFile())throw error(404,'Файл не найден.');
   const documentName={'/offer.html':'offer','/privacy.html':'privacy','/refunds.html':'refunds'}[canonical];
   const bytes=documentName?Buffer.from(await legal.renderPage(documentName,{version:url.searchParams.get('version')||undefined})):await readFile(real);res.writeHead(200,{'Content-Type':(types[path.extname(real)]||'application/octet-stream')+'; charset=utf-8','Cache-Control':'no-store','Vary':'Cookie'});res.end(req.method==='HEAD'?undefined:bytes);
  }catch(e){if(!res.headersSent){if(e.status)json(res,e.status,{error:e.message,...(e.code?{code:e.code}:{})});else safeFailure(res,e,{scope:'server',route:requestRoute});}else res.end();}

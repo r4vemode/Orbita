@@ -1,7 +1,7 @@
 (async () => {
   'use strict';
   const A=window.OrbitaAccess,$=id=>document.getElementById(id),form=$('contentForm');
-  let db={revision:0,lessons:[]},currentId=null,currentPublished=false,dirty=false,busy=false,pendingDiscard=null;
+  let db={revision:0,lessons:[]},currentId=null,currentPublished=false,dirty=false,busy=false,pendingDiscard=null,privateSession;
   const date=value=>{const parsed=new Date(value);return value&&Number.isFinite(parsed.getTime())?new Intl.DateTimeFormat('ru-RU',{dateStyle:'short',timeStyle:'short',timeZone:'Europe/Moscow'}).format(parsed)+' МСК':'';};
   function node(tag,className,text){const result=document.createElement(tag);if(className)result.className=className;if(text!==undefined)result.textContent=text;return result;}
   function message(text,error=false){$('contentMessage').textContent=text;$('contentMessage').classList.toggle('error',error);}
@@ -12,7 +12,7 @@
     for(const button of $('contentList').querySelectorAll('button'))button.disabled=busy;
   }
   async function api(url,options={}){
-    try{return await A.request(url,options);}catch(error){
+    try{return await(privateSession?privateSession.request(url,options):A.request(url,options));}catch(error){
       if(error.status===401)location.replace('account.html?next=%2Fcontent-admin.html');
       if(error.status===403){$('contentMain').hidden=true;$('contentAuth').hidden=false;$('contentAuth').replaceChildren(node('h1','','Доступ к редакции закрыт'),node('p','','Права аккаунта изменились. Войдите с аккаунтом администратора.'));}
       throw error;
@@ -88,6 +88,6 @@
   $('unpublishLesson').addEventListener('click',()=>{if(!form.reportValidity())return;$('unpublishDialog').showModal();});
   $('cancelUnpublish').addEventListener('click',()=>$('unpublishDialog').close());$('confirmUnpublish').addEventListener('click',()=>{$('unpublishDialog').close();void save(false);});
   window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});
-  try{const user=await A.requireAdmin();if(!user)return;$('contentAuth').hidden=true;$('contentMain').hidden=false;select();await refresh();}
+  try{const user=await A.requireAdmin();if(!user)return;privateSession=window.OrbitaAdminSession.watch(user,{workspace:'contentMain',clear(){db={revision:0,lessons:[]};currentId=null;dirty=false;pendingDiscard=null;for(const id of ['contentList','lessonPreview','lessonSections','lessonDates'])$(id).replaceChildren();}});$('contentAuth').hidden=true;$('contentMain').hidden=false;select();await refresh();}
   catch(error){$('contentAuth').replaceChildren(node('h1','','Не удалось открыть редакцию'),node('p','',error.message));}
 })();

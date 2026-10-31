@@ -4,7 +4,7 @@
   const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
   const safe = value => typeof value === 'string' ? escape(value) : Array.isArray(value) ? value.map(safe) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, safe(item)])) : value;
   const stamp = (at = new Date()) => new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(at)).replace(',', ' ·');
-  let cache = { revision: 0, records: [] }, pending = null, fingerprint = '';
+  let cache = { revision: 0, records: [] }, pending = null, fingerprint = '', generation=0,controller=null;
   const read = () => clone(cache);
   function replace(next) {
     const signature = JSON.stringify(next);
@@ -16,14 +16,16 @@
   }
   async function refresh() {
     if (pending) return pending;
+    const requestGeneration=generation;controller=new AbortController();
     pending = (async () => {
       let response, data;
       try {
-        response = await fetch('/api/ideas', { credentials: 'same-origin', cache: 'no-store' });
+        response = await fetch('/api/ideas', { credentials: 'same-origin', cache: 'no-store',signal:controller.signal });
         data = await response.json();
       } catch {
         throw Error('Не удалось загрузить идеи. Проверьте соединение и повторите попытку.');
       }
+      if(requestGeneration!==generation)throw Error('Аккаунт изменился. Обновите страницу.');
       if (!response.ok) {
         replace({ revision: 0, records: [] });
         if ([401, 403].includes(response.status)) window.dispatchEvent(new CustomEvent('orbita:access-denied', { detail: { status: response.status } }));
@@ -37,7 +39,8 @@
       return read();
     })();
     try { return await pending; }
-    finally { pending = null; }
+    finally { pending = null;controller=null; }
   }
-  window.OrbitaStore = { read, refresh, escape, safe, clone, stamp };
+  const clear=()=>{generation++;controller?.abort();replace({revision:0,records:[]});};
+  window.OrbitaStore = { read, refresh, clear, escape, safe, clone, stamp };
 })();

@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,rm,readFile} from 'node:fs/promises';
+import {mkdtemp,rm,readFile,writeFile,symlink,truncate} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
-import {createIdeas} from '../lib/ideas.mjs';
+import {createIdeas,validateIdeasDatabase} from '../lib/ideas.mjs';
 
 const admin={id:'editor',role:'admin',subscriptions:[]};
 const subscriber=plan=>({id:plan,role:'user',subscriptions:[{plan,expiresAt:'2099-01-01T00:00:00.000Z'}]});
@@ -176,4 +176,21 @@ test('demo import is explicit, idempotent, server-only and visible to an already
   assert.deepEqual(await ideas.importDemo(admin),{revision:1,imported:0});
   assert.ok(result.records.some(r=>r.d.state==='closed'&&r.meta.exit<r.d.entry));assert.ok(result.records.some(r=>r.d.state==='closed'&&r.meta.exit>r.d.entry));
   for(const r of result.records){assert.ok(r.meta.initial);assert.ok(r.meta.events.every(e=>e[3]?.id&&e[3]?.at))}
+});
+
+test('ideas reject malformed or substituted stores on startup and retain the original bytes',async t=>{
+  const {directory,ideas}=await fixture(t),file=join(directory,'ideas.json');await ideas.create(admin,full());
+  const original=await readFile(file,'utf8'),db=JSON.parse(original);assert.equal(validateIdeasDatabase(db),true);
+  for(const change of [value=>{value.records[0].published='true';},value=>{value.records[0].d.strategy='unknown';},value=>{value.records[0].d.market='crypto';},value=>{value.records[0].meta.events[0][3].at='broken';},value=>{value.records.push(structuredClone(value.records[0]));}]){
+    const broken=structuredClone(db);change(broken);const bytes=JSON.stringify(broken);await writeFile(file,bytes);assert.equal(validateIdeasDatabase(broken),false);await assert.rejects(createIdeas(directory),cause=>cause.code==='DATA_INVALID');await assert.rejects(ideas.list(admin),cause=>cause.code==='DATA_INVALID');assert.equal(await readFile(file,'utf8'),bytes);
+  }
+  await writeFile(file,'{"version":');await assert.rejects(createIdeas(directory),cause=>cause.code==='DATA_INVALID');
+  await rm(file);const outside=join(directory,'outside.json');await writeFile(outside,original);await symlink(outside,file);await assert.rejects(createIdeas(directory),cause=>cause.code==='DATA_UNSAFE');await assert.rejects(ideas.list(admin),cause=>cause.code==='DATA_UNSAFE');assert.equal(await readFile(outside,'utf8'),original);
+  await rm(file);await writeFile(file,'');await truncate(file,32*1024*1024+1);await assert.rejects(createIdeas(directory),cause=>cause.code==='DATA_UNSAFE');
+});
+
+test('ideas refuse revision overflow without rewriting published history',async t=>{
+  const {directory,ideas}=await fixture(t),created=await ideas.create(admin,full()),file=join(directory,'ideas.json');
+  const db=JSON.parse(await readFile(file,'utf8'));db.revision=Number.MAX_SAFE_INTEGER;const original=JSON.stringify(db);await writeFile(file,original);
+  await rejected(ideas.update(admin,created.record.id,{action:'note',note:'Не должно сохраниться.',revision:db.revision}),409);assert.equal(await readFile(file,'utf8'),original);
 });

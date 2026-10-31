@@ -9,7 +9,7 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
 const key = 'orbita.checkout.v1.test-user';
 const makeOrder = (plan, status = 'pending', id = 'order-' + randomUUID()) => ({ id, plan, status, amount: plan === 'pro' ? 2999 : 4999, currency: 'RUB', checkoutUrl: 'https://orders.cloudpayments.ru/orders/' + id });
 
-async function page({ storage = new Map(), search = '?plan=pro', checkout, orders = new Map(), preferred = null, verified = true, legalVersion,checkoutEnabled=true } = {}) {
+async function page({ storage = new Map(), search = '?plan=pro', checkout, orders = new Map(), preferred = null, verified = true, legalVersion,checkoutEnabled=true,orderRequest } = {}) {
   const nodes = new Map(), listeners = {}, calls = [], remembered = [], navigation = [];
   const element = () => ({ hidden: false, disabled: false, textContent: '', scrollIntoView() {}, removeAttribute(name) { delete this[name]; } });
   const node = id => { if (!nodes.has(id)) nodes.set(id, element()); return nodes.get(id); };
@@ -24,6 +24,7 @@ async function page({ storage = new Map(), search = '?plan=pro', checkout, order
       if (url === '/api/payments/config') return { configured: true, checkoutEnabled, provider: 'cloudpayments' };
       if (url === '/api/payments/checkout') { const body = JSON.parse(options.body); calls.push(body); return checkout ? checkout(body, calls.length) : { order: makeOrder(body.plan) }; }
       if (url.startsWith('/api/payments/orders/')) {
+        if(orderRequest)return orderRequest(url);
         const order = orders.get(url.split('/').at(-1));
         if (!order) throw Object.assign(Error('Not found'), { status: 404 });
         return { order };
@@ -132,4 +133,29 @@ test('checkout preserves a legal edition across unknown results and requires ano
 
 test('a configured provider with closed sales never enables checkout',async()=>{
   const p=await page({checkoutEnabled:false});assert.equal(p.node('createCheckout').disabled,true);await p.start();assert.equal(p.calls.length,0);
+});
+
+test('changing the account before checkout clears old identity and cannot create a payment for the new account',async()=>{
+  const p=await page();p.user.id='other-user';p.user.email='other@example.test';
+  await p.start();assert.equal(p.calls.length,0);assert.equal(p.node('subscriptionIdentity').textContent,'');assert.equal(p.node('createCheckout').disabled,true);assert.equal(p.node('subscriptionDetails').hidden,true);assert.deepEqual(p.navigation,['/subscriptions.html']);assert.equal(p.storage.has('orbita.checkout.v1.other-user'),false);
+});
+
+test('account change while preparing a payment never displays its returned order or overwrites the original recovery request',async()=>{
+  let finish;const response=new Promise(resolve=>{finish=resolve;}),p=await page({checkout:()=>response});
+  const running=p.start();await flush();assert.equal(p.calls.length,1);const saved=p.storage.get(key);
+  p.user.id='other-user';p.user.email='other@example.test';finish({order:makeOrder('pro')});await running;
+  assert.equal(p.node('paymentOrder').hidden,true);assert.equal(p.node('paymentOrderReference').textContent,'');assert.equal(p.node('subscriptionIdentity').textContent,'');assert.equal(p.storage.get(key),saved);assert.equal(p.storage.has('orbita.checkout.v1.other-user'),false);assert.deepEqual(p.navigation,['/subscriptions.html']);
+});
+
+test('returning to a checkout tab under another account clears pending order and both tariff states before fetching it',async()=>{
+  const orders=new Map(),p=await page({orders,checkout:body=>{const order=makeOrder(body.plan);orders.set(order.id,order);return {order};}});await p.start();const saved=p.storage.get(key);
+  p.user.id='other-user';await p.listeners.visibilitychange();await flush();
+  assert.equal(p.node('paymentOrder').hidden,true);assert.equal(p.node('paymentOrderReference').textContent,'');assert.equal(p.node('continuePayment').href,undefined);assert.equal(p.storage.get(key),saved);assert.deepEqual(p.navigation.slice(-1),['/subscriptions.html']);
+});
+
+test('account change during order refresh rejects the response instead of mixing order and subscriber identity',async()=>{
+  let finish;const response=new Promise(resolve=>{finish=resolve;}),order=makeOrder('pro','pending'),storage=new Map([[key,JSON.stringify({plan:'pro',requestId:randomUUID(),orderId:order.id})]]);
+  const p=await page({storage,orderRequest:()=>response});await flush();const saved=storage.get(key);
+  p.user.id='other-user';finish({order});await flush();await flush();
+  assert.equal(p.node('subscriptionIdentity').textContent,'');assert.equal(p.node('paymentOrder').hidden,true);assert.equal(p.node('paymentOrderReference').textContent,'');assert.equal(storage.get(key),saved);assert.deepEqual(p.navigation,['/subscriptions.html']);
 });

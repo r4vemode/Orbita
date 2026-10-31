@@ -5,6 +5,12 @@
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const account = await OrbitaAccess.current();
   if (!account) { location.replace('account.html?next=%2Flearn.html'); return; }
+  let invalidated=false;
+  const session=OrbitaMemberSession.watch(account,next=>{
+    invalidated=true;lessons.splice(0);window.ORBITA_LESSONS=[];if($('article').open)$('article').close();$('articleBody').replaceChildren();$('lessons').replaceChildren();document.querySelector('main').hidden=true;
+    location.replace(!next?'account.html?next=%2Flearn.html':!next.access?.hasSubscription?'subscriptions.html':location.pathname+location.search);
+  });
+  if(!await session.check())return;
   const key = 'orbita.learning.v2.' + account.id;
   let read = new Set(), category = 'Все темы', selected = 0, articleOrigin = null;
   try {
@@ -20,6 +26,7 @@
   $('progressBar').max = Math.max(1, lessons.length);
 
   function render() {
+    if(invalidated)return;
     const query = $('search').value.trim().toLocaleLowerCase('ru');
     const rows = lessons.filter(l => (category === 'Все темы' || l.category === category) && [l.title, l.intro, ...l.sections.map(s => s.title + ' ' + s.text)].join(' ').toLocaleLowerCase('ru').includes(query));
     $('lessons').innerHTML = rows.map(l => `<button class="lesson-card" data-lesson="${esc(l.id)}"><span class="lesson-meta"><span>${esc(l.category)}</span><span>${String(lessons.indexOf(l) + 1).padStart(2, '0')} / ${String(lessons.length).padStart(2, '0')}</span></span><h2>${esc(l.title)}</h2><p>${esc(l.intro)}</p><span class="lesson-bottom"><span>${read.has(l.id) ? '✓ Прочитано' : 'Открыть материал'}</span><span aria-hidden="true">↗</span></span></button>`).join('');
@@ -39,6 +46,7 @@
   }
 
   function open(id, update = true) {
+    if(invalidated)return;
     const index = lessons.findIndex(l => l.id === id);
     if (index < 0) { if (id) $('resultCount').textContent = 'Этот материал снят с публикации или недоступен по вашей подписке. Выберите другую тему.'; return; }
     selected = index;

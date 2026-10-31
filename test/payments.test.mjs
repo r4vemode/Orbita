@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHmac,randomUUID} from 'node:crypto';
-import {readFile} from 'node:fs/promises';
+import {readFile,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {createPayments} from '../lib/payments.mjs';
 import {serviceFixture} from './service-fixture.mjs';
@@ -80,5 +80,50 @@ test('unexpected signed callback keeps CloudPayments retry code and a safe suppo
   const response=await f.callback('pay',fields(order,member.data.user));
   assert.equal(response.status,500);assert.equal(response.data.code,13);assert.equal(response.data.reason,'PAYMENT_REQUEST_FAILED');assert.match(response.data.errorId,/^[a-f0-9-]{36}$/);
   assert.ok(logs.some(line=>line.includes(response.data.errorId)&&line.includes('code=EFAULT')));assert.doesNotMatch(JSON.stringify(response.data)+logs.join('\n'),/private callback detail/);
+ }finally{await f.close();}
+});
+
+test('payment reconciliation continues after an earlier account cannot be credited or refunded',async t=>{
+ const logs=[];t.mock.method(console,'error',(...values)=>logs.push(values.join(' ')));
+ for(const operation of ['credit','refund']){
+  let blocked=new Set(),permanent=null;
+  const f=await fixture({accountsOverride:accounts=>({...accounts,
+   creditPayment:async payload=>{if(operation==='credit'&&(blocked.has(payload.userId)||payload.userId===permanent))throw Error('private credit reconciliation failure');return accounts.creditPayment(payload);},
+   reversePayment:async payload=>{if(operation==='refund'&&(blocked.has(payload.userId)||payload.userId===permanent))throw Error('private refund reconciliation failure');return accounts.reversePayment(payload);}
+  })});
+  try{
+   const first=await f.register(operation+'-blocked@example.test'),second=await f.register(operation+'-recoverable@example.test');await f.verify(first);await f.verify(second);
+   const a=(await f.checkout(first)).data.order,b=(await f.checkout(second)).data.order;
+   if(operation==='refund'){
+    assert.equal((await f.callback('pay',fields(a,first.data.user,{TransactionId:'90101'}))).status,200);
+    assert.equal((await f.callback('pay',fields(b,second.data.user,{TransactionId:'90102'}))).status,200);
+   }
+   blocked=new Set([first.data.user.id,second.data.user.id]);permanent=first.data.user.id;
+   for(const [order,member,transactionId,paymentId]of [[a,first,'90201','90101'],[b,second,'90202','90102']]){
+    const response=await f.callback(operation==='credit'?'pay':'refund',fields(order,member.data.user,operation==='credit'?{TransactionId:paymentId}:{TransactionId:transactionId,PaymentTransactionId:paymentId,OperationType:'Refund'}));assert.equal(response.status,500);
+   }
+   blocked.clear();
+   await assert.rejects(f.service.sync(),cause=>cause.status===503&&cause.code==='PAYMENT_SYNC_INCOMPLETE'&&!cause.message.includes('private'));
+   const db=JSON.parse(await readFile(join(f.directory,'billing.json'),'utf8'));
+   assert.equal(db.orders.find(order=>order.id===a.id).status,operation==='credit'?'crediting':'refund_pending');
+   assert.equal(db.orders.find(order=>order.id===b.id).status,operation==='credit'?'paid':'refunded');
+   const subscriptions=(await f.accounts.getUser(second.data.user.id)).subscriptions;assert.equal(subscriptions.some(plan=>Date.parse(plan.expiresAt)>Date.now()),operation==='credit');
+  }finally{await f.close();}
+ }
+});
+
+test('an extra payment retained for review cannot be reassigned to another order or account',async()=>{
+ const f=await fixture();try{
+  const first=await f.register('extra-payment-first@example.test'),second=await f.register('extra-payment-second@example.test');await f.verify(first);await f.verify(second);
+  const a=(await f.checkout(first)).data.order,b=(await f.checkout(second)).data.order;
+  assert.equal((await f.callback('pay',fields(a,first.data.user,{TransactionId:'71001'}))).status,200);
+  const expiry=(await f.accounts.getUser(first.data.user.id)).subscriptions[0].expiresAt;
+  assert.equal((await f.callback('pay',fields(a,first.data.user,{TransactionId:'71002'}))).status,200);
+  assert.equal((await f.service.getOrder(first.data.user,a.id)).order.needsReview,true);assert.equal((await f.accounts.getUser(first.data.user.id)).subscriptions[0].expiresAt,expiry);
+  assert.equal((await f.callback('pay',fields(b,second.data.user,{TransactionId:'71002'}))).status,409);assert.deepEqual((await f.accounts.getUser(second.data.user.id)).subscriptions,[]);
+  const legacy=JSON.parse(await readFile(join(f.directory,'billing.json'),'utf8'));delete legacy.transactions['71002'];await writeFile(join(f.directory,'billing.json'),JSON.stringify(legacy));
+  assert.equal((await f.callback('pay',fields(b,second.data.user,{TransactionId:'71002'}))).status,409,'review-only charges in pre-upgrade stores also remain bound to their original invoice');
+  assert.equal((await f.callback('pay',fields(a,first.data.user,{TransactionId:'71002'}))).status,200);
+  const db=JSON.parse(await readFile(join(f.directory,'billing.json'),'utf8'));assert.equal(db.transactions['71002'],a.id);assert.equal(db.orders.find(order=>order.id===a.id).extraPayments.length,1);
  }finally{await f.close();}
 });

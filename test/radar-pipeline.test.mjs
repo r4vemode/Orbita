@@ -58,6 +58,13 @@ test('Radar deduplicates source repeats and cross-provider copies without mergin
  const negated=await pipeline.process(raw({externalId:'limit3',title:'Решение совета директоров',rawText:boilerplate+'100000000 рублей. Нет разрешения.'}));assert.equal(deduplicateEvent(negated,[one]),null);
 });
 
+test('Radar keeps demonstration and live source identities separate in both matching directions',async()=>{
+ const pipeline=createPipeline({now}),live=await pipeline.process(raw()),demo=await pipeline.process(raw({isDemo:true}));
+ assert.equal(deduplicateEvent(live,[demo]),null);assert.equal(deduplicateEvent(demo,[live]),null);
+ const copy=await pipeline.process(raw({provider:'company-ir',externalId:'ir-copy'}));assert.equal(deduplicateEvent(copy,[demo,live]),live);
+ assert.equal(deduplicateEvent({...demo,id:'another-demo'},[live,demo]),demo);
+});
+
 test('Radar AI boundary rejects unsupported schema, fabricated consensus and unsafe objects; failures fall back to explicit rules',async()=>{
  const baseline=analyzeRadarEvent(raw());
  for(const ai of [async()=>({...baseline,importanceScore:99}),async()=>({...baseline,headline:'Дивиденды выше ожиданий'}),async()=>({...baseline,summary:'Рекомендовано 999 рублей на акцию.'}),async()=>({...baseline,headline:'BUY SBER'}),async()=>{throw Error('private token must not escape');}]){const service=createRadarAnalysisService({enabled:true,ai});assert.equal((await service.analyze(raw())).analysisMethod,'rules');}

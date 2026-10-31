@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile,stat} from 'node:fs/promises';
+import {readFile,stat,mkdtemp,writeFile,rm,symlink,truncate} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {createContent,validateContentDatabase} from '../lib/content.mjs';
 import {serviceFixture} from './service-fixture.mjs';
@@ -75,4 +76,13 @@ test('malformed material and forged metadata never mutate stored content',async(
     assert.equal((await f.list()).data.revision,0);
     await assert.rejects(readFile(path.join(f.directory,'content.json')),cause=>cause.code==='ENOENT');
   }finally{await f.close();}
+});
+
+test('content refuses symlinked or oversized stores and revision overflow without replacing data',async t=>{
+  const directory=await mkdtemp(path.join(tmpdir(),'orbita-content-integrity-'));t.after(()=>rm(directory,{recursive:true,force:true}));const service=await createContent(directory),admin={id:'content-editor',role:'admin'},file=path.join(directory,'content.json');
+  await service.save(admin,{revision:0,lesson:material()});const original=await readFile(file,'utf8');
+  const db=JSON.parse(original);db.revision=Number.MAX_SAFE_INTEGER;const exhausted=JSON.stringify(db);await writeFile(file,exhausted);await assert.rejects(service.save(admin,{revision:db.revision,lesson:material()}),cause=>cause.status===409);assert.equal(await readFile(file,'utf8'),exhausted);
+  db.lessons[0].id='invalid/id';await writeFile(file,JSON.stringify(db));await assert.rejects(service.readAdmin(admin),cause=>cause.code==='DATA_INVALID');
+  await rm(file);const target=path.join(directory,'external.json');await writeFile(target,original);await symlink(target,file);await assert.rejects(createContent(directory),cause=>cause.code==='DATA_UNSAFE');await assert.rejects(service.readAdmin(admin),cause=>cause.code==='DATA_UNSAFE');assert.equal(await readFile(target,'utf8'),original);
+  await rm(file);await writeFile(file,'');await truncate(file,64*1024*1024+1);await assert.rejects(createContent(directory),cause=>cause.code==='DATA_UNSAFE');
 });

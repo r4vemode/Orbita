@@ -6,7 +6,11 @@
   const status = record => record.erroneous ? 'Ошибочная публикация' : record.d.status || ({ announced: 'Сигнал объявлен', waiting: 'Ожидает входа', active: 'Активен', closed: 'Завершён', cancelled: 'Отменён' }[record.d.state] || 'Опубликован');
   const marketName = value => ({ stocks: 'Акции', futures: 'Фьючерсы', crypto: 'Криптовалюты' }[value] || 'Рынок');
   const ideaSummary = d => window.OrbitaIdeaCopy?.summary?.(d) ?? d.summary ?? '';
-  let records = [], account, saved = new Set(), view = 'all', market = 'all', state = 'all', selected = null, spotlight = null, saving = false, personalReady = false, redirecting = false;
+  let records = [], account, session, saved = new Set(), view = 'all', market = 'all', state = 'all', selected = null, spotlight = null, saving = false, personalReady = false, redirecting = false;
+  function sessionChanged(next){
+    redirecting=true;records=[];saved.clear();selected=spotlight=null;personalReady=false;OrbitaPersonal.clear();S.clear();$('accountLink').textContent='Мой аккаунт';document.querySelector('main').hidden=true;
+    location.replace(!next?'account.html?next='+encodeURIComponent(location.pathname+location.search):!next.access?.hasSubscription?'subscriptions.html':location.pathname+location.search);
+  }
   async function api(url, options = {}) {
     const response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json', ...options.headers }, credentials: 'same-origin', cache: 'no-store' });
     const data = await response.json();
@@ -94,7 +98,7 @@
     $('signalStage').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   async function refresh() {
-    try { await S.refresh(); records = S.read().records; renderFeed(); if (selected && !records.some(record => record.id === selected)) { selected = null; notify('Эта идея недоступна по текущей подписке.'); } renderDetail(); }
+    try { if(session&&!await session.check())return;await S.refresh();if(redirecting)return;records = S.read().records; renderFeed(); if (selected && !records.some(record => record.id === selected)) { selected = null; notify('Эта идея недоступна по текущей подписке.'); } renderDetail(); }
     catch (error) { handleError(error); }
   }
   function closeDetail(scroll = true) { selected = null; $('ideaDetail').hidden = true; const url = new URL(location.href); url.searchParams.delete('idea'); history.replaceState(null, '', url); renderFeed(); if (scroll) $('signalFeed').scrollIntoView({ behavior: 'smooth' }); }
@@ -110,14 +114,15 @@
   try {
     ({ user: account } = await api('/api/me'));
     if (!account) { handleError({ status: 401 }); return; }
+    session=OrbitaMemberSession.watch(account,sessionChanged);
     $('accountLink').textContent = account.email || 'Мой аккаунт';
     await S.refresh(); records = S.read().records;
     const watch = await api('/api/watchlist'); saved = new Set(watch.ids || []);
     await OrbitaPersonal.init(account, () => { renderFeed(); renderDetail(); }); personalReady = true;
-    renderFeed(); $('appStatus').textContent = '';
+    if(!await session.check())return;renderFeed(); $('appStatus').textContent = '';
     const linked = new URLSearchParams(location.search).get('idea');
     if (linked) { if (records.some(record => record.id === linked)) select(linked, false); else notify('Идея не найдена или не входит в вашу подписку.'); }
-    window.addEventListener('orbita:store-change', () => { records = S.read().records; renderFeed(); renderDetail(); });
+    window.addEventListener('orbita:store-change', () => { if(redirecting)return;records = S.read().records; renderFeed(); renderDetail(); });
     window.addEventListener('orbita:access-denied', event => handleError({ status: event.detail?.status || 403 }));
     document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
     setInterval(() => { if (!document.hidden) refresh(); }, 30000);

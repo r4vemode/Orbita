@@ -12,7 +12,7 @@
   const eventFieldIds=['levelEntry','levelStop','levelTarget','levelHorizon','levelEntryRule','levelCancelRule','exitPrice','eventNote'];
   const eventDrafts=new Map();let eventDirty=false;
   const ideaSummary = d => window.OrbitaIdeaCopy?.summary?.(d) ?? d.summary ?? '';
-  let db = {revision:0,records:[]}, users = [], current = null, draftId = null, dirty = false, mutating = false, accountsRevision;
+  let db = {revision:0,records:[]}, users = [], current = null, draftId = null, dirty = false, mutating = false, accountsRevision,privateSession;
   const form = $('ideaForm');
   const eventDraftStatus=document.createElement('p');eventDraftStatus.id='eventDraftStatus';eventDraftStatus.className='form-note';eventDraftStatus.setAttribute('role','status');$('eventForm').prepend(eventDraftStatus);
   const discardEvent=document.createElement('button');discardEvent.type='button';discardEvent.id='discardEvent';discardEvent.className='text-button';discardEvent.textContent='Сбросить черновик обновления';discardEvent.hidden=true;$('eventForm').append(discardEvent);
@@ -26,11 +26,13 @@
   }
   function message(text, error = false) { $('message').textContent = text; $('message').classList.toggle('error', error); }
   async function api(path, options = {}) {
+    if(privateSession)await privateSession.ensure();
     let response;
     try { response = await fetch(path,{credentials:'same-origin',cache:'no-store',...options,headers:{...(options.body ? {'Content-Type':'application/json'} : {}),...options.headers}}); }
     catch { throw new Error('Не удалось подключиться к серверу. Проверьте соединение и повторите попытку.'); }
     let data;
     try { data = await response.json(); } catch { throw new Error('Сервер вернул неожиданный ответ. Обновите страницу и попробуйте снова.'); }
+    if(privateSession)await privateSession.ensure();
     if (!response.ok) {
       if (response.status === 401) location.replace('account.html?next=%2Fadmin.html');
       if (response.status === 403) { $('adminMain').hidden = true; showForbidden(); }
@@ -44,10 +46,10 @@
   async function mutation(work) {
     if (mutating) return;
     mutating = true;
-    const controls=[...document.querySelectorAll('[data-mutation],#quickForm input,#quickForm select,#ideaForm input,#ideaForm textarea,#ideaForm select,#eventForm input,#eventForm textarea,#eventForm select,#eventForm button,#subscriptionForm input,#subscriptionForm select,#subscriptionForm textarea')].filter(control=>!control.disabled);
+    const controls=[...document.querySelectorAll('[data-mutation],#ideaList button,#refreshIdeas,#refreshUsers,#clearFullForm,#newIdea,#quickForm input,#quickForm select,#ideaForm input,#ideaForm textarea,#ideaForm select,#eventForm input,#eventForm textarea,#eventForm select,#eventForm button,#subscriptionForm input,#subscriptionForm select,#subscriptionForm textarea')].filter(control=>!control.disabled);
     controls.forEach(control=>control.disabled=true);
     try { await work(); } catch (error) { message(error.message,true); }
-    finally { mutating = false;controls.forEach(control=>control.disabled=false); }
+    finally { mutating = false;controls.forEach(control=>control.disabled=false);for(const button of $('ideaList').querySelectorAll('button'))button.disabled=false; }
   }
   function readFullData() { return Object.fromEntries(fields.map(key => { const value = form.elements[key].value.trim(); return [key,numericFields.includes(key) ? value === '' ? null : Number(value) : value]; })); }
   function validateLevels(data) {
@@ -78,7 +80,7 @@
   function renderList() {
     $('count').textContent = String(db.records.length);
     $('ideaList').innerHTML = db.records.length ? db.records.map(record => `<button type="button" class="list-item${record.id === current ? ' active' : ''}" data-id="${escape(record.id)}" aria-pressed="${record.id === current}"><strong>${escape(record.d?.ticker || 'Черновик')}<span>${record.d?.dir === 'ШОРТ' ? '↘' : '↗'}</span></strong><small>${escape(record.erroneous ? 'Ошибочная публикация' : record.published ? record.d?.status || record.d?.state : 'Черновик')}</small><small>${escape(record.d?.strategy || '')}</small></button>`).join('') : '<p class="empty-list">Пока нет идей. Опубликуйте первый сигнал.</p>';
-    $('ideaList').querySelectorAll('[data-id]').forEach(button => button.addEventListener('click', () => select(button.dataset.id)));
+    $('ideaList').querySelectorAll('[data-id]').forEach(button => {button.disabled=mutating;button.addEventListener('click', () => {if(!mutating)select(button.dataset.id);});});
   }
   function eventFields() {
     const action = $('eventAction').value;
@@ -222,7 +224,7 @@
       message('Черновик удалён.');
     });
   });
-  $('refreshIdeas').addEventListener('click', async () => { try { await loadIdeas(); message('Список идей обновлён.'); } catch (error) { message(error.message,true); } });
+  $('refreshIdeas').addEventListener('click', () => mutation(async () => {await loadIdeas();message('Список идей обновлён.');}));
   function planName(plan) { return plan === 'exclusive' ? 'Orbita Exclusive' : plan === 'pro' ? 'Orbita Pro' : plan; }
   function subscriptionsText(user) {
     return (user.subscriptions || []).map(subscription => `${planName(subscription.plan)}: ${subscription.expiresAt ? `до ${stamp(subscription.expiresAt)} МСК${new Date(subscription.expiresAt).getTime() <= Date.now() ? ' · истёк' : ''}` : 'доступ отозван'}`).join(' · ') || 'Активных подписок нет';
@@ -249,7 +251,7 @@
     $('subscriptionExpiryField').hidden = revoke;
     $('subscriptionExpiry').required = !revoke;
   });
-  $('refreshUsers').addEventListener('click', async () => { try { await loadUsers(); message('Список клиентов обновлён.'); } catch (error) { message(error.message,true); } });
+  $('refreshUsers').addEventListener('click', () => mutation(async () => {await loadUsers();message('Список клиентов обновлён.');}));
   $('subscriptionForm').addEventListener('submit', event => {
     event.preventDefault();
     mutation(async () => {
@@ -275,14 +277,14 @@
       const data = await api('/api/me');
       if (!data.user) { location.replace('account.html?next=%2Fadmin.html'); return; }
       if (!(data.user.role === 'admin' || data.user.access?.isAdmin)) { showForbidden(); return; }
+      privateSession=window.OrbitaAdminSession.watch(data.user,{workspace:'adminMain',clear(){db={revision:0,records:[]};users=[];current=draftId=null;dirty=eventDirty=false;eventDrafts.clear();for(const id of ['adminIdentity','ideaList','usersOverview','subscriptionUser','selectedUserAccess','selectedIdea','initialSnapshot','eventHistory','fullPreview','fullFormTitle','editorStatus','count','usersStatus'])$(id).replaceChildren();}});
       $('authState').hidden = true;
       $('adminMain').hidden = false;
       $('adminIdentity').textContent = ` / ${data.user.email}`;
       strategyOptions();
       const expiry = new Date(Date.now() + 30 * 86400000 + 3 * 3600000);
       $('subscriptionExpiry').value = expiry.toISOString().slice(0,16);
-      const results = await Promise.allSettled([loadIdeas(),loadUsers()]);
-      results.forEach(result => { if (result.status === 'rejected') message(result.reason.message,true); });
+      await mutation(async()=>{const results = await Promise.allSettled([loadIdeas(),loadUsers()]);results.forEach(result => { if (result.status === 'rejected') message(result.reason.message,true); });});
       $('quickTicker').focus();
     } catch (error) {
       $('authState').innerHTML = `<h1>Не удалось открыть редакцию.</h1><p>${escape(error.message)}</p><button type="button" id="retryAdmin">Повторить</button>`;

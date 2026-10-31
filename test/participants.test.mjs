@@ -141,6 +141,15 @@ test('participants startup rejects corrupted and symlinked private stores instea
  }finally{await rm(directory,{recursive:true,force:true});}
 });
 
+test('participants rejects a cached impossible index-composition date before startup or readiness succeeds',async()=>{
+ const directory=await mkdtemp(join(tmpdir(),'orbita-participants-membership-')),accounts={checkRequest(){}};
+ const service=await createParticipants(directory,{accounts,env:{}});
+ try{
+  const db=await service.readDatabase();db.indexMembership={verified:true,asOf:'2026-02-30',tickers:['SBER'],receivedAt:new Date().toISOString(),sourceUrl:'https://iss.moex.com/iss/statistics/engines/stock/markets/index/analytics/IMOEX/tickers.json?date=2026-02-30'};
+  assert.equal(validateParticipantsDatabase(db),false);await writeFile(join(directory,'participants.json'),JSON.stringify(db));await assert.rejects(createParticipants(directory,{accounts,env:{}}),cause=>cause.code==='DATA_INVALID');
+ }finally{await service.close();await rm(directory,{recursive:true,force:true});}
+});
+
 test('participants shutdown aborts an in-flight shared source refresh without persisting an artificial error',async()=>{
  const directory=await mkdtemp(join(tmpdir(),'orbita-participants-shutdown-'));let seen=0,entered;
  const ready=new Promise(resolve=>{entered=resolve;}),service=await createParticipants(directory,{accounts:{checkRequest(){}},env:{MOEX_POSITIONS_MODE:'moex'},requestImpl:async(_endpoint,{signal})=>{seen++;entered();return new Promise((_resolve,reject)=>{signal.addEventListener('abort',()=>reject(Error('aborted')),{once:true});});}});

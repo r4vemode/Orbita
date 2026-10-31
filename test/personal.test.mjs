@@ -27,3 +27,14 @@ test('a strategy exit before the personal entry cannot become a personal result'
  assert.equal(result(later,{state:'closed',dir:'ЛОНГ'},closed),null);
  assert.equal(result({...later,exit:106},{state:'closed',dir:'ЛОНГ'},closed).source,'manual');
 });
+test('unrepresentable personal returns never render an infinite percentage or cash amount',()=>{
+ assert.equal(result({...position,entry:1e-308},{current:1e12,dir:'ЛОНГ',state:'active'},{}),null);
+ assert.equal(result({...position,entry:100,quantity:1e308,pointValue:1e308},{current:110,dir:'ЛОНГ',state:'active'},{}),null);
+});
+
+test('personal dates require actual timestamp strings and reject calendar rollover',()=>{
+ const enteredAt='2000-01-01T10:00:00Z';
+ for(const closedAt of [2001,['2001-01-01T10:00:00Z'],'2001-02-30T10:00:00Z','2001-01-01T24:00:00Z','2001-01-01T10:60:00Z'])assert.throws(()=>validatePosition({...position,enteredAt,exit:110,closedAt}),cause=>cause.status===400);
+ for(const value of ['2026-02-30T10:00:00Z','2026-10-01T24:00:00Z','10/01/2026'])assert.throws(()=>validatePosition({...position,enteredAt:value}),cause=>cause.status===400);
+ const valid=validatePosition({...position,enteredAt:'2026-10-01T13:00:00+03:00',exit:110,closedAt:'2026-10-01T13:30:00+03:00'});assert.equal(valid.enteredAt,'2026-10-01T10:00:00.000Z');assert.equal(valid.closedAt,'2026-10-01T10:30:00.000Z');
+});

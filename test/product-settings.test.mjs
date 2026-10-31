@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
+import {readFile,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {createProductSettings,defaultProductSettings,validateProductSettingsDatabase} from '../lib/product-settings.mjs';
 import {serviceFixture} from './service-fixture.mjs';
@@ -33,5 +33,12 @@ test('separate settings stores serialize writers and reload the winning revision
   const a=await createProductSettings(f.directory),b=await createProductSettings(f.directory),admin={id:f.admin.data.user.id,role:'admin'},settings=defaultProductSettings();
   const results=await Promise.allSettled([a.updateAdmin(admin,{revision:0,settings:{...settings,authorName:'First'}}),b.updateAdmin(admin,{revision:0,settings:{...settings,authorName:'Second'}})]);
   assert.equal(results.filter(result=>result.status==='fulfilled').length,1);assert.equal(results.find(result=>result.status==='rejected').reason.status,409);assert.deepEqual(await a.readPublic(),await b.readPublic());
+ }finally{await f.close();}
+});
+
+test('exhausted settings revision cannot write an unreadable store',async()=>{
+ const f=await fixture();try{
+  const file=join(f.directory,'product-settings.json'),db={version:1,revision:Number.MAX_SAFE_INTEGER,settings:defaultProductSettings()};assert.equal(validateProductSettingsDatabase(db),true);const original=JSON.stringify(db);await writeFile(file,original);
+  const response=await f.request('/api/admin/settings',{method:'PUT',cookie:f.admin.cookie,body:{revision:db.revision,settings:{...db.settings,authorName:'Не должно сохраниться'}}});assert.equal(response.status,409);assert.equal(await readFile(file,'utf8'),original);assert.deepEqual((await f.request('/api/product-settings')).data,db.settings);
  }finally{await f.close();}
 });

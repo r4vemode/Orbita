@@ -74,7 +74,7 @@ test('server enforces subscriptions and administrator permissions on direct and 
         const member=await request(base,path,{cookie:unpaid.cookie});assert.equal(member.status,303,path);assert.match(member.headers.location,/^\/subscriptions\.html\?/);
       }
       assert.equal((await request(base,'/%61pp.html',{method:'HEAD'})).status,303);
-      for(const path of ['/assets/app.js','/assets/%61pp.js','/assets//app.js','/assets/signal-visual.js','/assets/learning-data.js','/assets/news.js','/assets/radar.js','/assets/%72adar.js','/assets/participants.js','/assets/%70articipants.js']){
+      for(const path of ['/assets/app.js','/assets/%61pp.js','/assets//app.js','/assets/signal-visual.js','/assets/learning-data.js','/assets/learning.js','/assets/member-session.js','/assets/news.js','/assets/radar.js','/assets/%72adar.js','/assets/participants.js','/assets/%70articipants.js']){
         assert.equal((await request(base,path)).status,401,path);assert.equal((await request(base,path,{cookie:unpaid.cookie})).status,403,path);
       }
       for(const path of ['/api/ideas','/api/lessons','/api/news','/api/watchlist','/api/positions','/api/radar','/api/radar/companies','/api/radar/stream','/api/radar/subscriptions','/api/participants','/api/participants/config','/api/participants/demo','/api/participants/coverage','/api/participants/watchlist']){
@@ -87,7 +87,7 @@ test('server enforces subscriptions and administrator permissions on direct and 
 
     await t.test('public pages and metadata reveal no paid records or downloadable seeds',async()=>{
       for(const path of ['/','/strategies.html','/strategy.html?strategy=orbita-exclusive','/guide.html','/assets/guide.css','/assets/guide.js','/offer.html','/privacy.html','/refunds.html'])assert.equal((await request(base,path)).status,200,path);
-      for(const path of ['/assets/editor-seed.js','/assets/%65ditor-seed.js','/assets//editor-seed.js','/fixtures/demo-ideas.json','/data/ideas.json','/data/accounts.json'])assert.equal((await request(base,path)).status,404,path);
+      for(const path of ['/assets','/assets/','/assets/editor-seed.js','/assets/%65ditor-seed.js','/assets//editor-seed.js','/fixtures/demo-ideas.json','/data/ideas.json','/data/accounts.json'])assert.equal((await request(base,path)).status,404,path);
       const catalog=await request(base,'/assets/strategy-data.js');assert.equal(catalog.status,200);
       assert.ok(!catalog.text.includes(proId)&&!catalog.text.includes(exclusiveId));assert.ok(!catalog.text.includes('exclusive-sber'));
       assert.equal((await request(base,'/assets/app.js',{cookie:pro.cookie})).status,200);
@@ -120,7 +120,7 @@ test('server enforces subscriptions and administrator permissions on direct and 
     await t.test('only trusted administrator can grant access or publish and mutate ideas',async()=>{
       for(const account of [unpaid,pro,exclusive]){
         for(const page of ['/content-admin.html','/settings-admin.html','/launch-admin.html','/legal-admin.html','/%6cegal-admin.html','/%63ontent-admin.html','/settings-admin.html%2f..%2fsettings-admin.html'])assert.equal((await request(base,page,{cookie:account.cookie})).status,303,page);
-        for(const asset of ['/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js','/assets/%6cegal-admin.js','/assets/%63ontent-admin.js'])assert.equal((await request(base,asset,{cookie:account.cookie})).status,403,asset);
+        for(const asset of ['/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js','/assets/%6cegal-admin.js','/assets/%63ontent-admin.js','/assets/admin-session.js','/assets/%61dmin-session.js'])assert.equal((await request(base,asset,{cookie:account.cookie})).status,403,asset);
         for(const route of ['/api/admin/content','/api/admin/settings','/api/admin/metrics','/api/admin/legal','/api/admin/legal/preview?document=offer'])assert.equal((await request(base,route,{cookie:account.cookie})).status,403,route);
         assert.equal((await request(base,'/api/admin/legal/publish',{method:'POST',cookie:account.cookie,body:{revision:0,password:'irrelevant'}})).status,403);
         assert.equal((await request(base,'/api/admin/users',{cookie:account.cookie})).status,403);
@@ -134,7 +134,7 @@ test('server enforces subscriptions and administrator permissions on direct and 
       assert.equal((await request(base,'/api/admin/users')).status,401);
       for(const route of ['/api/admin/content','/api/admin/settings','/api/admin/metrics','/api/admin/legal','/api/admin/legal/preview?document=offer'])assert.equal((await request(base,route)).status,401,route);
       for(const page of ['/content-admin.html','/settings-admin.html','/launch-admin.html','/legal-admin.html']){assert.equal((await request(base,page)).status,303,page);assert.equal((await request(base,page,{cookie:admin.cookie})).status,200,page);}
-      for(const asset of ['/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js'])assert.equal((await request(base,asset)).status,401,asset);
+      for(const asset of ['/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js','/assets/admin-session.js'])assert.equal((await request(base,asset)).status,401,asset);
       const metrics=await request(base,'/api/admin/metrics',{cookie:admin.cookie});assert.equal(metrics.status,200);assert.ok(!JSON.stringify(metrics.data).includes('example.test'));assert.equal(metrics.data.metrics.paymentConversion.liveOrders,0);
       assert.equal((await request(base,'/admin.html',{cookie:admin.cookie})).status,200);
       assert.equal((await request(base,'/api/admin/ideas',{cookie:admin.cookie})).data.records.length,2);
@@ -159,6 +159,16 @@ test('server enforces subscriptions and administrator permissions on direct and 
       assert.equal((await request(base,'/participants.html',{cookie:pro.cookie})).status,303);
       const me=await request(base,'/api/me',{cookie:exclusive.cookie});assert.deepEqual(me.data.user.access.activePlans,[]);
       assert.equal((await request(base,'/api/admin/users',{cookie:admin.cookie})).status,200);
+    });
+    await t.test('protected pages and assets share the API request budget before reading account storage',async()=>{
+      let limited;
+      for(let count=0;count<=600;count++){
+        const response=await request(base,count%2?'/assets/member-session.js':'/app.html');
+        if(response.status===429){limited=response;break;}
+        assert.equal(response.status,count%2?401:303);
+      }
+      assert.ok(limited,'Repeated protected static requests must exhaust the shared read budget');assert.equal(limited.data.code,'REQUEST_LIMIT');
+      assert.equal((await request(base,'/api/me')).status,429);assert.equal((await request(base,'/index.html')).status,200);assert.equal((await request(base,'/healthz')).status,200);
     });
   }finally{
     if(server)await server.close();await rm(directory,{recursive:true,force:true});

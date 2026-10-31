@@ -34,6 +34,8 @@ test('Radar admin correction keeps original analysis, optimistic edits and merge
   try{
     const {admin,pro}=await users(f);const write=(route,body,method='POST')=>f.request(route,{method,cookie:admin.cookie,body});
     const first=await write('/api/admin/radar',manual());assert.equal(first.status,201);const event=first.data.event;
+    for(const field of ['headline','summary','whyImportant'])assert.equal((await write('/api/admin/radar',manual({[field]:'<script>empty after normalization</script>'}))).status,400);
+    assert.equal((await f.service.readDatabase()).events.length,1,'Rejected empty content must not create publications');
     assert.equal((await write('/api/admin/radar/'+event.id,{revision:event.revision,summary:'Исправленное объяснение',impact:'MIXED',aiIncorrect:true},'PATCH')).status,200);
     assert.equal((await write('/api/admin/radar/'+event.id,{revision:event.revision,summary:'Старая вкладка'},'PATCH')).status,409);
     const current=(await f.request('/api/admin/radar',{cookie:admin.cookie})).data.events.find(row=>row.id===event.id);assert.equal(current.summary,'Исправленное объяснение');assert.equal(current.audit.length,2);
@@ -63,6 +65,17 @@ test('Radar cursor is bound to filters and user; source duplicates preserve one 
     const stored=(await f.service.readDatabase()).events.find(event=>event.sources.some(source=>source.externalId==='unique-dedup-test'));assert.equal(stored.sources.length,2);assert.ok(stored.originalAnalysis);assert.ok(stored.audit.some(entry=>entry.action==='source-added'));
     assert.equal(stored.marketReaction,null,'Live events must never acquire fake market reaction');
   }finally{await f.close();}
+});
+
+test('Radar preserves distinct live and demo records and refuses editorial merges across modes',async()=>{
+ const f=await serviceFixture(({directory,accounts})=>createRadar(directory,{accounts,env:{}}));
+ try{
+  const {admin,pro}=await users(f),raw={provider:'edisclosure',externalId:'same-source-identity',ticker:'SBER',sourceType:'DISCLOSURE',sourceUrl:'https://www.e-disclosure.ru/',title:'Дивиденды Сбербанка',rawText:'Сбербанк рекомендовал 38,4 рубля на акцию.',publishedAt:new Date().toISOString()};
+  assert.equal((await f.service.ingestBatch([{...raw,isDemo:true}])).inserted,1);assert.equal((await f.service.ingestBatch([raw])).inserted,1);
+  const db=await f.service.readDatabase(),demo=db.events.find(event=>event.isDemo),live=db.events.find(event=>!event.isDemo);assert.equal(db.events.length,2);assert.equal(live.sources.length,1);assert.equal(live.marketReaction,null);assert.equal(demo.marketReaction?.isDemo,true);
+  for(const [from,to]of [[demo,live],[live,demo]])assert.equal((await f.request('/api/admin/radar/'+from.id+'/merge',{method:'POST',cookie:admin.cookie,body:{revision:from.revision,targetId:to.id,targetRevision:to.revision}})).status,400);
+  const feed=await f.request('/api/radar?importance=0',{cookie:pro.cookie});assert.equal(feed.data.events.length,2);assert.equal(feed.data.events.filter(event=>event.isDemo).length,1);assert.ok((await f.service.readDatabase()).events.every(event=>event.status==='published'));
+ }finally{await f.close();}
 });
 
 test('Radar notifications require explicit current own rules, freshness and significant events',async()=>{

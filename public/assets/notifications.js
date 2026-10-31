@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $=id=>document.getElementById(id),flags=['ideaUpdates','newSignals','expiryReminders','radarEvents'];
-  let state=null,poll=null,dirty=false;
+  let state=null,poll=null,dirty=false,saving=false,editRevision=0;
   const form=$('notificationForm');
   function status(text,isError=false){$('notificationStatus').textContent=text;$('notificationStatus').classList.toggle('error',isError);}
   async function request(path,options={}){
@@ -25,11 +25,11 @@
     if(linked){$('telegramLinkPanel').hidden=true;$('telegramDeepLink').removeAttribute('href');stopPolling();}
   }
   async function refresh(updateFields=false){state=await request('/api/notifications/preferences');render(updateFields);return state;}
-  form.addEventListener('change',()=>{dirty=true;});
+  form.addEventListener('change',()=>{dirty=true;editRevision++;});
   form.addEventListener('submit',async event=>{
-    event.preventDefault();$('saveNotifications').disabled=true;
-    try{const preferences=Object.fromEntries(flags.map(flag=>[flag,form.elements[flag].checked]));state=await request('/api/notifications/preferences',{method:'PUT',body:JSON.stringify(preferences)});render();status(state.telegram.linked?'Настройки сохранены.':'Настройки сохранены. Подключите Telegram, чтобы получать сообщения.');}
-    catch(error){status(error.message,true);}finally{$('saveNotifications').disabled=false;}
+    event.preventDefault();if(saving)return;saving=true;$('saveNotifications').disabled=true;const revision=editRevision;
+    try{const preferences=Object.fromEntries(flags.map(flag=>[flag,form.elements[flag].checked]));state=await request('/api/notifications/preferences',{method:'PUT',body:JSON.stringify(preferences)});const changed=revision!==editRevision;render(!changed);status(changed?'Предыдущие настройки сохранены. В форме есть новые изменения — сохраните их отдельно.':state.telegram.linked?'Настройки сохранены.':'Настройки сохранены. Подключите Telegram, чтобы получать сообщения.');}
+    catch(error){status(error.message,true);}finally{saving=false;$('saveNotifications').disabled=false;}
   });
   $('connectTelegram').addEventListener('click',async()=>{
     $('connectTelegram').disabled=true;

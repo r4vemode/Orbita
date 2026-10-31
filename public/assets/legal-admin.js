@@ -2,7 +2,8 @@
   'use strict';
   const A=window.OrbitaAccess,$=id=>document.getElementById(id),form=$('legalForm'),publishForm=$('legalPublishForm');
   const fields=['ownerKind','ownerName','inn','ogrn','address','supportEmail','privacyEmail','hostingDetails','processorsDetails'];
-  let revision=0,dirty=false,busy=false,loaded=false,ready=false,user=null;
+  let revision=0,dirty=false,busy=false,loaded=false,ready=false,user=null,privateSession;
+  const api=(...args)=>privateSession?privateSession.request(...args):A.request(...args);
   const stamp=value=>{const date=new Date(value);return Number.isFinite(date.getTime())?new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(date)+' МСК':'Дата не указана';};
   function node(tag,text){const element=document.createElement(tag);if(text!==undefined)element.textContent=text;return element;}
   function message(text,error=false,target=$('legalMessage')){target.textContent=text;target.className=error?'error':'success';}
@@ -38,13 +39,13 @@
     $('legalCurrentVersion').textContent=result.currentVersion?'Действующая редакция: '+result.currentVersion:'Опубликованной редакции пока нет. Посетителям доступен проект документов.';
     renderReadiness(result.readiness);renderVersions(result.versions);loaded=true;markDirty(false);updateCode();$('legalWorkspace').hidden=false;
   }
-  async function load(){fill(await A.request('/api/admin/legal'));$('legalStatus').textContent='Закрытый раздел администратора. Черновики не публикуются автоматически.';}
+  async function load(){fill(await api('/api/admin/legal'));$('legalStatus').textContent='Закрытый раздел администратора. Черновики не публикуются автоматически.';}
   async function checkAccess(error){if([401,403].includes(error.status))try{const current=await A.requireAdmin();if(current){user=current;updateCode();}}catch{}}
   form.addEventListener('input',()=>{markDirty(true);if(!$('publishPanel').hidden)closePublish();});
   form.addEventListener('change',()=>{markDirty(true);if(!$('publishPanel').hidden)closePublish();});
   form.addEventListener('submit',async event=>{
     event.preventDefault();if(busy||!loaded||!form.reportValidity())return;const draft=profile();setBusy(true);message('Сохраняем частный черновик…');
-    try{fill(await A.request('/api/admin/legal',{method:'PUT',body:JSON.stringify({revision,profile:draft})}));closePublish();message('Черновик сохранён. Публичная редакция не изменена.');}
+    try{fill(await api('/api/admin/legal',{method:'PUT',body:JSON.stringify({revision,profile:draft})}));closePublish();message('Черновик сохранён. Публичная редакция не изменена.');}
     catch(error){message(error.status===409?'Документы уже изменены в другой вкладке. Ваши поля сохранены в форме. Скопируйте нужные значения и загрузите актуальную версию.':error.message,true);await checkAccess(error);}
     finally{setBusy(false);}
   });
@@ -56,11 +57,11 @@
     const body={revision,password:publishForm.elements.password.value,...(publishForm.elements.code.value.trim()?{code:publishForm.elements.code.value.trim()}:{})};
     if(!confirm('Опубликовать новую редакцию документов с сохранёнными реквизитами? Она появится на сайте и останется в истории.')){clearCredentials();return;}
     clearCredentials();setBusy(true);message('Подтверждаем доступ и публикуем…',false,$('publishMessage'));
-    try{fill(await A.request('/api/admin/legal/publish',{method:'POST',body:JSON.stringify(body)}));closePublish();message('Новая редакция опубликована. Предыдущие редакции сохранены в истории.');}
+    try{fill(await api('/api/admin/legal/publish',{method:'POST',body:JSON.stringify(body)}));closePublish();message('Новая редакция опубликована. Предыдущие редакции сохранены в истории.');}
     catch(error){message(error.status===409?'Черновик изменился в другой вкладке. Публикация остановлена; ваши поля сохранены. Загрузите и проверьте актуальную версию.':error.message,true,$('publishMessage'));await checkAccess(error);}
     finally{clearCredentials();setBusy(false);}
   });
   window.addEventListener('pagehide',clearCredentials);
   window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});
-  try{user=await A.requireAdmin();if(!user)return;await load();}catch(error){$('legalStatus').textContent=error.message;$('legalStatus').className='error';}
+  try{user=await A.requireAdmin();if(!user)return;privateSession=window.OrbitaAdminSession.watch(user,{workspace:'legalWorkspace',clear(){dirty=false;loaded=ready=false;revision=0;clearCredentials();for(const id of ['legalVersions','legalReadiness','legalCurrentVersion'])$(id).replaceChildren();}});await load();}catch(error){$('legalStatus').textContent=error.message;$('legalStatus').className='error';}
 })();

@@ -3,7 +3,7 @@
   const requestedPlan = new URLSearchParams(location.search).get('plan');
   const selectedPlan = account => ['pro','exclusive'].includes(requestedPlan) ? requestedPlan : account ? A.preferredPlan(account.id) : null;
   function subscriptionsLink(account){const plan=selectedPlan(account);if(account&&plan)A.rememberPlan(account.id,plan);return 'subscriptions.html'+(plan?'?plan='+plan:'');}
-  const post = (path, data = {}) => A.request('/api/security/' + path, { method: 'POST', body: JSON.stringify(data) });
+  const post = async(path, data = {}) => {if(page==='settings')await checkIdentity();const result=await A.request('/api/security/' + path, { method: 'POST', body: JSON.stringify(data) });if(page==='settings')await checkIdentity();return result;};
   function message(element, text, type = '') { if (!element) return; element.textContent = text; element.className = (element.id === 'securityStatus' ? 'security-status' : 'status') + (type ? ' ' + type : ''); }
   function takeToken() { const value = new URLSearchParams(location.hash.slice(1)).get('token') || ''; if (location.hash) history.replaceState(null, '', location.pathname + location.search); return value.length <= 512 ? value : ''; }
   async function copy(value, target) {
@@ -54,9 +54,14 @@
     return;
   }
   if (page !== 'settings') return;
-  let user = null, settings = null, setup = null, recoveryCodes = [], busy = false;
+  let user = null, settings = null, setup = null, recoveryCodes = [], busy = false, ownerId = null, invalidated = false;
   function clearSetup() { setup = null; $('setupSecret').value = ''; $('setupUri').textContent = ''; $('mfaConfirmForm').reset(); $('mfaSetupPanel').hidden = true; if (user && !user.security?.mfaEnabled) $('mfaSetupForm').hidden = false; }
   function clearRecovery() { recoveryCodes = []; $('recoveryCodes').replaceChildren(); $('recoveryPanel').hidden = true; $('recoverySaved').checked = false; $('closeRecovery').disabled = true; message($('recoveryMessage'), ''); }
+  function changedAccount(guest=false){
+    invalidated=true;user=null;settings=null;clearSetup();clearRecovery();for(const form of document.forms)form.reset();$('accountEmail').textContent='';$('securitySettings').hidden=true;
+    location.replace(guest?'/account.html?next=%2Fsecurity.html':'/security.html');throw Object.assign(Error('Аккаунт изменился. Откройте настройки заново.'),{code:'ACCOUNT_CHANGED'});
+  }
+  async function checkIdentity(){if(invalidated)throw Object.assign(Error('Аккаунт изменился.'),{code:'ACCOUNT_CHANGED'});const current=await A.current();if(!current)changedAccount(true);if(ownerId&&current.id!==ownerId)changedAccount();return current;}
   function showRecovery(codes) {
     if (!Array.isArray(codes) || !codes.length || !codes.every(value => typeof value === 'string')) throw Error('Сервер не вернул резервные коды. Создайте новый набор в настройках защиты.');
     recoveryCodes = [...codes]; $('recoveryCodes').replaceChildren();
@@ -79,8 +84,9 @@
     else { continueLink.href = subscriptionsLink(user); continueLink.textContent = 'К подпискам →'; }
   }
   async function refreshSettings() {
-    settings = await A.request('/api/security/status'); user = settings.user;
-    if (!user) { location.replace('/account.html?next=' + encodeURIComponent('/security.html')); return false; }
+    const result = await A.request('/api/security/status'),current=await checkIdentity();
+    if(!result.user||result.user.id!==current.id)changedAccount(!result.user);
+    ownerId=current.id;settings=result;user=result.user;
     renderSettings(); message($('securityStatus'), ''); return true;
   }
   async function operation(form, action) {
@@ -124,6 +130,7 @@
   $('recoverySaved').onchange = event => { $('closeRecovery').disabled = !event.target.checked; };
   $('closeRecovery').onclick = () => { if (!$('recoverySaved').checked) return; clearRecovery(); message($('securityStatus'), 'Двухфакторная защита настроена.', 'success'); };
   window.addEventListener('pagehide', () => { clearSetup(); clearRecovery(); for (const form of document.forms) form.reset(); });
+  document.addEventListener('visibilitychange',async()=>{if(document.hidden){$('securitySettings').hidden=true;$('recoveryPanel').hidden=true;return;}try{await checkIdentity();renderSettings();$('recoveryPanel').hidden=!recoveryCodes.length;}catch(error){if(error.code!=='ACCOUNT_CHANGED')message($('securityStatus'),'Не удалось проверить аккаунт. Обновите страницу перед изменением защиты.','error');}});
   window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
   try { await refreshSettings(); }
   catch (error) { if (error.status === 401) location.replace('/account.html?next=' + encodeURIComponent('/security.html')); else message($('securityStatus'), error.message, 'error'); }

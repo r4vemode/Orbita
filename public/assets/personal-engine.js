@@ -14,7 +14,8 @@
     const exit = source === 'manual' ? position.exit : source === 'strategy' ? meta.exit : idea.current;
     if (![position.entry,position.quantity,position.pointValue,exit].every(n=>Number.isFinite(n)&&n>0)) return null;
     const change=(exit-position.entry)*(idea.dir==='ШОРТ'?-1:1);
-    return {exit,source,percent:change/position.entry*100,pnl:change*position.quantity*position.pointValue};
+    const percent=change/position.entry*100,pnl=change*position.quantity*position.pointValue;
+    return [percent,pnl].every(Number.isFinite)?{exit,source,percent,pnl}:null;
   }
   window.OrbitaPersonalEngine={result};
 })();

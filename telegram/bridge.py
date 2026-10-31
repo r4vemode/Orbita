@@ -8,11 +8,29 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / 'data'
 SYMBOLS = {'SBER': r'сбер|\bsber\b', 'LKOH': r'лукойл|\blkoh\b',
            'ROSN': r'роснефт|\brosn\b', 'GAZP': r'газпром(?!\s*нефт)|\bgazp\b',
            'BTC': r'биткоин|bitcoin|\bbtc\b', 'ETH': r'эфириум|ethereum|\beth\b',
            'Brent': r'\bbrent\b|брент'}
+
+def data_directory(env=None, root=ROOT):
+    """Use the server's data directory without exposing a Telegram session."""
+    env = os.environ if env is None else env
+    directory = Path(os.path.abspath(env.get('ORBITA_DATA_DIR') or root / 'data'))
+    public = (root / 'public').resolve()
+    if directory == public or public in directory.parents:
+        raise ValueError('ORBITA_DATA_DIR должен находиться вне public')
+    for part in [*reversed(directory.parents), directory]:
+        if part.is_symlink():
+            raise ValueError('Символические ссылки в пути данных не поддерживаются')
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if not directory.is_dir() or os.name != 'nt' and directory.stat().st_mode & 0o077:
+        raise ValueError('ORBITA_DATA_DIR должен быть приватным каталогом с правами 0700')
+    for name in ('news.json', 'telegram.session', 'telegram.session-journal', 'telegram.session-wal', 'telegram.session-shm'):
+        target = directory / name
+        if target.is_symlink() or target.exists() and not target.is_file():
+            raise ValueError('В каталоге данных обнаружен неподдерживаемый файл')
+    return directory
 
 def classify(text):
     tickers = [key for key, pattern in SYMBOLS.items() if re.search(pattern, text, re.I)]
@@ -49,18 +67,20 @@ def atomic_write(path, payload):
 
 async def main():
     from telethon import TelegramClient, events
-    DATA.mkdir(exist_ok=True, mode=0o700)
+    os.umask(0o077)
+    data = data_directory()
     api_id = os.environ.get('TELEGRAM_API_ID') or input('Telegram api_id: ').strip()
     from getpass import getpass
     api_hash = os.environ.get('TELEGRAM_API_HASH') or getpass('Telegram api_hash (скрыт): ').strip()
     if not api_id.isdigit() or not api_hash: raise SystemExit('Нужны api_id и api_hash из my.telegram.org')
-    os.umask(0o077)
-    client = TelegramClient(str(DATA/'telegram'), int(api_id), api_hash)
+    client = TelegramClient(str(data/'telegram'), int(api_id), api_hash)
     await client.start()
     entity = await client.get_entity('markettwits')
-    feed = DATA/'news.json'
+    feed = data/'news.json'
     rows = {}
     if feed.exists():
+        if feed.stat().st_size > 1048576:
+            raise ValueError('Файл ленты превышает 1 МиБ')
         rows = {n['id']: n for n in json.loads(feed.read_text(encoding='utf-8'))['items']}
     lock = asyncio.Lock()
     def save():
