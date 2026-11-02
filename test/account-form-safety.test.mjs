@@ -63,3 +63,29 @@ test('tariff survives a subscription paywall next URL, explicit selection wins, 
 test('account HTML uses POST and starts disabled as a fail-safe before JavaScript binds its handler',async()=>{
   const html=await readFile(new URL('../public/account.html',import.meta.url),'utf8');assert.match(html,/<form\b[^>]*id="accountForm"[^>]*method="post"/i);assert.match(html,/<button\b[^>]*id="submit"[^>]*disabled/);
 });
+
+test('verified client login opens My Orbita while explicit tariff and protected deep links survive',async()=>{
+  const free={id:'fixture-user',emailVerified:true,access:{hasSubscription:false,isAdmin:false}};
+  const paid={...free,access:{hasSubscription:true,isAdmin:false}};
+  for(const [user,search,expected] of [
+    [free,'','/dashboard.html'],
+    [paid,'','/dashboard.html'],
+    [free,'?plan=exclusive','/subscriptions.html?plan=exclusive'],
+    [free,'?next='+encodeURIComponent('/dashboard.html'),'/dashboard.html'],
+    [free,'?next='+encodeURIComponent('/support.html?ticket=fixture-ticket'),'/support.html?ticket=fixture-ticket'],
+    [paid,'?next='+encodeURIComponent('/app.html?idea=fixture-idea'),'/app.html?idea=fixture-idea'],
+    [paid,'?next='+encodeURIComponent('https://outside.example/dashboard.html'),'/dashboard.html']
+  ]){
+    const page=harness({user,search});await page.completion;await page.submit();assert.equal(page.navigations[0],expected);
+  }
+});
+
+test('dashboard landing preserves administrator MFA enrollment and verification before client navigation',async()=>{
+  for(const [user,expected] of [
+    [{id:'fixture-admin',emailVerified:true,access:{isAdmin:true,hasSubscription:true}},'/admin.html'],
+    [{id:'fixture-admin',emailVerified:true,access:{isAdmin:false,hasSubscription:false},security:{adminEnrollmentRequired:true}},'/security.html?enroll=1'],
+    [{id:'fixture-user',emailVerified:false,access:{isAdmin:false,hasSubscription:true}},'/security.html?verify=1']
+  ]){
+    const page=harness({user});await page.completion;await page.submit();assert.equal(page.navigations[0],expected);
+  }
+});

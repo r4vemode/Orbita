@@ -20,6 +20,7 @@ import {createSalesGate} from './lib/sales-gate.mjs';
 import {createRadar} from './lib/radar/service.mjs';
 import {createParticipants} from './lib/participants.mjs';
 import {createSupport} from './lib/support.mjs';
+import {createDashboard} from './lib/dashboard.mjs';
 if(Number(process.versions.node.split('.')[0])<22)throw Error(`Для ORBITA нужен Node.js 22 или новее; рекомендуется Node.js 24 LTS. Сейчас установлен Node.js ${process.versions.node}. Обновите Node.js и повторите npm start.`);
 const root=await realpath(fileURLToPath(new URL('./public/',import.meta.url)));
 const configuredDirectory=process.env.ORBITA_DATA_DIR||fileURLToPath(new URL('./data/',import.meta.url));
@@ -39,6 +40,7 @@ const payments=await createPayments(directory,{accounts,checkoutGate:createSales
 const radar=await createRadar(directory,{accounts,ideas});
 const participants=await createParticipants(directory,{accounts});
 const support=await createSupport(directory,{accounts});
+const dashboard=createDashboard({accounts,ideas,radar,support});
 const notifications=await createNotifications(directory,{accounts,ideas,radar});
 const content=await createContent(directory,{accounts}),productSettings=await createProductSettings(directory,{accounts});
 const readiness=createReadiness({directory,publicDir:root});
@@ -48,8 +50,8 @@ const port=Number(process.env.PORT||3000),host=process.env.HOST||'127.0.0.1';
 if(!Number.isInteger(port)||port<0||port>65535)throw Error('PORT должен быть числом от 0 до 65535.');
 const types={'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
 const memberPages=new Set(['/app.html','/calculator.html','/learn.html','/participants.html']);
-const accountPages=new Set(['/subscriptions.html','/security.html','/notifications.html','/support.html']);
-const accountAssets=new Set(['/assets/support.js']);
+const accountPages=new Set(['/subscriptions.html','/security.html','/notifications.html','/support.html','/dashboard.html']);
+const accountAssets=new Set(['/assets/support.js','/assets/dashboard.js']);
 const adminPages=new Set(['/admin.html','/content-admin.html','/settings-admin.html','/launch-admin.html','/legal-admin.html','/radar-admin.html','/support-admin.html']);
 const radarPages=new Set(['/radar.html']),radarAssets=new Set(['/assets/radar.js']);
 const paidAssets=new Set(['/assets/app.js','/assets/signal-visual.js','/assets/calculator.js','/assets/learning-data.js','/assets/learning.js','/assets/news.js','/assets/personal.js','/assets/participants.js','/assets/member-session.js']);
@@ -93,7 +95,7 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
    if(await accounts.handle(req,res,url))return;
    const user=await accounts.identify(req);
    if(await payments.handle(req,res,url,user)||await notifications.handle(req,res,url,user))return;
-   if(await support.handle(req,res,url,user)||await participants.handle(req,res,url,user)||await radar.handle(req,res,url,user)||await legal.handle(req,res,url,user)||await content.handle(req,res,url,user)||await productSettings.handle(req,res,url,user))return;
+   if(await dashboard.handle(req,res,url,user)||await support.handle(req,res,url,user)||await participants.handle(req,res,url,user)||await radar.handle(req,res,url,user)||await legal.handle(req,res,url,user)||await content.handle(req,res,url,user)||await productSettings.handle(req,res,url,user))return;
    if(url.pathname==='/api/public-config'&&req.method==='GET'){const settings=await productSettings.readPublic(),paymentConfig=await payments.publicConfig(),publication=await legal.readPublic();json(res,200,{legalVersion:await accounts.currentLegalVersion(),plans:PLANS,paymentsAvailable:paymentConfig.checkoutEnabled,mailEnabled:accounts.emailConfigured,telegramEnabled:notifications.configured,supportEmail:settings.supportEmail||process.env.ORBITA_SUPPORT_EMAIL||publication.profile.supportEmail||null,authorName:settings.authorName,editorialNote:settings.editorialNote});return;}
    if(url.pathname==='/api/admin/readiness'){requireAdmin(user);if(req.method!=='GET')throw error(405,'Метод не поддерживается.');const settings=await productSettings.readPublic();json(res,200,await readiness.adminReport({supportEmail:settings.supportEmail}));return;}
    if(url.pathname==='/api/admin/metrics'){requireAdmin(user);if(req.method!=='GET')throw error(405,'Метод не поддерживается.');let billing;try{billing=JSON.parse(await readFile(path.join(directory,'billing.json'),'utf8'));}catch(cause){if(cause.code!=='ENOENT')throw cause;}json(res,200,{metrics:buildMvpMetrics({accounts:await accounts.readDatabase(),billing}),checkedAt:new Date().toISOString()});return;}

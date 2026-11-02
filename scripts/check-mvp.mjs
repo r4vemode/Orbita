@@ -150,6 +150,7 @@ async function main(){
     mark('Позиции участников: отдельные доли лонга/шорта, явное демо и личное отслеживание');
 
     stage='обращения в поддержку';
+    status(await admin('/api/admin/subscriptions',{userId:other.data.user.id,plan:'pro',expiresAt:null,reason:'Проверка помощи без действующей подписки'}),200,'Не подготовлен бесплатный аккаунт для обращения.');
     const supportRequest={requestId:randomUUID(),subject:'Учебная заявка репетиции',category:'account',message:'Вымышленная проблема для проверки поддержки и восстановления.',page:'/app.html',reference:''};
     status(await request(server,'/api/support'),401,'Поддержка раскрылась гостю.');
     const supportTicket=status(await request(server,'/api/support',{method:'POST',cookie:other.cookie,body:supportRequest}),201,'Бесплатный клиент не создал обращение.').data.ticket;
@@ -159,6 +160,21 @@ async function main(){
     assert.equal(supportReply.status,'waiting_customer');assert.equal(supportReply.messages.length,2);
     assert.equal((await request(server,'/api/support/'+supportTicket.id,{cookie:other.cookie})).data.ticket.messages[1].text,supportReply.messages[1].text);
     mark('Поддержка без подписки: личные обращения, безопасный повтор и ответ редакции');
+
+    stage='Моя Орбита и напоминания';
+    status(await request(server,'/api/dashboard'),401,'Сводка раскрылась гостю.');
+    status(await request(server,'/dashboard.html'),303,'Страница сводки раскрылась гостю.');
+    const freeDashboard=status(await request(server,'/api/dashboard',{cookie:other.cookie}),200,'Не открылась сводка бесплатного аккаунта.').data;
+    assert.equal(freeDashboard.sections.positions,'locked');assert.deepEqual(freeDashboard.positions.items,[]);assert.deepEqual(freeDashboard.updates.items,[]);assert.equal(freeDashboard.radar.available,false);
+    assert.equal(freeDashboard.support.items[0].id,supportTicket.id);assert.equal(freeDashboard.support.items[0].lastReply.text,supportReply.messages[1].text);assert.deepEqual(freeDashboard.reminders,[]);
+    const pendingExit={ideaId:quick.id,entry:102,quantity:3,pointValue:1,enteredAt:new Date().toISOString(),exit:null,closedAt:null};
+    status(await request(server,'/api/positions',{method:'PUT',cookie:client.cookie,body:pendingExit}),200,'Не сохранена незакрытая личная позиция.');
+    for(const [plan,hours]of [['pro',48],['exclusive',6]])status(await admin('/api/admin/subscriptions',{userId:client.data.user.id,plan,expiresAt:new Date(Date.now()+hours*3600000).toISOString(),reason:'Проверка независимых сроков продления'}),200,'Не подготовлен срок подписки.');
+    const dashboard=status(await request(server,'/api/dashboard',{cookie:client.cookie}),200,'Не открылась личная сводка.').data;
+    assert.equal(dashboard.user.id,client.data.user.id);assert.equal(dashboard.positions.total,1);assert.equal(dashboard.positions.items[0].ideaId,quick.id);assert.equal(dashboard.positions.items[0].needsExitReview,true);assert.equal(dashboard.positions.items[0].entry,102);
+    assert.ok(!Object.hasOwn(dashboard.positions.items[0],'current'));assert.ok(!Object.hasOwn(dashboard.positions.items[0],'pnl'));assert.equal(dashboard.support.total,0);assert.ok(dashboard.updates.items.every(item=>[quick.id,long.id].includes(item.ideaId)));assert.ok(dashboard.radar.items.every(item=>item.isDemo));
+    assert.equal(dashboard.reminders.length,2);assert.equal(dashboard.reminders.find(item=>item.plan==='pro').state,'expiring_soon');assert.equal(dashboard.reminders.find(item=>item.plan==='exclusive').state,'expiring_today');for(const reminder of dashboard.reminders)assert.equal(reminder.renewUrl,'/subscriptions.html?plan='+reminder.plan);
+    mark('Моя Орбита: свои позиции и обновления, личный ответ поддержки, два срока ручного продления');
 
     stage='юридические документы и согласия';
     const originalOffer=status(await request(server,'/offer.html?version='+LEGAL_VERSION),200,'Не открылась исходная редакция оферты.').text;
@@ -203,6 +219,7 @@ async function main(){
     assert.equal((await request(server,'/api/public-config')).data.legalVersion,legalVersion);assert.equal((await request(server,'/offer.html?version='+encodeURIComponent(legalVersion))).text,publishedOffer);
     assert.equal((await request(server,'/api/radar/'+radarEvent.id,{cookie:client.cookie})).data.event.headline,radarDetail.headline);
     assert.equal((await request(server,'/api/support/'+supportTicket.id,{cookie:other.cookie})).data.ticket.messages.length,2);
+    assert.equal((await request(server,'/api/dashboard',{cookie:client.cookie})).data.positions.items[0].ideaId,quick.id);
     mark('Перезапуск сохраняет аккаунты, сессии, подписки, историю, материалы и настройки');
 
     stage='копия и восстановление';await server.stop();
@@ -225,6 +242,7 @@ async function main(){
     status(await request(server,'/api/admin/ideas',{cookie:owner.cookie}),200,'Права редакции не восстановлены.');mark('Зашифрованная копия восстановлена в отдельную базу; приложение открыло её');
     stage='отзыв';
     for(const plan of ['pro','exclusive'])status(await request(server,'/api/admin/subscriptions',{method:'POST',cookie:owner.cookie,body:{userId:client.data.user.id,plan,expiresAt:null,reason:'Проверка отзыва после восстановления'}}),200,'Не отозван доступ после восстановления.');
+    const revokedDashboard=status(await request(server,'/api/dashboard',{cookie:client.cookie}),200,'Отзыв тарифа закрыл личную сводку.').data;assert.equal(revokedDashboard.sections.positions,'locked');assert.deepEqual(revokedDashboard.positions.items,[]);assert.deepEqual(revokedDashboard.updates.items,[]);assert.deepEqual(revokedDashboard.radar.items,[]);
     status(await request(server,'/api/ideas',{cookie:client.cookie}),403,'Отзыв не закрыл API.');status(await request(server,'/app.html',{cookie:client.cookie}),303,'Отзыв не закрыл страницу кабинета.');status(await request(server,'/api/support',{cookie:client.cookie}),200,'Отзыв тарифа закрыл помощь.');mark('Отзыв обоих тарифов немедленно закрывает доступ');
     console.log(`Готово: ${checks.length} групп проверок. Использованы только временные вымышленные данные. Это локальная репетиция, не проверка реальных платежей или производительности рабочего хостинга.`);
   }catch(error){console.error(`MVP-проверка не пройдена: ${stage}. ${error instanceof assert.AssertionError?'Не совпало ожидаемое состояние.':typeof error.message==='string'&&!error.message.includes('http')?error.message:'Сбой локального сценария.'}`);process.exitCode=1;}

@@ -12,6 +12,7 @@
     "preflight": "node scripts/preflight.mjs",
     "check:mvp": "node scripts/check-mvp.mjs",
     "check:ui": "node scripts/check-ui.mjs",
+    "check:container": "node scripts/check-container.mjs",
     "beta:local": "node scripts/beta-local.mjs",
     "seed:radar": "node scripts/seed-radar.mjs",
     "test": "node --test test/*.test.mjs"

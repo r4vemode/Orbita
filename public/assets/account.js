@@ -31,10 +31,10 @@
     if (user.security?.adminEnrollmentRequired) { location.assign('/security.html?enroll=1'); return; }
     if (!user.emailVerified) { location.assign('/security.html?verify=1' + (chosenPlan ? '&plan=' + chosenPlan : '')); return; }
     const next = parameters.get('next');
-    if (next && (user.access?.hasSubscription || /^\/(?:security|subscriptions)\.html(?:\?|$)/.test(next))) { location.assign(A.safeNext(next, '/subscriptions.html')); return; }
+    if (next && (user.access?.hasSubscription || /^\/(?:dashboard|security|subscriptions|support|notifications)\.html(?:\?|$)/.test(next))) { location.assign(A.safeNext(next, '/dashboard.html')); return; }
     if (user.access?.isAdmin) location.assign('/admin.html');
-    else if (user.access?.hasSubscription) location.assign('/app.html');
-    else location.assign('/subscriptions.html' + (chosenPlan ? '?plan=' + chosenPlan : ''));
+    else if (user.access?.hasSubscription) location.assign('/dashboard.html');
+    else location.assign(chosenPlan ? '/subscriptions.html?plan=' + chosenPlan : '/dashboard.html');
   }
   async function loadConfiguration() {
     configurationError = null;

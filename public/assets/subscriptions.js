@@ -76,7 +76,7 @@
       card.querySelector('small').textContent = '/ ' + details.days + ' дней';
     });
     $('openWorkspace').hidden = !user.access?.hasSubscription;
-    $('openWorkspace').href=user.access?.isAdmin?'admin.html':'app.html';$('openWorkspace').textContent=user.access?.isAdmin?'Открыть редакцию →':'Открыть кабинет →';
+    $('openWorkspace').href=user.access?.isAdmin?'admin.html':'dashboard.html';$('openWorkspace').textContent=user.access?.isAdmin?'Открыть редакцию →':'Открыть кабинет →';
     $('emailVerification').hidden = user.emailVerified === true;
     $('verificationDescription').textContent = config.mailEnabled === true ? 'Для оплаты нужен подтверждённый адрес. Откройте настройки безопасности, чтобы отправить письмо или повторить отправку.' : 'Отправка писем пока не подключена. Подтверждение email и оплата станут доступны после настройки почтовой службы.';
     $('paymentAvailability').hidden = enabled();
