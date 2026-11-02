@@ -21,6 +21,7 @@ import {createRadar} from './lib/radar/service.mjs';
 import {createParticipants} from './lib/participants.mjs';
 import {createSupport} from './lib/support.mjs';
 import {createDashboard} from './lib/dashboard.mjs';
+import {createTelegramAdmin} from './lib/telegram-admin/service.mjs';
 if(Number(process.versions.node.split('.')[0])<22)throw Error(`Для ORBITA нужен Node.js 22 или новее; рекомендуется Node.js 24 LTS. Сейчас установлен Node.js ${process.versions.node}. Обновите Node.js и повторите npm start.`);
 const root=await realpath(fileURLToPath(new URL('./public/',import.meta.url)));
 const configuredDirectory=process.env.ORBITA_DATA_DIR||fileURLToPath(new URL('./data/',import.meta.url));
@@ -42,9 +43,10 @@ const participants=await createParticipants(directory,{accounts});
 const support=await createSupport(directory,{accounts});
 const dashboard=createDashboard({accounts,ideas,radar,support});
 const notifications=await createNotifications(directory,{accounts,ideas,radar});
+const telegramAdmin=createTelegramAdmin({accounts,ideas});
 const content=await createContent(directory,{accounts}),productSettings=await createProductSettings(directory,{accounts});
 const readiness=createReadiness({directory,publicDir:root});
-const webhooks=new Set([...payments.webhookPaths,...notifications.webhookPaths]);
+const webhooks=new Set([...payments.webhookPaths,...notifications.webhookPaths,...telegramAdmin.webhookPaths]);
 const requestSecurity=createRequestSecurity({trustedProxyIps:process.env.ORBITA_TRUSTED_PROXY_IPS||''});
 const port=Number(process.env.PORT||3000),host=process.env.HOST||'127.0.0.1';
 if(!Number.isInteger(port)||port<0||port>65535)throw Error('PORT должен быть числом от 0 до 65535.');
@@ -52,10 +54,10 @@ const types={'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg
 const memberPages=new Set(['/app.html','/calculator.html','/learn.html','/participants.html']);
 const accountPages=new Set(['/subscriptions.html','/security.html','/notifications.html','/support.html','/dashboard.html']);
 const accountAssets=new Set(['/assets/support.js','/assets/dashboard.js']);
-const adminPages=new Set(['/admin.html','/content-admin.html','/settings-admin.html','/launch-admin.html','/legal-admin.html','/radar-admin.html','/support-admin.html']);
+const adminPages=new Set(['/admin.html','/content-admin.html','/settings-admin.html','/launch-admin.html','/legal-admin.html','/radar-admin.html','/support-admin.html','/telegram-admin.html']);
 const radarPages=new Set(['/radar.html']),radarAssets=new Set(['/assets/radar.js']);
 const paidAssets=new Set(['/assets/app.js','/assets/signal-visual.js','/assets/calculator.js','/assets/learning-data.js','/assets/learning.js','/assets/news.js','/assets/personal.js','/assets/participants.js','/assets/member-session.js']);
-const adminAssets=new Set(['/assets/admin.js','/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js','/assets/radar-admin.js','/assets/admin-session.js','/assets/support-admin.js']);
+const adminAssets=new Set(['/assets/admin.js','/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js','/assets/radar-admin.js','/assets/admin-session.js','/assets/support-admin.js','/assets/telegram-admin.js']);
 const removedAssets=new Set(['/assets/editor-seed.js']);
 function redirect(res,destination){res.writeHead(303,{Location:destination,'Cache-Control':'no-store','Vary':'Cookie'});res.end();}
 function probe(res,status,data,head=false){const body=JSON.stringify(data);res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Content-Length':Buffer.byteLength(body)});res.end(head?undefined:body);}
@@ -89,13 +91,13 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
    accounts.checkRequest(webhook?{method:'GET',headers:req.headers}:req);
    if(!requestSecurity.enter(req,res,{webhook}))return;
    if(webhook){
-    if(await payments.handle(req,res,url,null)||await notifications.handle(req,res,url,null))return;
+    if(await payments.handle(req,res,url,null)||await notifications.handle(req,res,url,null)||await telegramAdmin.handle(req,res,url,null))return;
    }
    accounts.checkRequest(req);
    if(await accounts.handle(req,res,url))return;
    const user=await accounts.identify(req);
    if(await payments.handle(req,res,url,user)||await notifications.handle(req,res,url,user))return;
-   if(await dashboard.handle(req,res,url,user)||await support.handle(req,res,url,user)||await participants.handle(req,res,url,user)||await radar.handle(req,res,url,user)||await legal.handle(req,res,url,user)||await content.handle(req,res,url,user)||await productSettings.handle(req,res,url,user))return;
+   if(await telegramAdmin.handle(req,res,url,user)||await dashboard.handle(req,res,url,user)||await support.handle(req,res,url,user)||await participants.handle(req,res,url,user)||await radar.handle(req,res,url,user)||await legal.handle(req,res,url,user)||await content.handle(req,res,url,user)||await productSettings.handle(req,res,url,user))return;
    if(url.pathname==='/api/public-config'&&req.method==='GET'){const settings=await productSettings.readPublic(),paymentConfig=await payments.publicConfig(),publication=await legal.readPublic();json(res,200,{legalVersion:await accounts.currentLegalVersion(),plans:PLANS,paymentsAvailable:paymentConfig.checkoutEnabled,mailEnabled:accounts.emailConfigured,telegramEnabled:notifications.configured,supportEmail:settings.supportEmail||process.env.ORBITA_SUPPORT_EMAIL||publication.profile.supportEmail||null,authorName:settings.authorName,editorialNote:settings.editorialNote});return;}
    if(url.pathname==='/api/admin/readiness'){requireAdmin(user);if(req.method!=='GET')throw error(405,'Метод не поддерживается.');const settings=await productSettings.readPublic();json(res,200,await readiness.adminReport({supportEmail:settings.supportEmail}));return;}
    if(url.pathname==='/api/admin/metrics'){requireAdmin(user);if(req.method!=='GET')throw error(405,'Метод не поддерживается.');let billing;try{billing=JSON.parse(await readFile(path.join(directory,'billing.json'),'utf8'));}catch(cause){if(cause.code!=='ENOENT')throw cause;}json(res,200,{metrics:buildMvpMetrics({accounts:await accounts.readDatabase(),billing}),checkedAt:new Date().toISOString()});return;}
@@ -142,6 +144,7 @@ const backupDir=process.env.ORBITA_BACKUP_DIR,backupPassphrase=process.env.ORBIT
 if(Boolean(backupDir)!==Boolean(backupPassphrase))throw Error('Для автоматических копий укажите и ORBITA_BACKUP_DIR, и ORBITA_BACKUP_PASSPHRASE.');
 server.listen(port,host,()=>{
  console.log(`ORBITA: ${process.env.ORBITA_PUBLIC_ORIGIN||'http://'+host+':'+server.address().port}`);
+ telegramAdmin.start();
  void radar.start().catch(()=>console.error('Radar: не удалось запустить получение источников; проверьте приватное хранилище и состояние адаптеров.'));
  void participants.start().catch(()=>console.error('Позиции участников: получение данных временно недоступно; проверьте настройки и подключение источника.'));
  if(payments.configured)schedule(()=>payments.sync(),60000,'CloudPayments');
@@ -152,7 +155,7 @@ let stopping=false;
 async function stop(){
  if(stopping)return;stopping=true;readiness.setDraining();timers.forEach(clearInterval);
  const closeHttp=server.listening?new Promise(resolve=>server.close(()=>resolve())):Promise.resolve();
- server.closeIdleConnections?.();const work=Promise.allSettled([closeHttp,support.close(),participants.close(),radar.close(),notifications.close(),accounts.flushMail(),content.close(),legal.close(),Promise.allSettled([...backgroundJobs])]);let timer;
+ server.closeIdleConnections?.();const work=Promise.allSettled([closeHttp,telegramAdmin.close(),support.close(),participants.close(),radar.close(),notifications.close(),accounts.flushMail(),content.close(),legal.close(),Promise.allSettled([...backgroundJobs])]);let timer;
  const outcome=await Promise.race([work.then(()=>true),new Promise(resolve=>{timer=setTimeout(()=>resolve(false),10000);})]);clearTimeout(timer);
  if(!outcome){console.error('ORBITA shutdown timeout: процесс завершён принудительно.');server.closeAllConnections?.();process.exit(1);}
 }

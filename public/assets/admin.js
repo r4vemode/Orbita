@@ -9,7 +9,7 @@
   const numericFields = ['entry','stop','target'];
   const strategyMarkets={'Momentum RU':'stocks','Trend RU':'stocks','Импульс':'futures','Crypto Momentum':'crypto','Crypto Trend':'crypto','Orbita Exclusive':'stocks'};
   const defaultStrategies={stocks:'Momentum RU',futures:'Импульс',crypto:'Crypto Momentum'};
-  const eventFieldIds=['levelEntry','levelStop','levelTarget','levelHorizon','levelEntryRule','levelCancelRule','exitPrice','eventNote'];
+  const eventFieldIds=['levelEntry','levelStop','levelTarget','levelHorizon','levelEntryRule','levelCancelRule','exitPrice','eventNote','descriptionName','descriptionTitle','descriptionSummary','descriptionThesis','descriptionHorizon','descriptionChart'];
   const eventDrafts=new Map();let eventDirty=false;
   const ideaSummary = d => window.OrbitaIdeaCopy?.summary?.(d) ?? d.summary ?? '';
   let db = {revision:0,records:[]}, users = [], current = null, draftId = null, dirty = false, mutating = false, accountsRevision,privateSession;
@@ -71,7 +71,7 @@
   function ideaCard(record) {
     const d = record.d || {};
     const levels = [d.entry,d.stop,d.target].every(value => Number.isFinite(value) && value > 0);
-    return `<div class="selected-identity"><span class="preview-tag">${escape(d.dir)} · ${escape(d.strategy)}</span><h2>${escape(d.ticker || 'Черновик')}</h2>${d.name ? `<p>${escape(d.name)}</p>` : ''}${d.title ? `<h3>${escape(d.title)}</h3>` : ''}${d.summary ? `<p>${escape(ideaSummary(d))}</p>` : ''}${levels ? `<div class="selected-levels"><span>Вход<b>${escape(number(d.entry))}</b></span><span>Стоп<b>${escape(number(d.stop))}</b></span><span>Цель<b>${escape(number(d.target))}</b></span></div>` : `<p class="no-levels">${record.published ? 'Тикер и направление опубликованы. Уровни ещё не заданы.' : 'Укажите уровни для полного сценария. Черновик можно сохранить без них.'}</p>`}${record.demo ? '<p class="demo-label">Учебный пример</p>' : ''}${record.erroneous ? '<p class="error-label">Ошибочная публикация · сохранена в истории</p>' : ''}</div>`;
+    return `<div class="selected-identity"><span class="preview-tag">${escape(d.dir)} · ${escape(d.strategy)}</span><h2>${escape(d.ticker || 'Черновик')}</h2>${d.name ? `<p>${escape(d.name)}</p>` : ''}${d.title ? `<h3>${escape(d.title)}</h3>` : ''}${d.summary ? `<p>${escape(ideaSummary(d))}</p>` : ''}${levels ? `<div class="selected-levels"><span>Вход<b>${escape(number(d.entry))}</b></span><span>Стоп<b>${escape(number(d.stop))}</b></span><span>Цель<b>${escape(number(d.target))}</b></span></div>` : `<p class="no-levels">${record.published ? 'Тикер и направление опубликованы. Уровни ещё не заданы.' : 'Укажите уровни для полного сценария. Черновик можно сохранить без них.'}</p>`}${record.createdVia === 'TELEGRAM' ? '<p class="preview-tag">Источник: Telegram</p>' : ''}${record.demo ? '<p class="demo-label">Учебный пример</p>' : ''}${record.erroneous ? '<p class="error-label">Ошибочная публикация · сохранена в истории</p>' : ''}</div>`;
   }
   function preview() {
     const data = readFullData();
@@ -79,16 +79,18 @@
   }
   function renderList() {
     $('count').textContent = String(db.records.length);
-    $('ideaList').innerHTML = db.records.length ? db.records.map(record => `<button type="button" class="list-item${record.id === current ? ' active' : ''}" data-id="${escape(record.id)}" aria-pressed="${record.id === current}"><strong>${escape(record.d?.ticker || 'Черновик')}<span>${record.d?.dir === 'ШОРТ' ? '↘' : '↗'}</span></strong><small>${escape(record.erroneous ? 'Ошибочная публикация' : record.published ? record.d?.status || record.d?.state : 'Черновик')}</small><small>${escape(record.d?.strategy || '')}</small></button>`).join('') : '<p class="empty-list">Пока нет идей. Опубликуйте первый сигнал.</p>';
+    $('ideaList').innerHTML = db.records.length ? db.records.map(record => `<button type="button" class="list-item${record.id === current ? ' active' : ''}" data-id="${escape(record.id)}" aria-pressed="${record.id === current}"><strong>${escape(record.d?.ticker || 'Черновик')}<span>${record.d?.dir === 'ШОРТ' ? '↘' : '↗'}</span></strong><small>${escape(record.erroneous ? 'Ошибочная публикация' : record.published ? record.d?.status || record.d?.state : 'Черновик')}</small><small>${escape(record.d?.strategy || '')}${record.createdVia === 'TELEGRAM' ? ' · Telegram' : ''}</small></button>`).join('') : '<p class="empty-list">Пока нет идей. Опубликуйте первый сигнал.</p>';
     $('ideaList').querySelectorAll('[data-id]').forEach(button => {button.disabled=mutating;button.addEventListener('click', () => {if(!mutating)select(button.dataset.id);});});
   }
   function eventFields() {
     const action = $('eventAction').value;
-    $('levelsFields').hidden = action !== 'levels';
-    for (const id of ['levelEntry','levelStop','levelTarget','levelEntryRule','levelCancelRule']) $(id).required = action === 'levels';
-    $('exitField').hidden = !['manual','stop-change'].includes(action);
-    $('exitPrice').required = ['manual','stop-change'].includes(action);
-    $('exitLabel').textContent = action === 'stop-change' ? 'Новый стоп' : 'Цена закрытия';
+    $('levelsFields').hidden = !['levels','terms-change'].includes(action);
+    $('levelHorizon').parentElement.hidden = action === 'terms-change';
+    $('descriptionFields').hidden = action !== 'description';
+    for (const id of ['levelEntry','levelStop','levelTarget','levelEntryRule','levelCancelRule']) $(id).required = ['levels','terms-change'].includes(action);
+    $('exitField').hidden = !['manual','stop-change','target-change'].includes(action);
+    $('exitPrice').required = ['manual','stop-change','target-change'].includes(action);
+    $('exitLabel').textContent = action === 'stop-change' ? 'Новый стоп' : action === 'target-change' ? 'Новая цель' : 'Цена закрытия';
     $('eventNote').placeholder = action === 'error' ? 'Почему публикация ошибочна? Причина останется в истории.' : 'Что произошло и что это меняет?';
   }
   function audit(record) {
@@ -113,7 +115,7 @@
     $('selectedIdea').innerHTML = record ? ideaCard(record) : '<p>Выберите идею слева или опубликуйте новый сигнал.</p>';
     if (record?.published) {
       const state = record.d.state, active = !record.erroneous;
-      const actions = [['note','Комментарий автора'],...(active && state === 'announced' ? [['levels','Добавить уровни входа, стопа и цели']] : []),...(active && ['waiting','active'].includes(state) ? [['stop-change','Изменить стоп']] : []),...(active && state === 'waiting' ? [['activate','Подтвердить вход']] : []),...(active && ['announced','waiting'].includes(state) ? [['cancel','Отменить до входа']] : []),...(active && state === 'active' ? [['target','Закрыть по цели'],['stop','Закрыть по стопу'],['manual','Закрыть вручную']] : []),...(active ? [['error','Пометить ошибочную публикацию']] : [])];
+      const actions = [['note','Комментарий автора'],...(active ? [['description','Изменить описание и разбор']] : []),...(active && state === 'waiting' ? [['terms-change','Уточнить вход и условия до входа']] : []),...(active && state === 'announced' ? [['levels','Добавить уровни входа, стопа и цели']] : []),...(active && ['waiting','active'].includes(state) ? [['stop-change','Изменить стоп'],['target-change','Изменить цель']] : []),...(active && state === 'waiting' ? [['activate','Подтвердить вход']] : []),...(active && ['announced','waiting'].includes(state) ? [['cancel','Отменить до входа']] : []),...(active && state === 'active' ? [['target','Закрыть по цели'],['stop','Закрыть по стопу'],['manual','Закрыть вручную']] : []),...(active ? [['error','Пометить ошибочную публикацию']] : [])];
       $('eventAction').innerHTML = actions.map(([value,label]) => `<option value="${value}">${label}</option>`).join('');
       $('eventForm').reset();
       $('eventAction').required=true;
@@ -184,7 +186,12 @@
   $('saveDraft').addEventListener('click', () => mutation(() => saveFull('draft')));
   $('clearFullForm').addEventListener('click', () => { if (!dirty || confirm('Очистить несохранённую форму?')) clearFull(); });
   $('newIdea').addEventListener('click', () => { $('quickTicker').focus(); $('quickForm').scrollIntoView({behavior:'smooth',block:'center'}); });
-  $('eventAction').addEventListener('change', eventFields);
+  $('eventAction').addEventListener('change',()=>{
+    const record=db.records.find(item=>item.id===current),action=$('eventAction').value;
+    if(record&&action==='terms-change')for(const [id,field]of [['levelEntry','entry'],['levelStop','stop'],['levelTarget','target'],['levelEntryRule','entryRule'],['levelCancelRule','cancelRule']])$(id).value=record.d[field]??'';
+    if(record&&action==='description')for(const [id,field]of [['descriptionName','name'],['descriptionTitle','title'],['descriptionSummary','summary'],['descriptionThesis','thesis'],['descriptionHorizon','horizon'],['descriptionChart','chartUrl']])$(id).value=record.d[field]??'';
+    eventFields();
+  });
   $('eventForm').addEventListener('input',()=>{eventDirty=true;rememberEvent();});
   $('eventForm').addEventListener('change',()=>{eventDirty=true;rememberEvent();});
   $('eventForm').addEventListener('submit', event => {
@@ -196,16 +203,17 @@
       if(!action)throw new Error('Выберите действие, доступное для текущего статуса идеи. Черновик полей сохранён.');
       if (!note) throw new Error('Добавьте пояснение к изменению.');
       const payload = {revision:db.revision,action,note};
-      if (['manual','stop-change'].includes(action)) {
+      if (['manual','stop-change','target-change'].includes(action)) {
         payload.price = Number($('exitPrice').value);
         if (!Number.isFinite(payload.price) || payload.price <= 0) throw new Error('Укажите положительную цену.');
       }
-      if (action === 'levels') {
-        payload.d = {entry:Number($('levelEntry').value),stop:Number($('levelStop').value),target:Number($('levelTarget').value),horizon:$('levelHorizon').value.trim(),entryRule:$('levelEntryRule').value.trim(),cancelRule:$('levelCancelRule').value.trim()};
+      if (['levels','terms-change'].includes(action)) {
+        payload.d = {entry:Number($('levelEntry').value),stop:Number($('levelStop').value),target:Number($('levelTarget').value),...(action==='levels'?{horizon:$('levelHorizon').value.trim()}:{}),entryRule:$('levelEntryRule').value.trim(),cancelRule:$('levelCancelRule').value.trim()};
         validateLevels({...payload.d,dir:record.d.dir});
         if (!payload.d.entryRule || !payload.d.cancelRule) throw new Error('Укажите условия входа, отмены и выхода.');
         if (!payload.d.horizon) delete payload.d.horizon;
       }
+      if(action==='description')payload.d=Object.fromEntries([['name','descriptionName'],['title','descriptionTitle'],['summary','descriptionSummary'],['thesis','descriptionThesis'],['horizon','descriptionHorizon'],['chartUrl','descriptionChart']].map(([key,id])=>[key,$(id).value.trim()]));
       const result = await api(`/api/admin/ideas/${encodeURIComponent(current)}/events`,{method:'POST',body:JSON.stringify(payload)});
       eventDrafts.delete(record.id);if(current===record.id)eventDirty=false;
       acceptChange(result);
@@ -284,7 +292,7 @@
       strategyOptions();
       const expiry = new Date(Date.now() + 30 * 86400000 + 3 * 3600000);
       $('subscriptionExpiry').value = expiry.toISOString().slice(0,16);
-      await mutation(async()=>{const results = await Promise.allSettled([loadIdeas(),loadUsers()]);results.forEach(result => { if (result.status === 'rejected') message(result.reason.message,true); });});
+      await mutation(async()=>{const results = await Promise.allSettled([loadIdeas(new URLSearchParams(location.search).get('idea') || current),loadUsers()]);results.forEach(result => { if (result.status === 'rejected') message(result.reason.message,true); });});
       $('quickTicker').focus();
     } catch (error) {
       $('authState').innerHTML = `<h1>Не удалось открыть редакцию.</h1><p>${escape(error.message)}</p><button type="button" id="retryAdmin">Повторить</button>`;

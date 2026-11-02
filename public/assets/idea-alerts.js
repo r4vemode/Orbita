@@ -49,6 +49,7 @@
     const info = event[3] || {}, d = record.d || {}, ticker = String(d.ticker || 'Идея'), unit = d.unit ? ' ' + d.unit : '';
     const oldStop = number(info.before?.stop), newStop = number(info.after?.stop);
     if (info.type === 'stop-change' && oldStop && newStop) return `${ticker}: стоп изменён с ${oldStop} до ${newStop}${unit}`;
+    if (info.type === 'target-change' && number(info.before?.target) && number(info.after?.target)) return `${ticker}: цель изменена с ${number(info.before.target)} до ${number(info.after.target)}${unit}`;
     if (info.type === 'activate') return `${ticker}: вход подтверждён${number(d.entry) ? ' · ' + number(d.entry) + unit : ''}`;
     if (['target', 'stop', 'manual'].includes(info.type)) return `${ticker}: ${String(event[1] || 'сделка закрыта').toLocaleLowerCase('ru')}${number(info.after?.exit) ? ' · выход ' + number(info.after.exit) + unit : ''}`;
     if (isNewSignal(event)) return `${ticker}: новый сигнал${d.dir ? ' · ' + d.dir : ''}`;

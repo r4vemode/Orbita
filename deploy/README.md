@@ -120,6 +120,17 @@ orbita_dc exec app node scripts/preflight.mjs --production
 
 После изменения `.env` пересоздайте приложение: `orbita_dc up -d --force-recreate app`. Caddy admin API выключен; после изменения `Caddyfile` восстановите его несекретные права командой `chmod 644 deploy/Caddyfile`, затем применяйте `orbita_dc restart caddy`. Редактор или получение нового release при `umask 077` может снова создать файл с правами 0600.
 
+## Необязательный бот администратора
+
+Для публикации сигналов из Telegram используется отдельный бот с `TELEGRAM_ADMIN_BOT_ENABLED=true` и приватными `TELEGRAM_ADMIN_BOT_TOKEN`, `TELEGRAM_ADMIN_BOT_USERNAME`, `TELEGRAM_ADMIN_WEBHOOK_SECRET` из `deploy/.env.example`. Не используйте токен клиентского бота уведомлений. После внесения окружения пересоберите образ и пересоздайте приложение; затем явно зарегистрируйте webhook:
+
+```sh
+orbita_dc exec app node scripts/setup-telegram-admin.mjs --set
+orbita_dc exec app node scripts/setup-telegram-admin.mjs --status
+```
+
+Старт приложения сам webhook не меняет. Привязка администратора выполняется в личном чате по одноразовому коду из `/telegram-admin.html`; публичный HTTPS требует подключённой MFA. Без настроек бот выключен и запуск сайта не зависит от Telegram. Полный порядок — в [docs/telegram-admin.md](../docs/telegram-admin.md).
+
 ## Копии, обновление и откат
 
 Перед обновлением:
