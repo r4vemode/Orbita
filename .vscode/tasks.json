@@ -1,0 +1,26 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Orbita: установить зависимости",
+      "type": "process",
+      "command": "npm",
+      "args": ["ci", "--ignore-scripts", "--no-audit", "--no-fund"],
+      "options": {"cwd": "${workspaceFolder}"},
+      "problemMatcher": []
+    },
+    {
+      "label": "Orbita: автоматические тесты",
+      "type": "npm",
+      "script": "test",
+      "group": {"kind": "test", "isDefault": true},
+      "problemMatcher": []
+    },
+    {
+      "label": "Orbita: проверить локальные сценарии и восстановление",
+      "type": "npm",
+      "script": "check:mvp",
+      "problemMatcher": []
+    }
+  ]
+}

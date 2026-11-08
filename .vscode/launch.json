@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Orbita: локальный сайт с тестовыми аккаунтами",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/beta-local.mjs",
+      "args": ["--port=3000"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "preLaunchTask": "Orbita: установить зависимости",
+      "skipFiles": ["<node_internals>/**"],
+      "serverReadyAction": {
+        "pattern": "Адрес: (http://127\\.0\\.0\\.1:[0-9]+/account\\.html)",
+        "uriFormat": "%s",
+        "action": "openExternally"
+      }
+    }
+  ]
+}

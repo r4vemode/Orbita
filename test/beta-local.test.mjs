@@ -5,6 +5,7 @@ import {mkdtemp,mkdir,readFile,readdir,rm,writeFile,lstat} from 'node:fs/promise
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {createServer} from 'node:net';
 import {localBetaEnvironment,startLocalBeta} from '../scripts/beta-local.mjs';
 
 const project=fileURLToPath(new URL('../',import.meta.url));
@@ -59,8 +60,22 @@ test('CLI interruption stops its child and removes only its owned fixture',async
   }finally{if(child.exitCode===null&&child.signalCode===null){child.kill('SIGKILL');await done;}}
 });
 
-test('CLI accepts help only and never accepts a supplied data path',async()=>{
+test('CLI accepts help and never accepts a supplied data path',async()=>{
   const run=args=>new Promise((resolve,reject)=>{const child=spawn(process.execPath,[script,...args],{cwd:project,env:{PATH:process.env.PATH},stdio:['ignore','pipe','pipe']});let stdout='';child.stdout.on('data',chunk=>stdout+=chunk);child.stderr.on('data',()=>{});child.once('error',reject);child.once('exit',code=>resolve({code,stdout}));});
   const help=await run(['--help']);assert.equal(help.code,0);assert.match(help.stdout,/Usage: npm run beta:local/);
   const invalid=await run(['--data-dir','/must-not-be-used']);assert.equal(invalid.code,2);assert.equal(invalid.stdout,'');
+});
+
+test('local fixed-port startup rejects invalid ports and leaves an occupied listener untouched',async()=>{
+ for(const port of [-1,65536,1.5,'3000'])await assert.rejects(startLocalBeta({port}),/Порт/);
+ const listener=createServer();await new Promise((resolve,reject)=>{listener.once('error',reject);listener.listen(0,'127.0.0.1',resolve);});
+ try{const port=listener.address().port;await assert.rejects(startLocalBeta({port}),cause=>cause.code==='LOCAL_PORT_IN_USE'&&cause.message.includes(String(port)));assert.equal(listener.listening,true);}
+ finally{await new Promise(resolve=>listener.close(resolve));}
+});
+
+test('interactive local fixture can bypass nonexistent test email delivery without enabling real providers',async()=>{
+ const session=await startLocalBeta({verifyFixtureEmails:true});try{
+  for(const role of ['admin','pro','exclusive','free'])assert.equal((await login(session,role)).user.emailVerified,true);
+  const config=(await get(session,'/api/public-config')).data;assert.equal(config.paymentsAvailable,false);assert.equal(config.mailEnabled,false);assert.equal(config.telegramEnabled,false);
+ }finally{await session.close();}
 });

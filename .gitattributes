@@ -1,0 +1,9 @@
+# Downloadable source releases must never contain the old personal admin bundle.
+/admin-download export-ignore
+/qa-artifacts export-ignore
+/node_modules export-ignore
+/data export-ignore
+/backups export-ignore
+/.env export-ignore
+/.env.* export-ignore
+/.env.example -export-ignore

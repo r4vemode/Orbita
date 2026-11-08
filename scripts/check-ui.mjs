@@ -20,6 +20,8 @@ import {runMemberSessionFlows} from './qa-member-session-flows.mjs';
 import {runAdminPrivacyFlows} from './qa-admin-privacy-flows.mjs';
 import {runSupportFlows} from './qa-support-flows.mjs';
 import {runDashboardFlows} from './qa-dashboard-flows.mjs';
+import {runAnalyticsFlows} from './qa-analytics-flows.mjs';
+import {runBillingReferralFlows} from './qa-billing-referrals-flows.mjs';
 import {runTelegramAdminFlows} from './qa-telegram-admin-flows.mjs';
 
 const project=fileURLToPath(new URL('../',import.meta.url));
@@ -40,10 +42,10 @@ export async function runUiAcceptance(args=process.argv.slice(2)){
   let browser,failed=false;
   try{
     browser=await playwright[engine].launch({headless:!args.includes('--headed'),...(executablePath?{executablePath}:{})});report.browserVersion=browser.version();
-    for(const [name,run]of [['Аккаунт',runAuthFlows],['Редакция',runAdminFlows],['Редакция — параллельные действия',runAdminRaceFlows],['Безопасность — смена аккаунта',runSecurityRaceFlows],['Редакция — приватность',runAdminPrivacyFlows],['Кабинеты клиентов',runClientFlows],['Открытые кабинеты — смена доступа',runMemberSessionFlows],['Документы и реквизиты',runLegalFlows],['Radar',runRadarFlows],['Редакция Radar',runRadarAdminFlows],['Уведомления идей',runIdeaAlertFlows],['Позиции участников',runParticipantsFlows],['Поддержка',runSupportFlows],['Моя Орбита',runDashboardFlows],['Telegram редакции',runTelegramAdminFlows],['Адаптивность',runLayoutFlows]]){
+    for(const [name,run]of [['Аккаунт',runAuthFlows],['Редакция',runAdminFlows],['Редакция — параллельные действия',runAdminRaceFlows],['Безопасность — смена аккаунта',runSecurityRaceFlows],['Редакция — приватность',runAdminPrivacyFlows],['Кабинеты клиентов',runClientFlows],['Открытые кабинеты — смена доступа',runMemberSessionFlows],['Документы и реквизиты',runLegalFlows],['Radar',runRadarFlows],['Редакция Radar',runRadarAdminFlows],['Уведомления идей',runIdeaAlertFlows],['Позиции участников',runParticipantsFlows],['Поддержка',runSupportFlows],['Моя Орбита',runDashboardFlows],['Telegram редакции',runTelegramAdminFlows],['Аналитика и OHLC',runAnalyticsFlows],['Оплаты и партнёры',runBillingReferralFlows],['Адаптивность',runLayoutFlows]]){
       controller.signal.throwIfAborted();let session;const suite={name,status:'running',checks:0};report.suites.push(suite);
       try{
-        session=await startLocalBeta({signal:controller.signal});
+        session=await startLocalBeta({signal:controller.signal,payments:run===runBillingReferralFlows});
         const record=async(title,work)=>{
           controller.signal.throwIfAborted();const started=Date.now();
           try{const value=await work();report.checks.push({suite:name,title,status:'passed',durationMs:Date.now()-started});suite.checks++;console.log('✓ '+title);return value;}

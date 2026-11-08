@@ -76,6 +76,7 @@
     $('radarEditorState').textContent=event?(statusNames[event.status]||event.status).toUpperCase()+(event.isDemo?' / ДЕМО':''):'РУЧНОЕ СОБЫТИЕ';$('radarEditorHeading').textContent=event?'Проверить и исправить':'Подготовить событие';
     $('radarEventMeta').textContent=event?'Источник опубликовал '+date(event.publishedAt)+' · Обнаружено '+date(event.detectedAt)+' · Обработано '+date(event.processedAt)+' · Версия '+event.revision:'';
     $('viewRadarEvent').href='radar.html'+(event?'?event='+encodeURIComponent(event.id):'');
+    $('createRadarSignal').hidden=!event||event.isDemo||event.status!=='published'||event.assetType!=='stock';$('createRadarSignal').href='admin.html'+(event?'?radarEvent='+encodeURIComponent(event.id):'');
     $('radarConflict').hidden=true;markDirty(false);renderSourceDetails(event);renderList();syncBusy();
   }
   function queryFromFilters(){const query=new URLSearchParams();const values={q:$('radarAdminSearch').value.trim(),status:$('radarAdminStatus').value,type:$('radarAdminType').value};for(const [key,value]of Object.entries(values))if(value)query.set(key,value);query.set('limit','50');return query;}
@@ -148,6 +149,6 @@
   $('syncRadarProviders').addEventListener('click',()=>void syncProviders());
   $('radarMergeDialog').addEventListener('cancel',event=>{if(busy)event.preventDefault();});
   window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});
-  try{const user=await A.requireAdmin();if(!user)return;ready=true;$('radarAdminAuth').hidden=true;$('radarAdminMain').hidden=false;select();await refresh();}
+  try{const user=await A.requireAdmin();if(!user)return;ready=true;$('radarAdminAuth').hidden=true;$('radarAdminMain').hidden=false;select();await refresh();const eventId=new URLSearchParams(location.search).get('event');if(eventId&&/^[A-Za-z0-9_-]{1,100}$/.test(eventId)){const found=state.events.find(e=>e.id===eventId);if(found)select(found);else{const result=await api('/api/admin/radar/'+encodeURIComponent(eventId));if(result.event){state.events.unshift(result.event);select(result.event);}}}}
   catch(error){$('radarAdminAuth').replaceChildren(node('h1','','Не удалось открыть редакцию Radar'),node('p','',error.message));}
 })();

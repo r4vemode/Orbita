@@ -16,7 +16,9 @@
     "beta:local": "node scripts/beta-local.mjs",
     "seed:radar": "node scripts/seed-radar.mjs",
     "telegram:admin:webhook": "node scripts/setup-telegram-admin.mjs",
-    "test": "node --test test/*.test.mjs"
+    "test": "node scripts/test.mjs",
+    "backtest": "node scripts/backtest.mjs",
+    "local": "node scripts/beta-local.mjs --port=3000"
   },
   "devDependencies": {
     "playwright": "1.62.1"

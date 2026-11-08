@@ -9,7 +9,7 @@
   const planName = plan => A.plans[plan]?.name || 'Подписка ORBITA';
   const money = (amount, currency = 'RUB') => typeof amount === 'number' && Number.isFinite(amount) ? amount.toLocaleString('ru-RU', { style: 'currency', currency, maximumFractionDigits: 2 }) : 'Уточняется';
   const date = iso => Number.isFinite(Date.parse(iso)) ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso)) + ' МСК' : 'дата уточняется';
-  const enabled = () => config.paymentsAvailable === true && paymentConfig.configured === true && paymentConfig.checkoutEnabled === true && paymentConfig.provider === 'cloudpayments';
+  const enabled = () => config.paymentsAvailable === true && paymentConfig.configured === true && paymentConfig.checkoutEnabled === true && ['cloudpayments','simulation'].includes(paymentConfig.provider);
   const validVersion=value=>typeof value==='string'&&/^ORBITA-[A-Za-z0-9.-]{1,100}$/.test(value);
   function renderTerms(){const version=order?.legalVersion||request?.legalVersion||config.legalVersion;const link=$('checkoutOfferLink');if(link)link.href='offer.html'+(validVersion(version)?'?version='+encodeURIComponent(version):'');}
   const subscribed = plan => (user?.subscriptions || []).find(item => item.plan === plan && Date.parse(item.expiresAt) > Date.now());
@@ -28,7 +28,7 @@
       const saved = stored?.version === 2 ? Object.values(stored.requests || {}) : [stored];
       for (const item of saved) {
         if (!item || !plans.has(item.plan) || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(item.requestId)) continue;
-        const pending = { plan: item.plan, requestId: item.requestId, orderId: orderId(item.orderId),...(validVersion(item.legalVersion)?{legalVersion:item.legalVersion}:{}) };
+        const pending = { plan: item.plan, requestId: item.requestId, orderId: orderId(item.orderId),...(validVersion(item.legalVersion)?{legalVersion:item.legalVersion}:{}),...(item.recurring?.accepted===true&&validVersion(item.recurring.termsVersion)?{recurring:item.recurring}:{}) };
         states.set(item.plan, { request: pending, order: pending.orderId ? { id: pending.orderId, plan: item.plan, status: 'creating' } : null });
       }
       return plans.has(stored?.selected) ? stored.selected : plans.has(stored?.plan) ? stored.plan : null;
@@ -77,10 +77,13 @@
     });
     $('openWorkspace').hidden = !user.access?.hasSubscription;
     $('openWorkspace').href=user.access?.isAdmin?'admin.html':'dashboard.html';$('openWorkspace').textContent=user.access?.isAdmin?'Открыть редакцию →':'Открыть кабинет →';
-    $('emailVerification').hidden = user.emailVerified === true;
+    $('emailVerification').hidden = user.emailVerified === true || paymentConfig.simulation===true;
+    if($('recurringConsentLabel'))$('recurringConsentLabel').hidden=!paymentConfig.recurringTermsVersion;
+    $('checkoutProviderNote').textContent=paymentConfig.simulation===true?'Будет создан локальный тестовый заказ. Данные карты не нужны; результат задаётся в разделе «Платежи» редакции.':'Оплата на защищённой странице CloudPayments. Реквизиты карты вводятся у платёжного провайдера.';
     $('verificationDescription').textContent = config.mailEnabled === true ? 'Для оплаты нужен подтверждённый адрес. Откройте настройки безопасности, чтобы отправить письмо или повторить отправку.' : 'Отправка писем пока не подключена. Подтверждение email и оплата станут доступны после настройки почтовой службы.';
     $('paymentAvailability').hidden = enabled();
     if (!enabled()) $('paymentAvailability').textContent = 'Онлайн-оплата пока недоступна. Продажи откроются после подготовки сервиса; нажатие кнопки не активирует подписку.';
+    else if(paymentConfig.simulation===true){$('paymentAvailability').hidden=false;$('paymentAvailability').textContent='Локальный симулятор: деньги не списываются. Результат тестового заказа задаётся администратором в разделе «Платежи». Подтверждение почты здесь не требуется.';}
     else if (paymentConfig.testMode === true) { $('paymentAvailability').hidden = false; $('paymentAvailability').textContent = 'Включён тестовый режим CloudPayments. Проверяйте режим оплаты перед вводом реквизитов.'; }
   }
   function choose(plan, scroll = true) {
@@ -88,6 +91,7 @@
     if (selected) states.set(selected, { request, order });
     selected = plan;
     ({ request, order } = states.get(plan));
+    if($('recurringConsent'))$('recurringConsent').checked=request?.recurring?.accepted===true;
     A.rememberPlan(user.id, plan);
     saveRequest();
     renderSelection();
@@ -110,16 +114,17 @@
   }
   function updateCheckoutButton() {
     document.querySelectorAll('[data-select]').forEach(button => { button.disabled = !ready || busy || checking; });
+    if($('recurringConsent'))$('recurringConsent').disabled=busy||checking||!!request||!!order;
     const pending = order && pendingStatuses.has(order.status) && order.status !== 'creating';
     const missingCreatingRequest = order?.status === 'creating' && (!request || request.orderId !== order.id);
     const alreadyPaid = order?.status === 'paid' && order.plan === selected;
-    $('createCheckout').disabled = !ready || !selected || busy || checking || !enabled() || user?.emailVerified !== true || !!user?.security?.adminEnrollmentRequired || !!pending || missingCreatingRequest || alreadyPaid;
-    $('createCheckout').textContent = busy ? 'Подготавливаем оплату…' : request && !order ? 'Повторить подготовку оплаты' : order?.status === 'creating' ? 'Повторить подготовку оплаты' : 'Перейти к оплате CloudPayments';
+    $('createCheckout').disabled = !ready || !selected || busy || checking || !enabled() || (user?.emailVerified !== true && paymentConfig.simulation!==true) || !!user?.security?.adminEnrollmentRequired || !!pending || missingCreatingRequest || alreadyPaid;
+    $('createCheckout').textContent = busy ? 'Подготавливаем оплату…' : request && !order ? 'Повторить подготовку оплаты' : order?.status === 'creating' ? 'Повторить подготовку оплаты' : paymentConfig.simulation===true?'Создать тестовый заказ':'Перейти к оплате CloudPayments';
     if (alreadyPaid) $('checkoutMessage').textContent = 'Этот заказ уже оплачен. Для отдельного продления нажмите «Создать платёж для продления» ниже.';
     else if (pending) $('checkoutMessage').textContent = 'У этого тарифа есть незавершённая операция. Продолжите оплату или проверьте её статус ниже. Другой тариф можно выбрать отдельно.';
     else if (missingCreatingRequest) $('checkoutMessage').textContent = 'Заказ ещё подготавливается, но исходный запрос не сохранился в этом браузере. Проверяйте статус заказа: новый платёж этого тарифа пока недоступен, чтобы не создать дубликат.';
     else if (user?.security?.adminEnrollmentRequired) $('checkoutMessage').textContent = 'Сначала завершите настройку защиты аккаунта в разделе «Безопасность».';
-    else if (user?.emailVerified !== true) $('checkoutMessage').textContent = 'Сначала подтвердите email в разделе «Безопасность».';
+    else if ((user?.emailVerified !== true && paymentConfig.simulation!==true)) $('checkoutMessage').textContent = 'Сначала подтвердите email в разделе «Безопасность».';
     else if (!enabled()) $('checkoutMessage').textContent = 'Приём платежей пока не подключён.';
     else if (!busy) $('checkoutMessage').textContent = '';
   }
@@ -139,6 +144,7 @@
       refunded: ['Платёж возвращён', 'Возврат подтверждён. Действующий доступ показан в карточках тарифов выше.'],
       refund_review: ['Возврат требует проверки', 'Обратитесь в поддержку по вопросам этого платежа. Действующий срок подписки показан в карточке тарифа.']
     };
+    if(paymentConfig.simulation===true&&order.status==='pending')captions.pending=['Тестовый заказ создан','Для проверки оплаты откройте раздел «Платежи» в аккаунте администратора и выберите результат. Деньги не списываются.'];
     const caption = captions[order.status] || ['Проверяем статус платежа', 'Статус пока не определён. Запросите актуальные данные сервера.'];
     $('paymentOrderTitle').textContent = caption[0]; $('paymentOrderMessage').textContent = caption[1];
     const checkout = safeCheckoutUrl(order.checkoutUrl), canContinue = !!checkout && order.status === 'pending' && enabled() && user?.emailVerified === true;
@@ -178,16 +184,16 @@
     } finally { checking = false; renderOrder(); scheduleCheck(); }
   }
   async function startCheckout() {
-    if (!ready || busy || checking || !selected || !enabled() || user.emailVerified !== true || user.security?.adminEnrollmentRequired) return;
+    if (!ready || busy || checking || !selected || !enabled() || (user.emailVerified !== true && paymentConfig.simulation!==true) || user.security?.adminEnrollmentRequired) return;
     if (order && (order.status === 'paid' || pendingStatuses.has(order.status) && order.status !== 'creating')) return;
     if (order?.status === 'creating' && (!request || request.orderId !== order.id)) return;
     busy = true; $('subscriptionError').textContent = ''; renderOrder();
     try {
       if(!await refreshAccount())return;
-      if (!request) request = { plan: selected, requestId: crypto.randomUUID(), orderId: null };
+      if (!request) request = { plan: selected, requestId: crypto.randomUUID(), orderId: null,...($('recurringConsent')?.checked&&paymentConfig.recurringTermsVersion?{recurring:{accepted:true,termsVersion:paymentConfig.recurringTermsVersion}}:{}) };
       if(!request.legalVersion&&validVersion(config.legalVersion))request.legalVersion=config.legalVersion;
       saveRequest();
-      const response = await api('/api/payments/checkout', { method: 'POST', body: JSON.stringify({ plan: request.plan, requestId: request.requestId,...(validVersion(request.legalVersion)?{legalVersion:request.legalVersion}:{}) }) });
+      const response = await api('/api/payments/checkout', { method: 'POST', body: JSON.stringify({ plan: request.plan, requestId: request.requestId,...(request.recurring?{recurring:request.recurring}:{}),...(validVersion(request.legalVersion)?{legalVersion:request.legalVersion}:{}) }) });
       if(!await refreshAccount())return;
       if (!response.order || !orderId(response.order.id) || response.order.plan !== selected) throw Error('Сервер вернул некорректный заказ. Повторите тот же запрос.');
       order = response.order; request.orderId = order.id;if(validVersion(order.legalVersion))request.legalVersion=order.legalVersion;saveRequest();

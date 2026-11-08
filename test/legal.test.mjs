@@ -18,6 +18,21 @@ const rejected=(promise,status)=>assert.rejects(promise,cause=>cause.status===st
 const baseline=JSON.parse(await readFile(new URL('../fixtures/legal-baseline.json',import.meta.url),'utf8'));
 async function fixture(t){const directory=await mkdtemp(path.join(tmpdir(),'orbita-legal-'));t.after(()=>rm(directory,{recursive:true,force:true}));return {directory,legal:await createLegal(directory)};}
 
+test('recurring terms require a new published offer; editing a template never upgrades accepted conditions',async t=>{
+ const root=await mkdtemp(path.join(tmpdir(),'orbita-recurring-legal-'));t.after(()=>rm(root,{recursive:true,force:true}));
+ const directory=path.join(root,'data'),templateDir=path.join(root,'templates'),terms='ORBITA-RECURRING-2026-11-07';await mkdir(templateDir);
+ for(const name of ['offer','privacy','refunds'])await copyFile(new URL('../public/'+name+'.html',import.meta.url),path.join(templateDir,name+'.html'));
+ const currentOffer=await readFile(path.join(templateDir,'offer.html'),'utf8');assert.ok(currentOffer.includes('data-recurring-terms="'+terms+'"'));
+ await writeFile(path.join(templateDir,'offer.html'),currentOffer.replace('data-recurring-terms="'+terms+'"','data-previous-terms'));
+ let legal=await createLegal(directory,{templateDir});assert.deepEqual(await legal.recurringReadiness(terms),{ready:false,legalVersion:LEGAL_VERSION});
+ const draft=await legal.saveDraft(admin,{revision:0,profile:fixtureProfile()}),first=await legal.publish(admin,{revision:draft.revision});
+ assert.equal((await legal.recurringReadiness(terms)).ready,false);const old=await legal.renderPage('offer');
+ await writeFile(path.join(templateDir,'offer.html'),currentOffer);legal=await createLegal(directory,{templateDir});assert.equal((await legal.recurringReadiness(terms)).ready,false);
+ const second=await legal.publish(admin,{revision:first.revision});assert.deepEqual(await legal.recurringReadiness(terms),{ready:true,legalVersion:second.currentVersion});
+ assert.equal(await legal.renderPage('offer',{version:first.currentVersion}),old);assert.equal((await legal.recurringReadiness('ORBITA-RECURRING-2099-01-01')).ready,false);
+ assert.equal(await legal.renderPage('offer',{version:LEGAL_VERSION}),baseline.pages.offer);
+});
+
 test('legal public defaults and the exact original consent document never disclose a private draft',async t=>{
   const {directory,legal}=await fixture(t);
   assert.deepEqual(await legal.readPublic(),{version:LEGAL_VERSION,published:false,publishedAt:null,profile:defaultLegalProfile()});

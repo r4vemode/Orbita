@@ -2,17 +2,19 @@
  'use strict';
  const A=window.OrbitaAccess,$=id=>document.getElementById(id),form=$('telegramPreferencesForm');
  const strategies=['Momentum RU','Trend RU','Импульс','Crypto Momentum','Crypto Trend','Orbita Exclusive'];
+ let radarState=null;
  let session,state=null,busy=false,stopped=false,generation=0,expiryTimer=null,command='';
  const date=value=>new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(value))+' МСК';
  function status(text,isError=false){$('telegramStatus').textContent=text;$('telegramStatus').classList.toggle('error',isError);}
  function clearCode(){generation++;clearTimeout(expiryTimer);expiryTimer=null;command='';$('telegramCode').textContent='';$('telegramCodeExpiry').textContent='';$('telegramCodePanel').hidden=true;$('telegramBotUrl').removeAttribute('href');}
- function clearPrivate(){stopped=true;clearCode();state=null;$('telegramBinding').textContent='';$('telegramBinding').hidden=true;$('telegramConnectionState').textContent='';$('telegramExplanation').textContent='';$('telegramPreferencesMessage').textContent='';form.reset();$('telegramWorkspace').hidden=true;}
+ function clearPrivate(){stopped=true;clearCode();state=null;$('telegramBinding').textContent='';$('telegramBinding').hidden=true;$('telegramConnectionState').textContent='';$('telegramExplanation').textContent='';$('telegramPreferencesMessage').textContent='';form.reset();$('telegramRadarForm').reset();$('telegramRadarQueue').textContent='';$('telegramRadarMessage').textContent='';radarState=null;$('telegramWorkspace').hidden=true;}
  function controls(){
   const linked=state?.linked===true,configured=state?.configured===true&&state?.enabled===true;
   $('telegramLink').disabled=busy||stopped||!configured;$('telegramRefresh').disabled=busy||stopped;
   $('telegramUnlink').disabled=busy||stopped||!linked;$('telegramUnlink').hidden=!linked;
   $('telegramStrategy').disabled=busy||stopped||!linked;$('telegramInstant').disabled=busy||stopped||!linked;$('telegramSave').disabled=busy||stopped||!linked;
   $('telegramCopy').disabled=busy||stopped||!command;
+  for(const field of $('telegramRadarForm').elements)field.disabled=busy||stopped||!linked||!radarState?.enabled;
  }
  function validate(value){
   if(!value||typeof value.enabled!=='boolean'||typeof value.configured!=='boolean'||typeof value.linked!=='boolean'||typeof value.preferences?.instantPublish!=='boolean'||!strategies.includes(value.preferences?.strategy))throw Error('Не удалось прочитать настройки бота.');
@@ -28,7 +30,12 @@
   $('telegramStrategy').value=state.preferences.strategy;$('telegramInstant').checked=state.preferences.instantPublish;
   if(state.linked)clearCode();$('telegramWorkspace').hidden=false;controls();
  }
- async function refresh(){const value=await session.request('/api/admin/telegram');if(!stopped)render(value);return value;}
+ async function refreshRadar(){try{const value=await session.request('/api/admin/telegram/radar');if(stopped)return;radarState=value;const p=value.preferences;$('telegramRadarEnabled').checked=p.enabled;$('telegramRadarMinimum').value=p.minimumImportance;$('telegramRadarCritical').value=p.criticalImportance;$('telegramRadarStart').value=p.quietStart;$('telegramRadarEnd').value=p.quietEnd;$('telegramRadarStocks').checked=p.stocks;$('telegramRadarBonds').checked=p.bonds;
+   const select=$('telegramRadarType'),type=p.eventTypes.length===1?p.eventTypes[0]:'';if(type&&![...select.options].some(o=>o.value===type)){const o=document.createElement('option');o.value=type;o.textContent=type;select.append(o);}select.value=type;
+   $('telegramRadarQueue').textContent=value.enabled?'Доставлено: '+(value.delivery.sent||0)+' · Ожидают: '+((value.delivery.pending||0)+(value.delivery.sending||0))+' · Ошибки: '+(value.delivery.failed||0):'Radar выключен в настройках сервера.';controls();
+  }catch(cause){if(!stopped){$('telegramRadarMessage').textContent=cause.message;radarState=null;controls();}}}
+ async function refresh(){const value=await session.request('/api/admin/telegram');if(!stopped){render(value);await refreshRadar();}return value;}
+
  async function action(work){if(busy||stopped)return;busy=true;controls();try{await work();}catch(cause){if(!stopped)status(cause.message||'Операция не завершена. Повторите попытку.',true);}finally{busy=false;controls();}}
  $('telegramLink').addEventListener('click',()=>action(async()=>{
   clearCode();const current=generation;const value=await session.request('/api/admin/telegram/link',{method:'POST',body:'{}'});
@@ -48,6 +55,9 @@
   if(!strategies.includes(preferences.strategy))throw Error('Выберите стратегию из списка.');
   if(preferences.instantPublish&&!state.preferences.instantPublish&&!confirm('Включить публикацию без предпросмотра? Каждое полное корректное сообщение с уровнями сразу появится у подписчиков.')){$('telegramInstant').checked=false;status('Мгновенная публикация остаётся выключенной.');return;}
   await session.request('/api/admin/telegram/preferences',{method:'PUT',body:JSON.stringify(preferences)});await refresh();if(!stopped){$('telegramPreferencesMessage').textContent='Настройки сохранены для вашей привязки Telegram.';status('');}
+ });});
+ $('telegramRadarForm').addEventListener('submit',event=>{event.preventDefault();void action(async()=>{
+  const type=$('telegramRadarType').value,p={enabled:$('telegramRadarEnabled').checked,minimumImportance:Number($('telegramRadarMinimum').value),criticalImportance:Number($('telegramRadarCritical').value),quietStart:Number($('telegramRadarStart').value),quietEnd:Number($('telegramRadarEnd').value),stocks:$('telegramRadarStocks').checked,bonds:$('telegramRadarBonds').checked,eventTypes:type?[type]:[]};await session.request('/api/admin/telegram/radar',{method:'PUT',body:JSON.stringify(p)});await refreshRadar();if(!stopped)$('telegramRadarMessage').textContent='Настройки Radar сохранены. Новые подходящие события будут добавляться в очередь.';
  });});
  document.addEventListener('visibilitychange',()=>{if(document.hidden){clearCode();controls();}});window.addEventListener('pagehide',()=>{clearPrivate();session?.stop();});
  try{const user=await A.requireAdmin();if(!user)return;session=window.OrbitaAdminSession.watch(user,{workspace:'telegramWorkspace',clear:clearPrivate});await refresh();if(!stopped)status('');}catch(cause){if(!stopped)status(cause.message||'Не удалось открыть настройки бота.',true);}

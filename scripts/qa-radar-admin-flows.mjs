@@ -71,5 +71,14 @@ export async function runRadarAdminFlows({session,browser,record}){
       const savedTarget=await latest(target.id),savedSource=await latest(source.id);assert.equal(savedTarget.sources.length,2);assert.equal(savedSource.status,'duplicate');assert.equal(savedSource.mergedInto,target.id);assert.ok(savedTarget.audit.some(entry=>entry.action==='merged-from'&&entry.sourceId===source.id));assert.ok(savedSource.audit.some(entry=>entry.action==='merged-into'&&entry.targetId===target.id));assert.equal(savedSource.sources.length,1);assert.equal(new Set(savedTarget.sources.map(value=>value.id)).size,2);assert.deepEqual(errors,[]);
       for(const width of [320,390]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));}
     });
+    await record('Radar → сигнал: тикер и источник сохранены, публикация требует отдельного подтверждения',async()=>{
+      const event=await make('Учебное событие для сценария Radar','https://www.sberbank.com/ru/investor/local-fixture');
+      await page.goto(session.base+'/admin.html?radarEvent='+encodeURIComponent(event.id));await page.waitForSelector('#radarSourcePanel:not([hidden])');
+      assert.equal(await page.locator('#ideaForm [name=ticker]').inputValue(),'SBER');assert.equal(await page.locator('#ideaForm [name=ticker]').getAttribute('readonly'),'');
+      for(const [name,value]of Object.entries({summary:'Синтетический сценарий для браузерной проверки.',thesis:'Проверяем общий сервис публикации.',entry:'312',stop:'307',target:'325',entryRule:'Вход подтверждается отдельно.',cancelRule:'Выход по плану, изменения отдельным событием.'}))await page.locator('#ideaForm [name='+name+']').fill(value);
+      const before=(await json('/api/admin/ideas')).records.length;page.once('dialog',dialog=>dialog.dismiss());await page.locator('#ideaForm button[type=submit]').click();assert.equal((await json('/api/admin/ideas')).records.length,before);
+      page.once('dialog',dialog=>dialog.accept());const response=page.waitForResponse(value=>value.request().method()==='POST'&&new URL(value.url()).pathname==='/api/admin/ideas');await page.locator('#ideaForm button[type=submit]').click();assert.equal((await response).status(),201);
+      const linked=await json('/api/admin/radar-workflow/'+event.id);assert.equal(linked.relatedSignals.length,1);const created=(await json('/api/admin/ideas')).records.find(item=>item.id===linked.relatedSignals[0].id);assert.equal(created.d.state,'waiting');assert.equal(created.d.entry,312);assert.deepEqual(errors,[]);
+    });
   }finally{await context.close();for(const audience of audiences)await audience.close();}
 }

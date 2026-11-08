@@ -5,6 +5,8 @@ import path from 'node:path';
 import {createAccounts} from './lib/accounts.mjs';
 import {createIdeas} from './lib/ideas.mjs';
 import {createNews} from './lib/news.mjs';
+import {createReferrals} from './lib/referrals.mjs';
+import {RECURRING_TERMS_VERSION} from './lib/payment-recurring.mjs';
 import {createPayments} from './lib/payments.mjs';
 import {createNotifications} from './lib/notifications.mjs';
 import {createBackup} from './lib/backups.mjs';
@@ -37,13 +39,14 @@ let accounts;
 const legal=await createLegal(directory,{templateDir:root,accounts:{identify:req=>accounts.identify(req)},authorizePublish:(req,credentials)=>accounts.authorizeSensitive(req,credentials)});
 accounts=await createAccounts(directory,{...(mfaSetting===undefined?{}:{requireAdminMfa:['true','1'].includes(mfaSetting)}),legalVersionProvider:async()=>(await legal.readPublic()).version});
 const ideas=await createIdeas(directory),news=createNews(directory);
-const payments=await createPayments(directory,{accounts,checkoutGate:createSalesGate({legal})});
+const payments=await createPayments(directory,{accounts,checkoutGate:createSalesGate({legal}),recurringGate:()=>legal.recurringReadiness(RECURRING_TERMS_VERSION)});
+const referrals=createReferrals({accounts,publicOrigin:process.env.ORBITA_PUBLIC_ORIGIN||'',simulation:(await payments.publicConfig()).simulation});
 const radar=await createRadar(directory,{accounts,ideas});
 const participants=await createParticipants(directory,{accounts});
 const support=await createSupport(directory,{accounts});
 const dashboard=createDashboard({accounts,ideas,radar,support});
 const notifications=await createNotifications(directory,{accounts,ideas,radar});
-const telegramAdmin=createTelegramAdmin({accounts,ideas});
+const telegramAdmin=createTelegramAdmin({accounts,ideas,radar});
 const content=await createContent(directory,{accounts}),productSettings=await createProductSettings(directory,{accounts});
 const readiness=createReadiness({directory,publicDir:root});
 const webhooks=new Set([...payments.webhookPaths,...notifications.webhookPaths,...telegramAdmin.webhookPaths]);
@@ -52,12 +55,12 @@ const port=Number(process.env.PORT||3000),host=process.env.HOST||'127.0.0.1';
 if(!Number.isInteger(port)||port<0||port>65535)throw Error('PORT должен быть числом от 0 до 65535.');
 const types={'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
 const memberPages=new Set(['/app.html','/calculator.html','/learn.html','/participants.html']);
-const accountPages=new Set(['/subscriptions.html','/security.html','/notifications.html','/support.html','/dashboard.html']);
-const accountAssets=new Set(['/assets/support.js','/assets/dashboard.js']);
-const adminPages=new Set(['/admin.html','/content-admin.html','/settings-admin.html','/launch-admin.html','/legal-admin.html','/radar-admin.html','/support-admin.html','/telegram-admin.html']);
+const accountPages=new Set(['/subscriptions.html','/security.html','/notifications.html','/support.html','/dashboard.html','/partner.html']);
+const accountAssets=new Set(['/assets/support.js','/assets/dashboard.js','/assets/referrals.js']);
+const adminPages=new Set(['/admin.html','/content-admin.html','/settings-admin.html','/launch-admin.html','/legal-admin.html','/radar-admin.html','/support-admin.html','/telegram-admin.html','/payments-admin.html','/partners-admin.html','/backtest-admin.html']);
 const radarPages=new Set(['/radar.html']),radarAssets=new Set(['/assets/radar.js']);
 const paidAssets=new Set(['/assets/app.js','/assets/signal-visual.js','/assets/calculator.js','/assets/learning-data.js','/assets/learning.js','/assets/news.js','/assets/personal.js','/assets/participants.js','/assets/member-session.js']);
-const adminAssets=new Set(['/assets/admin.js','/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js','/assets/radar-admin.js','/assets/admin-session.js','/assets/support-admin.js','/assets/telegram-admin.js']);
+const adminAssets=new Set(['/assets/admin.js','/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js','/assets/radar-admin.js','/assets/admin-session.js','/assets/support-admin.js','/assets/telegram-admin.js','/assets/payments-admin.js','/assets/backtest-admin.js','/assets/backtest-engine.js']);
 const removedAssets=new Set(['/assets/editor-seed.js']);
 function redirect(res,destination){res.writeHead(303,{Location:destination,'Cache-Control':'no-store','Vary':'Cookie'});res.end();}
 function probe(res,status,data,head=false){const body=JSON.stringify(data);res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Content-Length':Buffer.byteLength(body)});res.end(head?undefined:body);}
@@ -79,6 +82,7 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
    if(pathname==='/healthz'){probe(res,200,{status:'ok'},req.method==='HEAD');return;}
    const state=await readiness.status();probe(res,state.ready?200:503,{status:state.ready?'ready':'not_ready'},req.method==='HEAD');return;
   }
+  if(pathname.startsWith('/r/')){accounts.checkRequest(req);if(!requestSecurity.enter(req,res))return;if(await referrals.visit(req,res,url))return;throw error(404,'Ссылка не найдена.');}
   // Authorize the normalized filesystem target, not an encoded URL alias.
   const target=path.resolve(root,'.'+(pathname==='/'?'/index.html':pathname));
   if(!target.startsWith(root+path.sep))throw error(403,'Доступ запрещён.');
@@ -97,7 +101,7 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
    if(await accounts.handle(req,res,url))return;
    const user=await accounts.identify(req);
    if(await payments.handle(req,res,url,user)||await notifications.handle(req,res,url,user))return;
-   if(await telegramAdmin.handle(req,res,url,user)||await dashboard.handle(req,res,url,user)||await support.handle(req,res,url,user)||await participants.handle(req,res,url,user)||await radar.handle(req,res,url,user)||await legal.handle(req,res,url,user)||await content.handle(req,res,url,user)||await productSettings.handle(req,res,url,user))return;
+   if(await referrals.handle(req,res,url,user)||await telegramAdmin.handle(req,res,url,user)||await dashboard.handle(req,res,url,user)||await support.handle(req,res,url,user)||await participants.handle(req,res,url,user)||await radar.handle(req,res,url,user)||await legal.handle(req,res,url,user)||await content.handle(req,res,url,user)||await productSettings.handle(req,res,url,user))return;
    if(url.pathname==='/api/public-config'&&req.method==='GET'){const settings=await productSettings.readPublic(),paymentConfig=await payments.publicConfig(),publication=await legal.readPublic();json(res,200,{legalVersion:await accounts.currentLegalVersion(),plans:PLANS,paymentsAvailable:paymentConfig.checkoutEnabled,mailEnabled:accounts.emailConfigured,telegramEnabled:notifications.configured,supportEmail:settings.supportEmail||process.env.ORBITA_SUPPORT_EMAIL||publication.profile.supportEmail||null,authorName:settings.authorName,editorialNote:settings.editorialNote});return;}
    if(url.pathname==='/api/admin/readiness'){requireAdmin(user);if(req.method!=='GET')throw error(405,'Метод не поддерживается.');const settings=await productSettings.readPublic();json(res,200,await readiness.adminReport({supportEmail:settings.supportEmail}));return;}
    if(url.pathname==='/api/admin/metrics'){requireAdmin(user);if(req.method!=='GET')throw error(405,'Метод не поддерживается.');let billing;try{billing=JSON.parse(await readFile(path.join(directory,'billing.json'),'utf8'));}catch(cause){if(cause.code!=='ENOENT')throw cause;}json(res,200,{metrics:buildMvpMetrics({accounts:await accounts.readDatabase(),billing}),checkedAt:new Date().toISOString()});return;}
@@ -106,7 +110,7 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
    if(single&&req.method==='GET'){json(res,200,{record:await ideas.get(single[1],user)});return;}
    if(url.pathname==='/api/news'){requireMember(user);if(await news(req,res,url))return;}
    if(url.pathname==='/api/admin/ideas'){
-    requireAdmin(user);if(req.method==='GET'){json(res,200,await ideas.list(user));return;}if(req.method==='POST'){const payload=await readJson(req),current=await accounts.identify(req);requireAdmin(current);json(res,201,await ideas.create(current,payload));return;}
+    requireAdmin(user);if(req.method==='GET'){json(res,200,await ideas.list(user));return;}if(req.method==='POST'){const payload=await readJson(req),current=await accounts.identify(req);requireAdmin(current);if(Object.hasOwn(payload,'radarDraftToken')){const {radarDraftToken,...input}=payload;json(res,201,await telegramAdmin.workflow.publish(current,input,{draftToken:radarDraftToken,req}));}else json(res,201,await ideas.create(current,payload));return;}
    }
    const adminIdea=url.pathname.match(/^\/api\/admin\/ideas\/([a-zA-Z0-9_-]+)(\/events)?$/);
    if(adminIdea){requireAdmin(user);if(adminIdea[2]&&req.method==='POST'||!adminIdea[2]&&req.method==='PUT'){const payload=await readJson(req),current=await accounts.identify(req);requireAdmin(current);json(res,200,await ideas.update(current,adminIdea[1],payload));return;}if(!adminIdea[2]&&req.method==='DELETE'){const current=await accounts.identify(req);requireAdmin(current);json(res,200,await ideas.remove(current,adminIdea[1]));return;}}

@@ -14,6 +14,19 @@
   const ideaSummary = d => window.OrbitaIdeaCopy?.summary?.(d) ?? d.summary ?? '';
   let db = {revision:0,records:[]}, users = [], current = null, draftId = null, dirty = false, mutating = false, accountsRevision,privateSession;
   const form = $('ideaForm');
+  let radarDraft=null;
+  const radarPanel=document.createElement('section');radarPanel.id='radarSourcePanel';radarPanel.className='radar-source-panel';radarPanel.hidden=true;form.before(radarPanel);
+  function clearRadar({release=true}={}){const previous=radarDraft;radarDraft=null;radarPanel.replaceChildren();radarPanel.hidden=true;$('saveDraft').hidden=false;form.elements.ticker.readOnly=false;form.elements.market.disabled=false;if(release&&previous)void api('/api/admin/radar-workflow/'+encodeURIComponent(previous.event.id)+'/release',{method:'POST',body:JSON.stringify({draftToken:previous.draftToken})}).catch(()=>{});}
+  async function openRadar(id){
+    if(!/^[A-Za-z0-9_-]{1,100}$/.test(id))throw Error('Некорректное событие Radar.');if(dirty&&!confirm('Заменить несохранённую форму сценарием Radar?'))return;
+    const info=await api('/api/admin/radar-workflow/'+encodeURIComponent(id));if(!info.instruments.length)throw Error('Инструмент события не поддерживается для сигналов. Событие остаётся в Radar.');const allowAnother=info.relatedSignals.length>0;if(allowAnother&&!confirm('По событию уже есть '+info.relatedSignals.length+' сигнал(а). Создать ещё один?'))return;
+    const result=await api('/api/admin/radar-workflow/'+encodeURIComponent(info.event.id)+'/draft',{method:'POST',body:JSON.stringify({requestId:crypto.randomUUID(),allowAnother,instrumentId:info.instruments[0].id})});clearFull();radarDraft=result;radarPanel.hidden=false;
+    radarPanel.innerHTML='<p class="preview-tag">ИСТОЧНИК / RADAR</p><h3>'+escape(result.event.headline)+'</h3><p>'+escape(result.event.summary)+'</p><p class="form-note">Контекст события не определяет направление сделки. Укажите собственные уровни и условия. После проверки подтвердите публикацию.</p>';
+    const links=document.createElement('div');links.className='radar-source-links';for(const source of result.event.sources||[]){let url;try{url=new URL(source.url);}catch{continue;}if(url.protocol!=='https:'||url.username||url.password)continue;const link=document.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Первоисточник ↗';links.append(link);}radarPanel.append(links);
+    for(const record of result.relatedSignals){const link=document.createElement('a');link.href='admin.html?idea='+encodeURIComponent(record.id);link.textContent='Связанный сигнал: '+record.ticker+' · '+record.state;radarPanel.append(link);}
+    form.elements.ticker.value=result.instrument.ticker;form.elements.ticker.readOnly=true;form.elements.name.value=result.instrument.name;form.elements.market.value='stocks';form.elements.market.disabled=true;compatibleStrategies('stocks',$('fullStrategy'));form.elements.title.value='Новый сценарий '+result.instrument.ticker;form.elements.horizon.value='1–5 дней';$('saveDraft').hidden=true;$('fullFormTitle').textContent='Сценарий по событию Radar';$('fullComposer').open=true;dirty=true;preview();form.elements.entry.focus();radarPanel.scrollIntoView({block:'center',behavior:'smooth'});message('Тикер выбран. Заполните уровни и условия, затем подтвердите полный сценарий.');
+  }
+
   const eventDraftStatus=document.createElement('p');eventDraftStatus.id='eventDraftStatus';eventDraftStatus.className='form-note';eventDraftStatus.setAttribute('role','status');$('eventForm').prepend(eventDraftStatus);
   const discardEvent=document.createElement('button');discardEvent.type='button';discardEvent.id='discardEvent';discardEvent.className='text-button';discardEvent.textContent='Сбросить черновик обновления';discardEvent.hidden=true;$('eventForm').append(discardEvent);
   discardEvent.addEventListener('click',()=>{if(mutating||!current||!confirm('Сбросить несохранённое обновление этой идеи?'))return;eventDrafts.delete(current);eventDirty=false;select(current);});
@@ -71,7 +84,7 @@
   function ideaCard(record) {
     const d = record.d || {};
     const levels = [d.entry,d.stop,d.target].every(value => Number.isFinite(value) && value > 0);
-    return `<div class="selected-identity"><span class="preview-tag">${escape(d.dir)} · ${escape(d.strategy)}</span><h2>${escape(d.ticker || 'Черновик')}</h2>${d.name ? `<p>${escape(d.name)}</p>` : ''}${d.title ? `<h3>${escape(d.title)}</h3>` : ''}${d.summary ? `<p>${escape(ideaSummary(d))}</p>` : ''}${levels ? `<div class="selected-levels"><span>Вход<b>${escape(number(d.entry))}</b></span><span>Стоп<b>${escape(number(d.stop))}</b></span><span>Цель<b>${escape(number(d.target))}</b></span></div>` : `<p class="no-levels">${record.published ? 'Тикер и направление опубликованы. Уровни ещё не заданы.' : 'Укажите уровни для полного сценария. Черновик можно сохранить без них.'}</p>`}${record.createdVia === 'TELEGRAM' ? '<p class="preview-tag">Источник: Telegram</p>' : ''}${record.demo ? '<p class="demo-label">Учебный пример</p>' : ''}${record.erroneous ? '<p class="error-label">Ошибочная публикация · сохранена в истории</p>' : ''}</div>`;
+    return `<div class="selected-identity"><span class="preview-tag">${escape(d.dir)} · ${escape(d.strategy)}</span><h2>${escape(d.ticker || 'Черновик')}</h2>${d.name ? `<p>${escape(d.name)}</p>` : ''}${d.title ? `<h3>${escape(d.title)}</h3>` : ''}${d.summary ? `<p>${escape(ideaSummary(d))}</p>` : ''}${levels ? `<div class="selected-levels"><span>Вход<b>${escape(number(d.entry))}</b></span><span>Стоп<b>${escape(number(d.stop))}</b></span><span>Цель<b>${escape(number(d.target))}</b></span></div>` : `<p class="no-levels">${record.published ? 'Тикер и направление опубликованы. Уровни ещё не заданы.' : 'Укажите уровни для полного сценария. Черновик можно сохранить без них.'}</p>`}${record.createdVia === 'TELEGRAM' ? '<p class="preview-tag">Источник: Telegram</p>' : ''}${record.radarSource ? '<p class="preview-tag">Контекст: Radar · '+escape(record.radarSource.headline)+'</p>' : ''}${record.demo ? '<p class="demo-label">Учебный пример</p>' : ''}${record.erroneous ? '<p class="error-label">Ошибочная публикация · сохранена в истории</p>' : ''}</div>`;
   }
   function preview() {
     const data = readFullData();
@@ -129,6 +142,7 @@
       eventFields();
       audit(record);
     } else if (record && !(dirty && draftId === record.id)) {
+      if(radarDraft)clearRadar();
       draftId = record.id;
       form.reset();
       form.elements.market.value=record.d.market||'stocks';compatibleStrategies(form.elements.market.value,$('fullStrategy'),record.d.strategy);
@@ -141,7 +155,7 @@
     }
     renderList();
   }
-  function clearFull() { draftId = null; dirty = false; form.reset();compatibleStrategies(form.elements.market.value,$('fullStrategy')); $('fullFormTitle').textContent = 'Подготовить полный сценарий'; preview(); }
+  function clearFull() { clearRadar();draftId = null; dirty = false; form.reset();compatibleStrategies(form.elements.market.value,$('fullStrategy')); $('fullFormTitle').textContent = 'Подготовить полный сценарий'; preview(); }
   async function loadIdeas(preferred = current) {
     const result = await api('/api/admin/ideas');
     if (!Array.isArray(result.records) || !Number.isInteger(result.revision)) throw new Error('Сервер не вернул список идей.');
@@ -164,7 +178,7 @@
       const result = await api('/api/admin/ideas',{method:'POST',body:JSON.stringify({revision:db.revision,mode:'quick',d})});
       acceptChange(result);
       $('quickTicker').value = '';
-      $('quickTicker').focus();
+      const radarEvent=new URLSearchParams(location.search).get('radarEvent');if(radarEvent)await mutation(()=>openRadar(radarEvent));else $('quickTicker').focus();
       message(`${d.ticker}: ${d.dir.toLowerCase()} опубликован. Уровни и комментарий можно добавить ниже.`);
     });
   });
@@ -175,8 +189,10 @@
   async function saveFull(mode) {
     const d = readFullData();
     if (mode === 'full') validateLevels(d);
-    const result = await api(draftId ? `/api/admin/ideas/${encodeURIComponent(draftId)}` : '/api/admin/ideas',{method:draftId ? 'PUT' : 'POST',body:JSON.stringify({revision:db.revision,mode,d})});
+    if(radarDraft){if(mode!=='full')throw Error('Сценарий Radar публикуется после проверки полного плана.');if(!confirm(`${d.ticker} · ${d.dir}\nВход ${number(d.entry)} · Стоп ${number(d.stop)} · Цель ${number(d.target)}\n\nОпубликовать сигнал по событию Radar?`))return;}
+    const result = await api(draftId ? `/api/admin/ideas/${encodeURIComponent(draftId)}` : '/api/admin/ideas',{method:draftId ? 'PUT' : 'POST',body:JSON.stringify({revision:db.revision,mode,d,...(radarDraft?{radarDraftToken:radarDraft.draftToken}:{})})});
     dirty = false;
+    if(radarDraft)clearRadar({release:false});
     if (mode === 'full') clearFull();
     acceptChange(result);
     if (mode === 'full') $('fullComposer').open = false;
@@ -285,7 +301,7 @@
       const data = await api('/api/me');
       if (!data.user) { location.replace('account.html?next=%2Fadmin.html'); return; }
       if (!(data.user.role === 'admin' || data.user.access?.isAdmin)) { showForbidden(); return; }
-      privateSession=window.OrbitaAdminSession.watch(data.user,{workspace:'adminMain',clear(){db={revision:0,records:[]};users=[];current=draftId=null;dirty=eventDirty=false;eventDrafts.clear();for(const id of ['adminIdentity','ideaList','usersOverview','subscriptionUser','selectedUserAccess','selectedIdea','initialSnapshot','eventHistory','fullPreview','fullFormTitle','editorStatus','count','usersStatus'])$(id).replaceChildren();}});
+      privateSession=window.OrbitaAdminSession.watch(data.user,{workspace:'adminMain',clear(){clearRadar({release:false});db={revision:0,records:[]};users=[];current=draftId=null;dirty=eventDirty=false;eventDrafts.clear();for(const id of ['adminIdentity','ideaList','usersOverview','subscriptionUser','selectedUserAccess','selectedIdea','initialSnapshot','eventHistory','fullPreview','fullFormTitle','editorStatus','count','usersStatus'])$(id).replaceChildren();}});
       $('authState').hidden = true;
       $('adminMain').hidden = false;
       $('adminIdentity').textContent = ` / ${data.user.email}`;
@@ -293,7 +309,7 @@
       const expiry = new Date(Date.now() + 30 * 86400000 + 3 * 3600000);
       $('subscriptionExpiry').value = expiry.toISOString().slice(0,16);
       await mutation(async()=>{const results = await Promise.allSettled([loadIdeas(new URLSearchParams(location.search).get('idea') || current),loadUsers()]);results.forEach(result => { if (result.status === 'rejected') message(result.reason.message,true); });});
-      $('quickTicker').focus();
+      const radarEvent=new URLSearchParams(location.search).get('radarEvent');if(radarEvent)await mutation(()=>openRadar(radarEvent));else $('quickTicker').focus();
     } catch (error) {
       $('authState').innerHTML = `<h1>Не удалось открыть редакцию.</h1><p>${escape(error.message)}</p><button type="button" id="retryAdmin">Повторить</button>`;
       $('retryAdmin').addEventListener('click',start);

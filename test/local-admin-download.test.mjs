@@ -6,7 +6,10 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {createAccounts} from '../lib/accounts.mjs';
 import {derivePassword} from '../lib/password-work.mjs';
-import {decodeConfig,provision,prepared,localEnvironment} from '../admin-download/setup.mjs';
+// The personal legacy bundle is intentionally excluded from downloadable source releases.
+let installer;try{await access(new URL('../admin-download/setup.mjs',import.meta.url));installer=await import('../admin-download/setup.mjs');}catch(cause){if(cause.code!=='ENOENT')throw cause;}
+const {decodeConfig,provision,prepared,localEnvironment}=installer||{};
+const installerTest=(name,work)=>test(name,{skip:installer?false:'Legacy personal admin bundle is not part of this source release'},work);
 
 function seal(config){const key=randomBytes(32),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv);cipher.setAAD(Buffer.from('ORBITA-LOCAL-ADMIN-v1'));const data=Buffer.concat([cipher.update(JSON.stringify(config)),cipher.final()]);return {key:key.toString('base64url'),envelope:{version:1,iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:data.toString('base64')}};}
 async function fixture(){
@@ -16,7 +19,7 @@ async function fixture(){
   return {root,config,...sealed,close:()=>rm(root,{recursive:true,force:true})};
 }
 
-test('local installer authenticates encrypted configuration before writing accounts and rejects corruption without revealing secrets',async()=>{
+installerTest('local installer authenticates encrypted configuration before writing accounts and rejects corruption without revealing secrets',async()=>{
   const f=await fixture();try{
     assert.deepEqual(decodeConfig(f.envelope,f.key),f.config);assert.ok(!JSON.stringify(f.envelope).includes(f.config.email));assert.ok(!JSON.stringify(f.envelope).includes(f.config.hash));
     const malformed=seal({...f.config,salt:[f.config.salt]});assert.throws(()=>decodeConfig(malformed.envelope,malformed.key));
@@ -26,7 +29,7 @@ test('local installer authenticates encrypted configuration before writing accou
   }finally{await f.close();}
 });
 
-test('local installer preserves other users, subscriptions and MFA, revokes only owner sessions and does not reset a later password',async()=>{
+installerTest('local installer preserves other users, subscriptions and MFA, revokes only owner sessions and does not reset a later password',async()=>{
   const f=await fixture();try{
     const accounts=await createAccounts(path.join(f.root,'data'),{publicOrigin:'',mailer:{configured:false}}),other={id:randomUUID(),email:'preserve@example.test',role:'member',subscriptions:[{plan:'pro',expiresAt:'2090-01-01T00:00:00.000Z'}]},owner={id:randomUUID(),email:f.config.email,role:'member',salt:randomBytes(16).toString('hex'),hash:'old',emailVerified:false,mfa:{enabled:true,secret:{iv:'keep',data:'keep',tag:'keep'},recoveryHashes:['keep']}};
     await accounts.transact(db=>{db.users=[other,owner];db.sessions=[{userId:owner.id,hash:'owner-session'},{userId:other.id,hash:'other-session'}];db.securityTokens=[{userId:owner.id},{userId:other.id}];db.authChallenges=[{userId:owner.id},{userId:other.id}];});
@@ -38,7 +41,7 @@ test('local installer preserves other users, subscriptions and MFA, revokes only
   }finally{await f.close();}
 });
 
-test('local installer refuses public environments and data symlinks; child environment excludes operator secrets',async()=>{
+installerTest('local installer refuses public environments and data symlinks; child environment excludes operator secrets',async()=>{
   const f=await fixture();try{
     for(const env of [{NODE_ENV:'production'},{ORBITA_PUBLIC_ORIGIN:'https://public.example.test'},{HOST:'0.0.0.0'}])await assert.rejects(provision(f.root,f.envelope,f.key,{env}));
     await assert.rejects(access(path.join(f.root,'data')),{code:'ENOENT'});await symlink(path.join(f.root,'public'),path.join(f.root,'data'),'dir');await assert.rejects(provision(f.root,f.envelope,f.key,{env:{}}));await assert.rejects(access(path.join(f.root,'public/accounts.json')),{code:'ENOENT'});

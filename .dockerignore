@@ -17,6 +17,7 @@
 !scripts/manage-access.mjs
 !scripts/backup.mjs
 !scripts/setup-telegram-admin.mjs
+!scripts/backtest.mjs
 
 # Keep these exclusions last, even if a private file was accidentally placed
 # inside an otherwise allowed source directory.
