@@ -1,0 +1,23 @@
+/* GENERATED from settings-admin.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light]{color:#0e1219;background:#f3f6f9}
+html[data-theme=light] a{color:#1259ba;text-decoration:none}
+html[data-theme=light] header{border-bottom:1px solid #0057e628}
+html[data-theme=light] .brand span{color:#446288}
+html[data-theme=light] nav a[aria-current=page]{color:#796020}
+html[data-theme=light] .eyebrow{color:#395f93}
+html[data-theme=light] p{color:#2a394d}
+html[data-theme=light] .panel{border:1px solid #0057e62d;background:#cbd9ed3d}
+html[data-theme=light] label{color:#202b3b}
+html[data-theme=light] input,html[data-theme=light] textarea{color:#0c1117;border:1px solid #0057e63e;background:#f2f5f9}
+html[data-theme=light] input::placeholder,html[data-theme=light] textarea::placeholder{color:#4d617f}
+html[data-theme=light] button{border:1px solid #1659b6;background:#195bb3;color:#f3f4f7}
+html[data-theme=light] .secondary{background:transparent;color:#235da9;border-color:#0057e646}
+html[data-theme=light] #dirtyState{color:#7c6327}
+html[data-theme=light] .help{color:#446288}
+html[data-theme=light] fieldset{border-top:1px solid #0057e625}
+html[data-theme=light] legend{color:#205aac}
+html[data-theme=light] .preview-item{border-top:1px solid #0057e625}
+html[data-theme=light] .preview-item small{color:#42618a}
+html[data-theme=light] .error{color:#a43728!important}
+html[data-theme=light] .success{color:#274936!important}
+html[data-theme=light] :focus-visible{outline:2px solid #0a58c2}

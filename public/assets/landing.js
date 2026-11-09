@@ -17,3 +17,40 @@ const canvas=document.getElementById('heroArt'),ctx=canvas.getContext('2d'),moti
  document.querySelectorAll('[data-stage]').forEach(b=>b.onclick=()=>{stage=+b.dataset.stage;render()});document.querySelectorAll('[data-outcome]').forEach(b=>b.onclick=()=>{outcome=b.dataset.outcome;render()});$('sampleNext').onclick=()=>{stage=(stage+1)%3;render()};render();
  const pro=document.querySelector('.plan.pro');pro.addEventListener('pointermove',e=>{if(motion.matches||e.pointerType==='touch')return;const r=pro.getBoundingClientRect();pro.style.setProperty('--px',`${(e.clientX-r.left)/r.width*100}%`);pro.style.setProperty('--py',`${(e.clientY-r.top)/r.height*100}%`)});pro.addEventListener('pointerleave',()=>{pro.style.removeProperty('--px');pro.style.removeProperty('--py')});
 })();
+
+// Session-aware header: a signed-in visitor sees "Кабинет", not a login prompt,
+// so returning to the landing page never looks like being logged out.
+(()=>{
+ fetch('/api/me',{credentials:'same-origin',cache:'no-store'}).then(r=>r.ok?r.json():null).then(data=>{
+  if(!data?.user)return;const link=document.getElementById('cabinetLink');if(link)link.hidden=false;
+  document.querySelectorAll('.account [data-dialog], .account a[href="#access"]').forEach(node=>{node.hidden=true;});
+ }).catch(()=>{});
+})();
+
+// Public example: server sends only instrument, direction, dates, status and a
+// verified result when one exists. No levels or author comments are public.
+(()=>{
+ const box=document.getElementById('showcase');if(!box)return;
+ const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n;};
+ const when=iso=>Number.isFinite(Date.parse(iso))?new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(iso))+' МСК':'—';
+ const states={announced:'Сигнал объявлен',waiting:'Ожидает входа',active:'Активна'};
+ fetch('/api/public/showcase',{cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject()).then(({showcase:s})=>{
+  box.replaceChildren();
+  if(!s){box.append(el('p','showcase-muted','Сейчас нет открытой идеи для публичного примера. Загляните позже — или посмотрите учебный сценарий ниже.'));return;}
+  const long=s.dir!=='ШОРТ',head=el('div','showcase-head');
+  head.append(el('strong','showcase-ticker',s.ticker),el('span','showcase-tag '+(long?'long':'short'),long?'LONG':'SHORT'),el('span','showcase-tag pro','PRO'));
+  const facts=el('dl','showcase-facts');
+  const add=(k,v)=>{const d=el('div');d.append(el('dt','',k),el('dd','',v));facts.append(d);};
+  add('Инструмент',s.name||s.ticker);add('Опубликована',when(s.publishedAt));add('Статус',states[s.state]||s.status||'—');add('Обновлено',when(s.updatedAt));
+  if(s.result){add('Текущий расчётный результат',(s.result.pct>0?'+':s.result.pct<0?'−':'')+Math.abs(s.result.pct).toLocaleString('ru-RU',{maximumFractionDigits:2})+'%');}
+  box.append(head,facts);
+  box.append(el('p','showcase-muted',s.result?`Расчёт: ${s.result.method}. Цена — ${s.result.source}, на ${when(s.result.priceTime)}${s.result.delayMinutes?', задержка ~'+s.result.delayMinutes+' мин':''}. Результат расчётный, не учитывает комиссии и не является гарантией.`:'Результат не показывается: идея ещё не активна или нет проверенной рыночной цены.'));
+  const cta=el('a','primary','Получить доступ к уровням ↗');cta.href='#access';box.append(cta);
+ }).catch(()=>{box.replaceChildren(el('p','showcase-muted','Пример временно недоступен.'));});
+})();
+
+// Public aggregate track record of closed ideas (no tickers or levels).
+(()=>{const box=document.getElementById('publicStats');if(!box)return;
+ fetch('/api/public/stats',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(data=>{const s=data?.stats?.pro;if(!s||s.closed<5)return;
+  const pct=v=>(v>0?'+':v<0?'−':'')+Math.abs(v).toLocaleString('ru-RU',{maximumFractionDigits:2})+'%';
+  box.innerHTML=`<div><b>${s.closed}</b><span>закрытых PRO-идей</span></div><div><b>${Math.round(s.winRate)}%</b><span>закрыты в плюсе</span></div><div><b>${pct(s.avgPct)}</b><span>средний результат идеи</span></div><p>Все закрытые идеи с ценой выхода, без отбора и без учёта комиссий. Прошлые результаты не гарантируют будущих. <a href="/results.html">Каждая идея с уровнями →</a></p>`;box.hidden=false;}).catch(()=>{});})();

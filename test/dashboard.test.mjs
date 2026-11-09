@@ -38,7 +38,7 @@ test('dashboard uses current strategy permissions for personal positions and wat
   for(const account of [f.pro,f.exclusive])await f.setPrivate(account,{positions:[position(pro.id),position(exclusive.id)],watchlist:[pro.id,exclusive.id]});
   const p=(await get(f,f.pro)).data,e=(await get(f,f.exclusive)).data;
   assert.deepEqual(p.positions.items.map(row=>row.ticker),['PROONLY']);assert.ok(p.updates.items.every(row=>row.strategy==='Momentum RU'));assert.ok(!JSON.stringify(p).includes('EXCLONLY'));
-  assert.deepEqual(e.positions.items.map(row=>row.ticker),['EXCLONLY']);assert.ok(e.updates.items.every(row=>row.strategy==='Orbita Exclusive'));assert.ok(!JSON.stringify(e).includes('PROONLY'));
+  assert.deepEqual(e.positions.items.map(row=>row.ticker).sort(),['EXCLONLY','PROONLY']);assert.ok(e.updates.items.some(row=>row.strategy==='Orbita Exclusive'));
   assert.equal(p.subscriptions[0].status,'active');assert.equal(p.reminders[0].plan,'pro');assert.equal(p.reminders[0].state,'expiring_soon');
  }finally{await f.close();}
 });

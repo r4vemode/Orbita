@@ -24,9 +24,9 @@ export async function runBillingReferralFlows({session,browser,record,outputDir}
   await check('Партнёр: администратор создаёт ссылку и условия через интерфейс',async()=>{
    adminPage=await page(admin);await adminPage.goto(base+'/partners-admin.html');await adminPage.locator('#partnerUser option').first().waitFor({state:'attached'});
    const target=(await request(admin,'/api/admin/users')).users.find(item=>item.email===accounts.pro.email);
-   await adminPage.selectOption('#partnerUser',target.id);await adminPage.fill('#partnerName','Учебный партнёр');await adminPage.fill('#partnerHold','0');
+   await adminPage.fill('#partnerSearch','no-such-marketer@example.test');assert.equal(await adminPage.getByRole('button',{name:'Добавить партнёра',exact:true}).isDisabled(),true);await adminPage.fill('#partnerSearch',accounts.pro.email);await adminPage.selectOption('#partnerUser',target.id);await adminPage.fill('#partnerName','Учебный партнёр');await adminPage.fill('#partnerHold','0');
    await adminPage.getByRole('button',{name:'Добавить партнёра',exact:true}).click();await adminPage.getByRole('heading',{name:'Учебный партнёр',exact:true}).waitFor();
-   ref=(await partners())[0];assert.equal(ref.terms.firstBps,1500);assert.equal(ref.terms.repeatBps,1000);
+   ref=(await partners())[0];assert.equal(await adminPage.locator('.referral-link').getAttribute('href'),ref.link);await adminPage.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async value=>{window.copiedReferral=value;}}}));await adminPage.getByRole('button',{name:'Скопировать ссылку',exact:true}).click();assert.equal(await adminPage.evaluate(()=>window.copiedReferral),base+ref.link);assert.equal(ref.terms.firstBps,1500);assert.equal(ref.terms.repeatBps,1000);
   });
   await check('Партнёрская ссылка: регистрация привязывается один раз, платный доступ не выдаётся',async()=>{
    client=await context();clientPage=await page(client);await clientPage.goto(base+ref.link);await clientPage.goto(base+ref.link);

@@ -1,0 +1,27 @@
+/* GENERATED from news.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .news-trigger{border:1px solid #0057e635;background:#0057e608;color:#1358b9}
+html[data-theme=light] .news-trigger b{background:#1f5dad;color:#f3f4f7}
+html[data-theme=light] .news-dialog{border-left:1px solid #0057e63a;background:#f1f4f8;color:#0c1117;box-shadow:-30px 0 80px #ffffff33}
+html[data-theme=light] .news-dialog::backdrop{background:#ebf1fa33}
+html[data-theme=light] .news-dialog a,html[data-theme=light] .news-toast a{color:#0052cc;text-decoration:none}
+html[data-theme=light] .news-top{border-bottom:1px solid #0057e623}
+html[data-theme=light] .news-close{background:none;color:#004dcc}
+html[data-theme=light] .news-options{border-bottom:1px solid #0057e623}
+html[data-theme=light] .news-options p{color:#456087}
+html[data-theme=light] .news-topics button{border:1px solid #0057e635;background:transparent;color:#41608b}
+html[data-theme=light] .news-topics button[aria-pressed=true]{background:#1d5aaf;color:#f3f5f7}
+html[data-theme=light] .news-check{color:#233041}
+html[data-theme=light] .news-check input{accent-color:#0f57bd}
+html[data-theme=light] .news-tools button{background:none;color:#265ca6}
+html[data-theme=light] .news-item{border-bottom:1px solid #0057e61a}
+html[data-theme=light] .news-meta{color:#446088}
+html[data-theme=light] .news-urgent{color:#b2291a}
+html[data-theme=light] .news-item.unread h3:before{color:#0055cc}
+html[data-theme=light] .news-empty{color:#446188}
+html[data-theme=light] .news-status{color:#446088}
+html[data-theme=light] .news-toast{background:linear-gradient(135deg,#e8eef4f5,#f0f4f8fa);border:1px solid #0057e658;box-shadow:0 20px 60px #ffffff47;color:#0c1017}
+html[data-theme=light] .news-test-tag{color:#786135}
+html[data-theme=light] .news-dialog :focus-visible,html[data-theme=light] .news-toast :focus-visible,html[data-theme=light] .news-trigger:focus-visible{outline:2px solid #0055cc}
+html[data-theme=light] .news-tone{border-left:2px solid #515a6b;color:#323b4b}
+html[data-theme=light] .news-tone.positive{color:#10744d;border-color:#21ab79;background:#29bd8711}
+html[data-theme=light] .news-tone.negative{color:#cc0019;border-color:#cb011e;background:#df062611}

@@ -1,0 +1,15 @@
+{
+"securities": {
+	"columns": ["SECID", "LOTSIZE", "MINSTEP", "SHORTNAME"], 
+	"data": [
+		["GAZP", 10, 0.01, "ГАЗПРОМ ао"],
+		["SBER", 1, 0.01, "Сбербанк"]
+	]
+},
+"marketdata": {
+	"columns": ["SECID", "LAST", "UPDATETIME", "SYSTIME", "LASTTOPREVPRICE"], 
+	"data": [
+		["GAZP", 114.6, "15:28:26", "2026-11-08 15:43:26", 0.42],
+		["SBER", 294.35, "15:28:22", "2026-11-08 15:43:22", 0.12]
+	]
+}}

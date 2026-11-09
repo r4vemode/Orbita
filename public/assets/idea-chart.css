@@ -1,0 +1,10 @@
+/* Schematic chart */
+.idea-chart{margin:0}.idea-chart svg{width:100%;height:auto;display:block}
+.idea-chart-empty{border:1px dashed var(--o-line);border-radius:8px;padding:18px;color:var(--o-faint);font-size:12.5px;text-align:center}
+.ic-grid{stroke:#ffffff0c;stroke-width:1}
+.ic-path{fill:none;stroke:#c9d6ea;stroke-width:1.4;stroke-linejoin:round;stroke-linecap:round}
+.ic-dot{fill:#e9eef7}
+.ic-level{stroke-width:1;stroke-dasharray:4 4}.ic-level.ic-entry{stroke:#c9d6ea99}.ic-level.ic-stop{stroke:#e2645fa6}.ic-level.ic-target{stroke:#4fbf8ba6}
+.ic-label{font:11px Manrope,Arial,sans-serif}.ic-label.ic-entry{fill:#c9d6ea}.ic-label.ic-stop{fill:#e8908b}.ic-label.ic-target{fill:#6fd0a2}
+.ic-reward{fill:#4fbf8b0f}.ic-risk{fill:#e2645f0f}
+.ic-caption{font:9.5px Manrope,Arial,sans-serif;fill:#6f7b8f;letter-spacing:.02em}

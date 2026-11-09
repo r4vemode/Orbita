@@ -1,0 +1,44 @@
+/* GENERATED from strategies.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .strategy-hero>p,html[data-theme=light] .strategy-intro{color:#2d3d53}
+html[data-theme=light] .strategy-filters button{border:1px solid #0057e635;background:none;color:#2d3d53}
+html[data-theme=light] .strategy-filters button[aria-pressed=true]{background:#1d58af;color:#f3f4f7;border-color:#1a58b2}
+html[data-theme=light] .strategy-count{color:#475f85}
+html[data-theme=light] .strategy-card{border:1px solid #0057e629;background:linear-gradient(140deg,#005ee60b,transparent)}
+html[data-theme=light] .strategy-card.exclusive{border-color:#9f864755;background:radial-gradient(ellipse at top right,#b2933423,transparent 70%)}
+html[data-theme=light] .strategy-card h2 a:hover{color:#1358b9}
+html[data-theme=light] .strategy-card p{color:#304159}
+html[data-theme=light] .strategy-kicker{color:#3a6192}
+html[data-theme=light] .exclusive .strategy-kicker{color:#76622d}
+html[data-theme=light] .strategy-tags span{border:1px solid #0057e629;color:#253245}
+html[data-theme=light] .strategy-card-stats{color:#42608a}
+html[data-theme=light] .strategy-card-stats b{color:#131a23}
+html[data-theme=light] .strategy-link{border:1px solid #0057e646;color:#1a59b2}
+html[data-theme=light] .strategy-link:hover{background:#0057e614;border-color:#0057e68d}
+html[data-theme=light] .strategy-link.primary-link{background:#265ba6;border-color:#225baa;color:#f3f4f7}
+html[data-theme=light] .strategy-text-link{color:#396093}
+html[data-theme=light] .strategy-disclaimer{color:#496283}
+html[data-theme=light] .strategy-error{color:#a0372c}
+html[data-theme=light] .back-link{color:#42608a}
+html[data-theme=light] .detail-hero{border-bottom:1px solid #0057e629}
+html[data-theme=light] .detail-facts{border:1px solid #0057e629}
+html[data-theme=light] .detail-facts dt{color:#41618b}
+html[data-theme=light] .detail-facts dd{color:#131a23}
+html[data-theme=light] .strategy-section-heading>span{color:#42608a}
+html[data-theme=light] .strategy-overview p{color:#2d3d53}
+html[data-theme=light] .strategy-principles{color:#222f40}
+html[data-theme=light] .strategy-idea{border:1px solid #0057e629;background:#0057e606}
+html[data-theme=light] .strategy-idea p{color:#40618c}
+html[data-theme=light] .strategy-idea small{color:#396093}
+html[data-theme=light] .strategy-idea a{color:#1c5ab0}
+html[data-theme=light] .strategy-status{color:#327255}
+html[data-theme=light] .strategy-history{border:1px solid #0057e629}
+html[data-theme=light] .strategy-empty{border:1px dashed #0057e638;color:#446188}
+html[data-theme=light] .strategy-lesson{border:1px solid #9f864738;background:#a88e3e09}
+html[data-theme=light] .strategy-lesson p{color:#42618a}
+html[data-theme=light] .strategy-lesson a{color:#796534}
+html[data-theme=light] .trend-notes{border:1px solid #9f864738;background:linear-gradient(120deg,#9f86470b,transparent)}
+html[data-theme=light] .trend-notes p{color:#2b3a50}
+html[data-theme=light] .trend-notes strong{color:#7a6533}
+html[data-theme=light] .trend-notes .strategy-kicker{color:#7a6533}
+html[data-theme=light] .trend-summary dt{color:#42608a}
+html[data-theme=light] .trend-summary dd{color:#17202b}

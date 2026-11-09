@@ -1,0 +1,19 @@
+/* Direction illustration: calm line, soft area, dashed levels, glowing "now" dot. */
+.fx-chart{display:block;width:100%;height:auto;overflow:visible;font-family:Manrope,Arial,sans-serif}
+.signal-visual.fx-chart{height:100%}
+.fx-grid{stroke:#ffffff0a;stroke-width:1}
+.fx-area-top{stop-color:#dce8fb;stop-opacity:.16}.fx-area-bottom{stop-color:#dce8fb;stop-opacity:0}
+.fx-line{fill:none;stroke:#e9eef7;stroke-width:2.4;stroke-linejoin:round;stroke-linecap:round}
+.fx-chart.compact .fx-line{stroke-width:1.6}
+.fx-drop{stroke:#ffffff1f;stroke-width:1}
+.fx-glow{fill:#dce8fb;fill-opacity:.18}.fx-now{fill:#eef4ff}
+.fx-level{stroke:#c9d6ea59;stroke-width:1.2;stroke-dasharray:7 7}
+.fx-level.target{stroke:#a3d4c473}.fx-level.stop{stroke:#e6a7a566}.fx-level.entry{stroke:#b6d0f773}
+.fx-l{font-size:16px;letter-spacing:-.01em}.fx-l.target{fill:#a3d4c4}.fx-l.entry{fill:#b6d0f7}.fx-l.stop{fill:#e6a7a5}
+.fx-neutral .fx-line{stroke:#9aa6b8}
+.fx-caption{font-size:12px;fill:#7d8aa0;letter-spacing:.02em}.fx-chart.compact .fx-caption{font-size:9.5px}
+/* Background orbit (idea screen). Slow rotation; still when reduced motion is preferred. */
+.fx-orbit-ring{fill:none;stroke:#abcaff;stroke-opacity:.12;stroke-width:1}.fx-orbit-ring.outer{stroke-dasharray:2 7;stroke-opacity:.1}
+.fx-orbit-dot{fill:#a8c9ff;fill-opacity:.9}.fx-orbit-dot.dim{fill-opacity:.4}
+@media (prefers-reduced-motion:no-preference){.fx-orbit-spin{animation:fx-turn 32s linear infinite}.fx-orbit-spin.slow{animation-duration:58s;animation-direction:reverse}}
+@keyframes fx-turn{to{transform:rotate(360deg)}}

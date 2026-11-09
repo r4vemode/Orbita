@@ -1,0 +1,10 @@
+/* GENERATED from backtest-admin.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .backtest-mode{border:1px solid #3c6aaa3e;color:#1a58b2;background:#3c6aaa0a}
+html[data-theme=light] .backtest-mode[data-synthetic=true]{color:#845b15;border-color:#c288234c}
+html[data-theme=light] .backtest-metrics>div{background:#3c6aaa08;border:1px solid #3c6aaa1d}
+html[data-theme=light] .backtest-metrics span{color:#436189}
+html[data-theme=light] .backtest-table-wrap th,html[data-theme=light] .backtest-table-wrap td{border-bottom:1px solid #3c6aaa2a}
+html[data-theme=light] .backtest-table-wrap th{color:#436189}
+html[data-theme=light] #backtestWarnings,html[data-theme=light] #backtestAssumptions{color:#212e3e}
+html[data-theme=light] #backtestWorkspace summary{color:#1d5baf}
+html[data-theme=light] #backtestStatus.error{color:#a0372c}

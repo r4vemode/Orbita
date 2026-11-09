@@ -53,7 +53,7 @@
     if(invalidated)return;invalidated=true;ready=false;clearTimeout(pollTimer);
     user=null;order=null;request=null;states.clear();storageKey=null;
     for(const id of ['subscriptionIdentity','subscriptionStatus','paymentOrderReference','paymentOrderMessage','paymentOrderTitle','checkoutMessage','checkoutAmount','checkoutDescription'])$(id).textContent='';
-    for(const card of document.querySelectorAll('[data-plan]')){card.querySelector('.plan-state').textContent='';card.classList.toggle('selected',false);}
+    for(const card of document.querySelectorAll('.subscription-cards article[data-plan]')){card.querySelector('.plan-state').textContent='';card.classList.toggle('selected',false);}
     $('continuePayment').removeAttribute('href');$('paymentOrder').hidden=$('subscriptionDetails').hidden=$('openWorkspace').hidden=true;updateCheckoutButton();
     location.replace(guest?'/account.html?next=/subscriptions.html':'/subscriptions.html');
   }
@@ -68,7 +68,7 @@
     $('subscriptionIdentity').textContent = user.email;
     $('subscriptionStatus').textContent = user.access?.isAdmin ? 'Аккаунт администратора. Ваш доступ к редакции не зависит от подписки.' : user.access?.hasSubscription ? 'Доступ активен. Вы видите материалы подключённых тарифов.' : 'Подписка не активна. Выберите тариф, чтобы открыть его материалы и инструменты.';
     if (query.get('error') === 'admin' && !user.access?.isAdmin) $('subscriptionStatus').textContent = 'Редакция доступна только администратору. В вашем аккаунте этой роли нет.';
-    document.querySelectorAll('[data-plan]').forEach(card => {
+    document.querySelectorAll('.subscription-cards article[data-plan]').forEach(card => {
       const plan = card.dataset.plan, record = (user.subscriptions || []).find(item => item.plan === plan), current = subscribed(plan), details = planConfig(plan);
       card.querySelector('.plan-state').textContent = record ? (current ? 'Активна до ' : 'Истекла ') + date(record.expiresAt) : 'Не подключена';
       card.querySelector('[data-select]').textContent = current ? 'Продлить ' + (plan === 'pro' ? 'Pro' : 'Exclusive') : 'Выбрать ' + (plan === 'pro' ? 'Pro' : 'Exclusive');
@@ -103,7 +103,7 @@
   function renderSelection() {
     if (!selected) return;
     const plan = selected;
-    document.querySelectorAll('[data-plan]').forEach(card => card.classList.toggle('selected', card.dataset.plan === plan));
+    document.querySelectorAll('.subscription-cards article[data-plan]').forEach(card => card.classList.toggle('selected', card.dataset.plan === plan));
     $('verifyEmailLink').href = 'security.html?verify=1&plan=' + encodeURIComponent(plan);
     $('subscriptionDetails').hidden = false;
     $('checkoutTitle').textContent = planName(plan);
@@ -134,6 +134,8 @@
     if (!order) { updateCheckoutButton(); return; }
     $('paymentOrderReference').textContent = `Заказ ${order.id} · ${planName(order.plan)} · ${money(order.amount, order.currency || 'RUB')}`;
     const current = subscribed(order.plan), confirmed = order.status === 'paid' && !!current;
+    // Right after a successful payment the client goes straight to the ideas of the purchased plan.
+    if (confirmed && new URLSearchParams(location.search).get('paymentReturn') === 'success' && !window.__orbitaPaidRedirect) { window.__orbitaPaidRedirect = setTimeout(() => location.replace('/strategies.html?welcome=paid' + (order.plan === 'exclusive' ? '&tab=exclusive' : '')), 1200); }
     const captions = {
       creating: ['Оплата подготавливается', request?.orderId === order.id ? 'Платёжный провайдер ещё формирует страницу оплаты. Если подготовка прервалась, повторите её для этого же заказа.' : 'Платёжный провайдер ещё формирует страницу оплаты. Исходный запрос в этом браузере недоступен; дождитесь обновления или проверьте статус заказа.'],
       pending: ['Ожидаем оплату', 'Оплатите заказ на странице CloudPayments. После оплаты дождитесь подтверждения сервера или нажмите «Проверить статус».'],

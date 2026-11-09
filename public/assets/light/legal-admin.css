@@ -1,0 +1,11 @@
+/* GENERATED from legal-admin.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] select{color:#0c1117;border:1px solid #0057e63e;background:#f2f5f9}
+html[data-theme=light] .legal-readiness{color:#2a394d}
+html[data-theme=light] .legal-readiness .ready{color:#274936}
+html[data-theme=light] .legal-version{border-top:1px solid #0057e625}
+html[data-theme=light] .legal-version strong{color:#141b24}
+html[data-theme=light] .legal-version small{color:#446288}
+html[data-theme=light] .legal-publish{border-color:#ac8a3a70}
+html[data-theme=light] .legal-review input{accent-color:#1259ba}
+html[data-theme=light] #legalDirtyState{color:#7c6327}
+html[data-theme=light] .legal-document-links a:focus-visible,html[data-theme=light] select:focus-visible{outline:2px solid #0a58c2}

@@ -1,0 +1,120 @@
+PASS Адаптивность: index.html, 320px
+PASS Адаптивность: index.html, 390px
+PASS Адаптивность: index.html, 768px
+PASS Адаптивность: index.html, 1440px
+PASS Адаптивность: account.html?mode=register, 320px
+PASS Адаптивность: account.html?mode=register, 390px
+PASS Адаптивность: account.html?mode=register, 768px
+PASS Адаптивность: account.html?mode=register, 1440px
+PASS Адаптивность: dashboard.html, 320px
+PASS Адаптивность: dashboard.html, 390px
+PASS Адаптивность: dashboard.html, 768px
+PASS Адаптивность: dashboard.html, 1440px
+PASS Адаптивность: subscriptions.html, 320px
+PASS Адаптивность: subscriptions.html, 390px
+PASS Адаптивность: subscriptions.html, 768px
+PASS Адаптивность: subscriptions.html, 1440px
+PASS Адаптивность: security.html, 320px
+PASS Адаптивность: security.html, 390px
+PASS Адаптивность: security.html, 768px
+PASS Адаптивность: security.html, 1440px
+PASS Адаптивность: notifications.html, 320px
+PASS Адаптивность: notifications.html, 390px
+PASS Адаптивность: notifications.html, 768px
+PASS Адаптивность: notifications.html, 1440px
+PASS Адаптивность: strategies.html, 320px
+PASS Адаптивность: strategies.html, 390px
+PASS Адаптивность: strategies.html, 768px
+PASS Адаптивность: strategies.html, 1440px
+PASS Адаптивность: strategy.html?strategy=orbita-exclusive, 320px
+PASS Адаптивность: strategy.html?strategy=orbita-exclusive, 390px
+PASS Адаптивность: strategy.html?strategy=orbita-exclusive, 768px
+PASS Адаптивность: strategy.html?strategy=orbita-exclusive, 1440px
+PASS Адаптивность: calculator.html, 320px
+PASS Адаптивность: calculator.html, 390px
+PASS Адаптивность: calculator.html, 768px
+PASS Адаптивность: calculator.html, 1440px
+PASS Адаптивность: learn.html, 320px
+PASS Адаптивность: learn.html, 390px
+PASS Адаптивность: learn.html, 768px
+PASS Адаптивность: learn.html, 1440px
+PASS Адаптивность: learn.html — статья, 320px
+PASS Адаптивность: learn.html — статья, 390px
+PASS Адаптивность: learn.html — статья, 768px
+PASS Адаптивность: learn.html — статья, 1440px
+PASS Адаптивность: app.html, 320px
+PASS Адаптивность: app.html, 390px
+PASS Адаптивность: app.html, 768px
+PASS Адаптивность: app.html, 1440px
+PASS Адаптивность: app.html — открытая идея, 320px
+PASS Адаптивность: app.html — открытая идея, 390px
+PASS Адаптивность: app.html — открытая идея, 768px
+PASS Адаптивность: app.html — открытая идея, 1440px
+PASS Адаптивность: participants.html, 320px
+PASS Адаптивность: participants.html, 390px
+PASS Адаптивность: participants.html, 768px
+PASS Адаптивность: participants.html, 1440px
+PASS Адаптивность: support.html, 320px
+PASS Адаптивность: support.html, 390px
+PASS Адаптивность: support.html, 768px
+PASS Адаптивность: support.html, 1440px
+PASS Адаптивность: support-admin.html, 320px
+PASS Адаптивность: support-admin.html, 390px
+PASS Адаптивность: support-admin.html, 768px
+PASS Адаптивность: support-admin.html, 1440px
+PASS Адаптивность: radar.html, 320px
+PASS Адаптивность: radar.html, 390px
+PASS Адаптивность: radar.html, 768px
+PASS Адаптивность: radar.html, 1440px
+PASS Адаптивность: radar-admin.html, 320px
+PASS Адаптивность: radar-admin.html, 390px
+PASS Адаптивность: radar-admin.html, 768px
+PASS Адаптивность: radar-admin.html, 1440px
+PASS Адаптивность: admin.html, 320px
+PASS Адаптивность: admin.html, 390px
+PASS Адаптивность: admin.html, 768px
+PASS Адаптивность: admin.html, 1440px
+PASS Адаптивность: admin.html — полный сценарий, 320px
+PASS Адаптивность: admin.html — полный сценарий, 390px
+PASS Адаптивность: admin.html — полный сценарий, 768px
+PASS Адаптивность: admin.html — полный сценарий, 1440px
+PASS Адаптивность: content-admin.html, 320px
+PASS Адаптивность: content-admin.html, 390px
+PASS Адаптивность: content-admin.html, 768px
+PASS Адаптивность: content-admin.html, 1440px
+PASS Адаптивность: settings-admin.html, 320px
+PASS Адаптивность: settings-admin.html, 390px
+PASS Адаптивность: settings-admin.html, 768px
+PASS Адаптивность: settings-admin.html, 1440px
+PASS Адаптивность: telegram-admin.html, 320px
+PASS Адаптивность: telegram-admin.html, 390px
+PASS Адаптивность: telegram-admin.html, 768px
+PASS Адаптивность: telegram-admin.html, 1440px
+PASS Адаптивность: launch-admin.html, 320px
+PASS Адаптивность: launch-admin.html, 390px
+PASS Адаптивность: launch-admin.html, 768px
+PASS Адаптивность: launch-admin.html, 1440px
+PASS Адаптивность: legal-admin.html, 320px
+PASS Адаптивность: legal-admin.html, 390px
+PASS Адаптивность: legal-admin.html, 768px
+PASS Адаптивность: legal-admin.html, 1440px
+PASS Адаптивность: guide.html, 320px
+PASS Адаптивность: guide.html, 390px
+PASS Адаптивность: guide.html, 768px
+PASS Адаптивность: guide.html, 1440px
+PASS Адаптивность: brokers.html, 320px
+PASS Адаптивность: brokers.html, 390px
+PASS Адаптивность: brokers.html, 768px
+PASS Адаптивность: brokers.html, 1440px
+PASS Адаптивность: offer.html, 320px
+PASS Адаптивность: offer.html, 390px
+PASS Адаптивность: offer.html, 768px
+PASS Адаптивность: offer.html, 1440px
+PASS Адаптивность: privacy.html, 320px
+PASS Адаптивность: privacy.html, 390px
+PASS Адаптивность: privacy.html, 768px
+PASS Адаптивность: privacy.html, 1440px
+PASS Адаптивность: refunds.html, 320px
+PASS Адаптивность: refunds.html, 390px
+PASS Адаптивность: refunds.html, 768px
+PASS Адаптивность: refunds.html, 1440px

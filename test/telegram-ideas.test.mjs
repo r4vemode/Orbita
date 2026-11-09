@@ -21,7 +21,7 @@ test('Telegram publication uses the common idea store and subscriber gates witho
  assert.equal(record.telegram.chatId,'123456789');assert.equal(record.telegram.messageId,123);assert.equal(record.telegram.operations.length,1);
  const visible=await ideas.get(record.id,pro);assert.equal(visible.id,record.id);assert.equal(visible.d.entry,312.5);assert.equal(visible.telegram,undefined);assert.equal(visible.createdByUserId,undefined);
  assert.equal(JSON.stringify(visible).includes('123456789'),false);assert.equal((await ideas.list(pro)).records[0].telegram,undefined);
- await rejects(ideas.get(record.id,exclusive),404);await rejects(ideas.list(null),401);
+ assert.equal((await ideas.get(record.id,exclusive)).telegram,undefined,'EXCLUSIVE reads PRO without private metadata');await rejects(ideas.list(null),401);
  const restarted=await createIdeas(directory);assert.deepEqual(await restarted.get(record.id,admin),record);
 });
 
@@ -87,7 +87,7 @@ test('untrusted payloads cannot forge provenance, operations or record versions'
  const {ideas}=await fixture(t);
  for(const injected of [{createdVia:'TELEGRAM'},{telegram:{chatId:'123456789'}},{recordVersion:100},{createdByUserId:admin.id},{operationId:'tg:fake'}])await rejects(ideas.create(admin,{...full(),...injected}),400);
  for(const options of [context('bad space'),context('tg:bad',{telegramChatId:'-123'}),context('tg:bad',{telegramMessageId:0}),context('tg:bad',{expectedRecordVersion:-1}),{createdVia:'TELEGRAM'}, {operationId:'tg:fake'},{createdVia:'OTHER'}])await rejects(ideas.create(admin,full(),options),400);
- assert.deepEqual(await ideas.list(admin),{revision:0,records:[]});
+ assert.deepEqual((await ideas.list(admin)).records,[]);assert.equal((await ideas.list(admin)).revision,0);
 });
 
 test('legacy record token zero becomes a persisted per-record version without reconstructing history',async t=>{

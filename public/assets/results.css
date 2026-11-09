@@ -1,0 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&display=swap');
+body{margin:0;background:var(--o-bg);color:var(--o-ink)}
+.results-top{display:flex;justify-content:space-between;align-items:center;padding:18px 32px;border-bottom:1px solid var(--o-line);font:14px Manrope,Arial,sans-serif}
+.results-brand{color:var(--o-ink);text-decoration:none;font-weight:600;letter-spacing:.06em}.results-top nav{display:flex;gap:18px}.results-top nav a{color:var(--o-muted);text-decoration:none}.results-top nav a:hover{color:var(--o-ink)}
+.results-summary{display:flex;flex-wrap:wrap;gap:10px 32px;margin:4px 0 18px}.results-summary div{display:flex;flex-direction:column}.results-summary span{font-size:12px;color:var(--o-faint)}.results-summary b{font-size:22px;font-variant-numeric:tabular-nums}
+.results-curve{margin:0 0 18px}.results-curve svg{width:100%;height:auto;display:block}.results-curve polyline{fill:none;stroke:var(--o-pro);stroke-width:1.6}.results-curve .zero{stroke:var(--o-line);stroke-dasharray:3 4}
+.results-table-wrap{overflow-x:auto}.results-table{width:100%;border-collapse:collapse;font-size:13.5px}
+.results-table th{font-size:12px;font-weight:500;color:var(--o-faint);text-align:left;padding:8px;border-bottom:1px solid var(--o-line);white-space:nowrap}
+.results-table td{padding:8px;border-bottom:1px solid var(--o-line);vertical-align:top}.results-table td span.o-small{display:block}
+.results-table .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.results-table .note{color:var(--o-muted);font-size:12.5px;min-width:160px}
+.results-table tr.err{opacity:.6}
+.up{color:var(--o-long)}.down{color:var(--o-short)}
+.results-method{margin-top:22px;color:var(--o-muted);font-size:13.5px;max-width:860px}.results-method summary{cursor:pointer;color:var(--o-ink)}
+@media(max-width:767px){.results-top{padding:14px 16px}}

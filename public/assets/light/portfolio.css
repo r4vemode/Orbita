@@ -1,0 +1,31 @@
+/* GENERATED from portfolio.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .personal-trade{border-top:1px solid #0057e63a}
+html[data-theme=light] .personal-form label{color:#28364a}
+html[data-theme=light] .personal-form input{border:1px solid #0057e635;color:#0c1117;background:#f2f4f9}
+html[data-theme=light] .personal-form details{border:1px solid #0057e629}
+html[data-theme=light] .personal-form summary{color:#1c5ab0}
+html[data-theme=light] .personal-error{color:#b0291c!important}
+html[data-theme=light] .personal-comparison{background:#0057e609;border:1px solid #0057e629}
+html[data-theme=light] .personal-comparison span,html[data-theme=light] .personal-comparison b{color:#3e5f8e}
+html[data-theme=light] .gain{color:#33715c}
+html[data-theme=light] .loss{color:#964036}
+html[data-theme=light] .personal-card-result{border-top:1px solid #0057e623;color:#1158bb}
+html[data-theme=light] .personal-card-result small{color:#37475c}
+html[data-theme=light] .idea-links a{color:#0052cc}
+html[data-theme=light] .original-conditions{border:1px solid #0057e635}
+html[data-theme=light] .original-conditions h4{color:#0e131a}
+html[data-theme=light] .error-publication{border:1px solid #a94e3d5e;color:#a93523}
+html[data-theme=light] .alerts-trigger{border:1px solid #0057e63a}
+html[data-theme=light] .alerts-trigger b{color:#0757c5}
+html[data-theme=light] .alerts-settings{border:1px solid #0057e629}
+html[data-theme=light] .alerts-settings label{color:#1f2b3a}
+html[data-theme=light] .alerts-settings input{accent-color:#004dcc}
+html[data-theme=light] .alerts-settings summary{color:#145bb8}
+html[data-theme=light] .alert-item{border-bottom:1px solid #0057e625}
+html[data-theme=light] .alert-item a{color:#0d1118;text-decoration:none}
+html[data-theme=light] .alert-item small{color:#42608a}
+html[data-theme=light] .alert-item.unread{border-left:2px solid #004dcc}
+html[data-theme=light] .idea-alert-toast{background:#ecf0f6;border:1px solid #0057e65e;box-shadow:0 20px 70px #ffffff47}
+html[data-theme=light] .idea-alert-toast a{color:#0054cc;text-decoration:none}
+html[data-theme=light] .alerts-empty{color:#436189}
+html[data-theme=light] .personal-form input:focus-visible,html[data-theme=light] .idea-links a:focus-visible{outline:2px solid #0056cc}

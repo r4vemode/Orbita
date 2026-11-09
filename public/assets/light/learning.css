@@ -1,0 +1,51 @@
+/* GENERATED from learning.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .learn-hero{border-bottom:1px solid #0057e625;background:radial-gradient(ellipse at 80% 30%,#42699c23,transparent 55%)}
+html[data-theme=light] .learn-hero h1 em{color:#1a58b2}
+html[data-theme=light] .learn-hero p{color:#2e3e52}
+html[data-theme=light] .learn-progress{color:#446188}
+html[data-theme=light] .learn-progress progress{accent-color:#004dcc}
+html[data-theme=light] #categories button{border:1px solid #0057e628;background:transparent;color:#334259}
+html[data-theme=light] #categories button[aria-pressed=true]{background:#1d58af;color:#f3f4f7;border-color:transparent}
+html[data-theme=light] .learn-search{color:#486184}
+html[data-theme=light] .learn-search input{background:#121a2806;border:1px solid #0057e629;color:#0c1117}
+html[data-theme=light] #resultCount{color:#4d637f}
+html[data-theme=light] .lesson-card{border:1px solid #0057e625;background:linear-gradient(145deg,#005ee60b,#cadaef33);color:#0c1117}
+html[data-theme=light] .lesson-card:hover{border-color:#0057e670;background:linear-gradient(145deg,#005ee618,#14294396)}
+html[data-theme=light] .lesson-card .lesson-meta{color:#41618b}
+html[data-theme=light] .lesson-card p{color:#37485f}
+html[data-theme=light] .lesson-card .lesson-bottom{color:#1a58b2}
+html[data-theme=light] .learn-footer{color:#4d627f}
+html[data-theme=light] #article{color:#0c1117;background:radial-gradient(ellipse at top right,#2d496c,#f1f4f8 65%);border:1px solid #0057e646;box-shadow:0 30px 100px #ffffff52}
+html[data-theme=light] #article::backdrop{background:#f5f7fabc}
+html[data-theme=light] .article-top button{background:none;color:#295da3}
+html[data-theme=light] #article p{color:#263447}
+html[data-theme=light] #article .article-lead{color:#2f609d}
+html[data-theme=light] .article-actions{border-top:1px solid #0057e628}
+html[data-theme=light] .article-actions button{border:1px solid #0057e638;background:#1d58af;color:#f3f4f7}
+html[data-theme=light] .article-actions button+button{background:transparent;color:#1a58b2}
+html[data-theme=light] button:focus-visible,html[data-theme=light] input:focus-visible{outline:2px solid #1a58b2}
+html[data-theme=light] .trade-training{border:1px solid #0057e638;background:radial-gradient(ellipse at top right,#31507735,transparent 65%),#cadaef4d}
+html[data-theme=light] .training-badge{border:1px solid #0057e635;color:#1a58b2}
+html[data-theme=light] .training-intro{color:#2e3e52}
+html[data-theme=light] .training-form label{color:#334259}
+html[data-theme=light] .training-form input,html[data-theme=light] .training-form select{background:#f2f5f9;border:1px solid #0057e63a;color:#0c1117}
+html[data-theme=light] .training-form button{border:1px solid #1a58b2;background:#1d58af;color:#f3f4f7}
+html[data-theme=light] .training-error{color:#bb111a}
+html[data-theme=light] .training-board{border-top:1px solid #0057e625;border-bottom:1px solid #0057e625}
+html[data-theme=light] .training-market>label{color:#2e3e52}
+html[data-theme=light] .training-market output{color:#0c1117}
+html[data-theme=light] .training-market input[type=range]{accent-color:#1a58b2}
+html[data-theme=light] .training-range{color:#486284}
+html[data-theme=light] .training-status{color:#004dcc}
+html[data-theme=light] .training-status[data-state=closed]{color:#955a18}
+html[data-theme=light] .training-reset{background:transparent;color:#1a58b2}
+html[data-theme=light] .training-results{border-left:1px solid #0057e625}
+html[data-theme=light] .training-results dt{color:#334259}
+html[data-theme=light] .training-results dd{color:#0c1117}
+html[data-theme=light] .training-result-main dd[data-tone=positive]{color:#29704b}
+html[data-theme=light] .training-result-main dd[data-tone=negative]{color:#bb111a}
+html[data-theme=light] .training-explainer{color:#263447}
+html[data-theme=light] .training-note{color:#486284}
+html[data-theme=light] .training-form select:focus-visible,html[data-theme=light] .training-market input:focus-visible{outline:2px solid #1a58b2}
+@media(max-width:700px){html[data-theme=light] .training-results{border-top:1px solid #0057e625}}
+html[data-theme=light] #resultCount button{color:#0755c5;background:transparent;border:1px solid #0057e646}

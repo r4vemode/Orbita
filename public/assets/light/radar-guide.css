@@ -1,0 +1,8 @@
+/* GENERATED from radar-guide.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .radar-guide{border:1px solid var(--o-line,#121a2827);background:#121a2806;color:#1d2633}
+html[data-theme=light] .radar-guide summary{color:#0c1017}
+html[data-theme=light] .radar-guide h3{color:#0c1017}
+html[data-theme=light] .radar-guide p,html[data-theme=light] .radar-guide li{color:#343f4e}
+html[data-theme=light] .radar-guide b{color:#0c1017}
+html[data-theme=light] .radar-guide a{color:#0051cc}
+html[data-theme=light] .radar-guide-note button{background:none;color:#0051cc}

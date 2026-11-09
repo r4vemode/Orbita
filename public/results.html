@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><script src="/assets/theme-init.js"></script><meta name="viewport" content="width=device-width,initial-scale=1"><title>ORBITA — Результаты идей</title><meta name="description" content="Все завершённые торговые идеи ORBITA без отбора: уровни, даты и итог."><link rel="stylesheet" href="assets/shell.css"><link rel="stylesheet" href="/assets/light/shell.css"><link rel="stylesheet" href="assets/results.css"><link rel="stylesheet" href="/assets/light/results.css"><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#0f141f"><link rel="icon" href="/icons/favicon-32.png" sizes="32x32"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="stylesheet" href="/assets/theme-light.css"><link rel="stylesheet" href="/assets/theme-light-fixes.css"></head>
+<body>
+<header class="results-top"><a class="results-brand" href="/">◌ ORBITA</a><nav><a href="/strategies.html">Кабинет</a><a href="/#access">Тарифы</a></nav></header>
+<main class="o-page results">
+  <div class="o-head"><div><h1>Результаты идей</h1><p class="o-sub">Все завершённые идеи ORBITA — без отбора. Включены и убыточные, и отменённые, и ошибочные публикации. Уровни показаны такими, какими были при публикации, и итоговыми.</p></div><button id="resultsCsv" class="o-btn o-btn-secondary" type="button" disabled>Скачать CSV</button></div>
+  <div class="o-tabs" role="group" aria-label="Тариф"><button class="o-tab" data-tier="" aria-selected="true">Все</button><button class="o-tab" data-tier="pro" aria-selected="false">PRO</button><button class="o-tab" data-tier="exclusive" data-tier-ex aria-selected="false">EXCLUSIVE</button></div>
+  <section id="resultsSummary" class="results-summary" aria-live="polite"></section>
+  <figure id="resultsCurve" class="results-curve" hidden></figure>
+  <div id="resultsError" class="o-error" role="alert" hidden></div>
+  <div class="results-table-wrap"><table class="results-table" id="resultsTable" hidden><thead><tr><th>Закрыта</th><th>Инструмент</th><th>Тариф</th><th class="num">Вход</th><th class="num">Стоп</th><th class="num">Цель</th><th class="num">Выход</th><th>Итог</th><th class="num">%</th><th class="num">R</th></tr></thead><tbody id="resultsRows"></tbody></table></div>
+  <p id="resultsEmpty" class="o-empty" hidden>Завершённых идей пока нет. Как только первая идея закроется, она появится здесь — с любым результатом.</p>
+  <details class="results-method"><summary>Методика</summary><p><b>%</b> — изменение цены от входа (как он был опубликован) до цены выхода; для SHORT знак обратный. <b>R</b> — результат в единицах первоначального риска: 1R = расстояние от входа до стопа при публикации. Комиссии, проскальзывание и стоимость переноса позиции не учитываются. Отменённые до входа идеи не дают результата, но показываются. Если автор менял стоп или цель, это отмечено в колонке «Итог». Прошлые результаты не гарантируют будущих.</p></details>
+</main>
+<script src="assets/results.js"></script>
+</body></html>

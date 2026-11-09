@@ -1,0 +1,43 @@
+/* GENERATED from support-admin.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light]{--ink:#0c1117;--muted:#446288;--line:#2463c229;--accent:#1357b9;background:#f2f5f9;color:var(--ink)}
+html[data-theme=light] body{background:radial-gradient(ellipse at 85% 0,#263a5958,transparent 42%),#f2f5f9}
+html[data-theme=light] a{color:#1256ba;text-decoration:none}
+html[data-theme=light] button{border:1px solid #1357b9;background:#1758b5;color:#f3f4f7}
+html[data-theme=light] button:hover{background:#121925}
+html[data-theme=light] .secondary{background:transparent;color:#1c5cb0;border-color:#206ac542}
+html[data-theme=light] .secondary:hover{background:#206ac512}
+html[data-theme=light] button:focus-visible,html[data-theme=light] a:focus-visible,html[data-theme=light] input:focus-visible,html[data-theme=light] textarea:focus-visible,html[data-theme=light] select:focus-visible,html[data-theme=light] summary:focus-visible,html[data-theme=light] [tabindex]:focus-visible{outline:2px solid #0758c5}
+html[data-theme=light] .brand span{color:var(--muted)}
+html[data-theme=light] header nav a[aria-current=page]{color:#7b611e}
+html[data-theme=light] .eyebrow{color:#396193}
+html[data-theme=light] h1 em{color:#245ea8}
+html[data-theme=light] p{color:#2a394d}
+html[data-theme=light] .muted{color:var(--muted)}
+html[data-theme=light] .overview strong{color:#111720}
+html[data-theme=light] .overview span{color:var(--muted)}
+html[data-theme=light] .panel{background:#c9d7eb33}
+html[data-theme=light] .filters label,html[data-theme=light] .reply-form label,html[data-theme=light] .status-form label{color:#385f94}
+html[data-theme=light] .filters input,html[data-theme=light] .filters select,html[data-theme=light] .reply-form textarea,html[data-theme=light] .status-form select{border:1px solid #206ac53b;background:#f2f5f9;color:var(--ink)}
+html[data-theme=light] .filters input::placeholder,html[data-theme=light] .reply-form textarea::placeholder{color:#4b6181}
+html[data-theme=light] .ticket-button{border:1px solid #206ac528;background:#d8e4f429;color:var(--ink)}
+html[data-theme=light] .ticket-button:hover{background:#206ac50b}
+html[data-theme=light] .ticket-button[aria-pressed=true]{border-color:#2266c486;background:#206ac50e}
+html[data-theme=light] .ticket-number{color:#386094}
+html[data-theme=light] .ticket-email,html[data-theme=light] .ticket-last{color:#41618b}
+html[data-theme=light] .status-pill{border:1px solid #2965bc3e;color:#2c60a0}
+html[data-theme=light] .status-pill[data-status=open]{color:#7c5f1d;border-color:#b18d3455}
+html[data-theme=light] .status-pill[data-status=in_progress]{color:#084dc5;border-color:#0e58d851}
+html[data-theme=light] .status-pill[data-status=waiting_customer]{color:#221c34;border-color:#121a2858}
+html[data-theme=light] .status-pill[data-status=resolved]{color:#337056;border-color:#4a9b794d}
+html[data-theme=light] .empty-mark{color:#41618b}
+html[data-theme=light] .ticket-context{color:#446188}
+html[data-theme=light] .ticket-context code{color:#265da6}
+html[data-theme=light] .support-message{background:#f2f5f9;border:1px solid #206ac528}
+html[data-theme=light] .support-message[data-author=admin]{background:#bfd0e533;border-color:#206ac546}
+html[data-theme=light] .message-heading strong{color:#205dac}
+html[data-theme=light] .message-heading time{color:#456287}
+html[data-theme=light] .support-message p{color:#19222f}
+html[data-theme=light] .action-status[data-error=true]{color:#ac3820}
+html[data-theme=light] .history{color:#355e97}
+html[data-theme=light] .history ol{color:#41618b}
+html[data-theme=light] .error-panel{border:1px solid #b34e3351;color:#a23f2a}

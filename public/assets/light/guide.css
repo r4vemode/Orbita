@@ -1,0 +1,5 @@
+/* GENERATED from guide.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .guide-plans article{border:1px solid #0057e635;background:#0057e609}
+html[data-theme=light] .guide-statuses dt{color:#10151e}
+html[data-theme=light] .guide-statuses dd{color:#263447}
+html[data-theme=light] .guide-action{border:1px solid #0057e646}

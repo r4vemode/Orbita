@@ -15,11 +15,11 @@ async function users(f,{exclusive=false}={}){
 }
 const manual=(extra={})=>({companyId:'sber',eventType:'DIVIDEND',headline:'Учебное решение о дивидендах',summary:'Совет рекомендовал учебную выплату. Не реальные рыночные сведения.',whyImportant:'Показатель влияет на будущий денежный поток владельца акции.',impact:'POSITIVE',importanceScore:9.1,source:'https://www.e-disclosure.ru/',publishedAt:new Date(Date.now()-3600000).toISOString(),status:'published',...extra});
 
-test('Radar stores an explicit demo once, projects compact cards and enforces separate tariff access',async()=>{
+test('Radar stores an explicit demo once, projects compact cards and enforces tier access (EXCLUSIVE includes PRO)',async()=>{
   const f=await serviceFixture(({directory,accounts})=>createRadar(directory,{accounts,env:{}}));
   try{
     const {admin,pro,free,separate}=await users(f,{exclusive:true});
-    assert.equal((await f.request('/api/radar')).status,401);assert.equal((await f.request('/api/radar',{cookie:free.cookie})).status,403);assert.equal((await f.request('/api/radar',{cookie:separate.cookie})).status,403);
+    assert.equal((await f.request('/api/radar')).status,401);assert.equal((await f.request('/api/radar',{cookie:free.cookie})).status,403);assert.equal((await f.request('/api/radar',{cookie:separate.cookie})).status,200,'EXCLUSIVE includes PRO Radar access');
     const seeded=await f.service.seedDemo();assert.ok(seeded.inserted>=15);const again=await f.service.seedDemo();assert.equal(again.inserted,0);assert.equal(again.duplicates,seeded.inserted);
     const result=await f.request('/api/radar?importance=0',{cookie:pro.cookie});assert.equal(result.status,200);assert.equal(result.data.events.length,seeded.inserted);
     for(const event of result.data.events){assert.equal(event.isDemo,true);for(const key of ['rawText','trace','audit','sources','originalAnalysis'])assert.ok(!Object.hasOwn(event,key));}
@@ -122,8 +122,7 @@ test('Radar maps the existing trusted idea watchlist through current idea permis
     const idea=await f.ideas.create({id:admin.data.user.id,role:'admin'},{mode:'quick',d:{ticker:'SBER',dir:'ЛОНГ',strategy:'Momentum RU'}});
     assert.equal((await f.request('/api/watchlist',{method:'PUT',cookie:pro.cookie,body:{ids:[idea.record.id]}})).status,200);
     const followed=await f.request('/api/radar?watchlist=1',{cookie:pro.cookie});assert.equal(followed.status,200);assert.equal(followed.data.events[0].ticker,'SBER');assert.equal(followed.data.events[0].following,true);assert.deepEqual(await f.service.notificationsFor(await f.accounts.getUser(pro.data.user.id)),[]);
-    assert.equal((await f.request('/api/admin/subscriptions',{method:'POST',cookie:admin.cookie,body:{userId:pro.data.user.id,plan:'exclusive',expiresAt:new Date(Date.now()+86400000).toISOString(),reason:'Alternate Radar tariff'}})).status,200);
-    assert.equal((await f.request('/api/admin/subscriptions',{method:'POST',cookie:admin.cookie,body:{userId:pro.data.user.id,plan:'pro',expiresAt:null,reason:'Remove access to the watched Pro idea'}})).status,200);
+    await f.ideas.update({id:admin.data.user.id,role:'admin'},idea.record.id,{action:'strategy-change',d:{strategy:'Orbita Exclusive'},note:'Перенос в EXCLUSIVE'});
     const after=await f.request('/api/radar?watchlist=1',{cookie:pro.cookie});assert.equal(after.status,200);assert.ok(after.data.events.filter(event=>event.ticker==='SBER').every(event=>event.following===false));
   }finally{await f.close();}
 });

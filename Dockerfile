@@ -14,7 +14,7 @@ COPY --chown=node:node package.json package-lock.json server.mjs ./
 COPY --chown=node:node lib/ ./lib/
 COPY --chown=node:node public/ ./public/
 COPY --chown=node:node fixtures/ ./fixtures/
-COPY --chown=node:node scripts/preflight.mjs scripts/manage-access.mjs scripts/backup.mjs scripts/setup-telegram-admin.mjs ./scripts/
+COPY --chown=node:node scripts/preflight.mjs scripts/manage-access.mjs scripts/backup.mjs scripts/setup-telegram-admin.mjs scripts/backtest.mjs ./scripts/
 
 USER node
 EXPOSE 3000

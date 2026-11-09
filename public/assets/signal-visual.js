@@ -4,6 +4,8 @@
   const price=value=>Number.isFinite(value)&&value>0;
   const number=value=>value.toLocaleString('ru-RU',{maximumFractionDigits:8});
   function markup(record,{compact=false,scope='signal'}={}){
+    // Formation library (chart-formations.js) replaces the abstract arrow/contours.
+    if(window.OrbitaFormations)return OrbitaFormations.svg(record,{compact,orbit:!compact,labelClass:'signal-plot-label',noteClass:'signal-plot-note'}).replace('<svg class="fx-chart','<svg class="signal-visual fx-chart'+(compact?' signal-visual-compact':''));
     const d=record.d||{},id=('signal-'+scope+'-'+record.id).replace(/[^a-zA-Z0-9_-]/g,''),levels=[d.entry,d.stop,d.target].every(price);
     const contours=Array.from({length:compact?7:23},(_,i)=>{
       const line=Array.from({length:49},(_,j)=>{const x=j*18.75,y=305+i*4-95*Math.exp(-(((x-430)/235)**2))+42*Math.sin(x/140+i*.085)+Math.sin(x/70+i*.1)*12;return(j?'L':'M')+x.toFixed(1)+','+y.toFixed(1);}).join(' ');

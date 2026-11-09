@@ -1,14 +1,46 @@
 <!doctype html>
 <html lang="ru">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ORBITA — стратегии</title><link rel="stylesheet" href="assets/calculator.css"><link rel="stylesheet" href="assets/navigation.css"><link rel="stylesheet" href="assets/portfolio.css"><link rel="stylesheet" href="assets/strategies.css"></head>
-<body data-strategy-page="catalog">
-<header><a class="brand" href="index.html">◌ ORBITA</a><nav aria-label="Навигация кабинета"><a href="radar.html">Radar</a><a href="participants.html">Позиции участников</a><a href="app.html">Идеи</a><a href="strategies.html" aria-current="page">Стратегии</a><a href="calculator.html">Калькулятор доходности</a><a href="learn.html">Обучение</a><a href="brokers.html">Где торговать</a></nav><a class="return" href="dashboard.html">В кабинет ↗</a></header>
-<main class="strategies-main">
-  <section class="strategy-hero"><div class="eyebrow">ORBITA / ПОДХОД К РЫНКУ</div><h1>Ваш ритм.<br><em>Ваша стратегия.</em></h1><p>Внутри дня, на несколько сессий или на недели. Сравните подходы, посмотрите открытые идеи и изучите историю до выбора стратегии.</p></section>
-  <div class="strategy-filters" role="group" aria-label="Горизонт стратегии"><button type="button" data-horizon="all" aria-pressed="true">Все стратегии</button><button type="button" data-horizon="intraday" aria-pressed="false">Внутри дня</button><button type="button" data-horizon="swing" aria-pressed="false">На несколько дней</button><button type="button" data-horizon="medium" aria-pressed="false">Среднесрочные</button></div>
-  <p id="strategyCount" class="strategy-count" aria-live="polite"></p><div id="strategyCards" class="strategy-grid"></div>
-  <p class="strategy-disclaimer">Описание подходов доступно всем. Идеи, комментарии и история результатов открываются по подписке на соответствующую стратегию. Выбор стратегии не гарантирует прибыль.</p>
-  <p id="strategyError" class="strategy-error" role="alert"></p>
+<head><meta charset="utf-8"><script src="/assets/theme-init.js"></script><meta name="viewport" content="width=device-width,initial-scale=1"><title>ORBITA — Стратегии</title><meta name="description" content="Торговые идеи ORBITA: дейтрейдинг PRO и премиальная лента EXCLUSIVE."><link rel="stylesheet" href="assets/shell.css"><link rel="stylesheet" href="/assets/light/shell.css"><link rel="stylesheet" href="assets/ideas-feed.css"><link rel="stylesheet" href="/assets/light/ideas-feed.css"><link rel="stylesheet" href="assets/idea-chart.css"><link rel="stylesheet" href="/assets/light/idea-chart.css"><link rel="stylesheet" href="assets/chart-formations.css"><link rel="stylesheet" href="/assets/light/chart-formations.css"><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#0f141f"><link rel="icon" href="/icons/favicon-32.png" sizes="32x32"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="stylesheet" href="/assets/theme-light.css"><link rel="stylesheet" href="/assets/theme-light-fixes.css"></head>
+<body>
+<script src="assets/shell.js"></script><script src="assets/pwa.js"></script>
+<main class="o-page feed">
+  <div class="o-head"><div><h1>Стратегии</h1><p class="o-sub">Готовые торговые идеи: что купить или продать, по какой цене войти и где выйти.</p></div><span id="feedUpdated" class="o-small" aria-live="polite"></span></div>
+  <div id="feedWelcome" class="feed-welcome" role="status" hidden></div>
+  <details id="feedHowto" class="feed-howto" open>
+    <summary>Как пользоваться идеями — 1 минута</summary>
+    <ol class="howto-steps">
+      <li><b>Выберите идею.</b> Тикер — инструмент, <span class="o-tag long">LONG</span> — ставка на рост, <span class="o-tag short">SHORT</span> — на падение.</li>
+      <li><b>Дождитесь входа.</b> «Вход» — цена, по которой автор открывает сделку. Статус «Ожидает входа» значит, что цена ещё не дошла.</li>
+      <li><b>Выход заранее известен.</b> «Цель» — где фиксируется прибыль, «Стоп» — где сделка закрывается с ограниченным убытком.</li>
+      <li><b>Оцените риск.</b> R/R 3 — возможная прибыль в 3 раза больше возможного убытка. Размер позиции посчитайте в <a href="/calculator.html">калькуляторе</a>.</li>
+    </ol>
+    <p class="o-small">Идеи — аналитика автора, а не гарантия дохода. Решение о сделке и её размер — за вами. <button type="button" id="howtoHide" class="o-btn o-btn-tertiary">Скрыть подсказку</button></p>
+  </details>
+  <section id="feedStats" class="feed-stats" aria-label="Результаты закрытых идей" hidden></section>
+  <div class="o-tabs" role="tablist" aria-label="Стратегия">
+    <button class="o-tab" role="tab" id="tab-pro" data-tier="pro" aria-selected="true" aria-controls="feedPanel">Дейтрейдинг · PRO <span class="o-small" data-count="pro"></span></button>
+    <button class="o-tab" role="tab" id="tab-exclusive" data-tier="exclusive" aria-selected="false" aria-controls="feedPanel" tabindex="-1">EXCLUSIVE <span class="o-small" data-count="exclusive"></span></button>
+  </div>
+  <section id="feedPanel" role="tabpanel" aria-labelledby="tab-pro">
+    <div id="feedQuick" class="feed-quick" role="group" aria-label="Быстрый фильтр" hidden>
+      <button type="button" data-quick="open" aria-pressed="true">Открытые <b data-qc="open"></b></button>
+      <button type="button" data-quick="active" aria-pressed="false">В сделке <b data-qc="active"></b></button>
+      <button type="button" data-quick="waiting" aria-pressed="false">Ждут входа <b data-qc="waiting"></b></button>
+      <button type="button" data-quick="history" aria-pressed="false">История <b data-qc="history"></b></button>
+    </div>
+    <details id="feedFiltersBox" class="feed-filters-box"><summary>Фильтры</summary><form id="feedFilters" class="feed-filters" role="search" hidden>
+      <label><span>Инструмент</span><input id="fTicker" type="search" maxlength="30" placeholder="SBER, Si…" autocomplete="off"></label>
+      <label><span>Направление</span><select id="fDir"><option value="">Все</option><option value="ЛОНГ">LONG — рост</option><option value="ШОРТ">SHORT — падение</option></select></label>
+      <label><span>Стратегия</span><select id="fStrategy"><option value="">Все</option></select></label>
+      <label><span>С даты</span><input id="fFrom" type="date"></label>
+    </form></details>
+    <div id="feedSkeleton" aria-hidden="true"><div class="o-skeleton"></div></div>
+    <div id="feedLocked" class="o-empty feed-locked" hidden></div>
+    <div id="feedError" class="o-error" role="alert" hidden></div>
+    <p id="feedEmpty" class="o-empty" hidden>Нет идей по выбранным условиям.</p>
+    <div id="feedList" class="feed-list"></div>
+  </section>
+  <details class="feed-about"><summary>О стратегиях и методике</summary><div id="feedCatalog"></div><p class="o-small">R/R (риск/прибыль) = расстояние от входа до первой цели ÷ расстояние от входа до стопа. Результат — изменение цены от входа до выхода (для SHORT — с обратным знаком), без комиссий. Прошлые результаты не гарантируют будущих.</p></details>
 </main>
-<script src="assets/strategy-data.js"></script><script src="assets/editor-store.js"></script><script src="assets/access.js"></script><script src="assets/strategies.js"></script>
-<script src="assets/idea-alerts.js"></script><script src="assets/legal.js"></script></body></html>
+<script src="assets/strategy-data.js"></script><script src="assets/chart-formations.js"></script><script src="assets/idea-chart.js"></script><script src="assets/position-calc.js"></script><script src="assets/ideas-feed.js"></script>
+</body></html>

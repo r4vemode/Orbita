@@ -1,0 +1,74 @@
+{
+  "id": "2be35ec1-fdf5-4e75-b680-6718a3c49d2d",
+  "startedAt": "2026-11-09T08:32:50.401Z",
+  "status": "passed",
+  "synthetic": true,
+  "checks": [
+    {
+      "title": "Локальный Docker доступен; удалённый контекст не используется",
+      "status": "passed",
+      "durationMs": 43
+    },
+    {
+      "title": "Текущий рабочий образ собран без приватной базы и локального установщика",
+      "status": "passed",
+      "durationMs": 6576
+    },
+    {
+      "title": "Контейнер запущен без root, сети и опубликованных портов, код доступен только для чтения",
+      "status": "passed",
+      "durationMs": 1796
+    },
+    {
+      "title": "Регистрация, Secure cookie, «Моя Орбита», MFA и копия с восстановлением работают в образе",
+      "status": "passed",
+      "durationMs": 723
+    },
+    {
+      "title": "SIGTERM завершает приложение штатно",
+      "status": "passed",
+      "durationMs": 67
+    },
+    {
+      "title": "Перезапуск сохраняет аккаунт, сессию и приватный ключ",
+      "status": "passed",
+      "durationMs": 526
+    }
+  ],
+  "cleanup": [
+    {
+      "kind": "container",
+      "removed": true,
+      "alreadyAbsent": true
+    },
+    {
+      "kind": "container",
+      "removed": true
+    },
+    {
+      "kind": "volume",
+      "removed": true
+    },
+    {
+      "kind": "volume",
+      "removed": true
+    },
+    {
+      "kind": "image",
+      "removed": true
+    }
+  ],
+  "resources": {
+    "container": "orbita-release-check-2be35ec1fdf54e75b6806718a3c49d2d-app",
+    "initializer": "orbita-release-check-2be35ec1fdf54e75b6806718a3c49d2d-init",
+    "data": "orbita-release-check-2be35ec1fdf54e75b6806718a3c49d2d-data",
+    "backups": "orbita-release-check-2be35ec1fdf54e75b6806718a3c49d2d-backups",
+    "image": "orbita-release-check:2be35ec1fdf54e75b6806718a3c49d2d"
+  },
+  "pending": [
+    "Выбранный VPS, DNS и публичный TLS-сертификат",
+    "Реальные письма, платежи и биржевые источники"
+  ],
+  "nodeVersion": "v24.22.2",
+  "finishedAt": "2026-11-09T08:33:00.429Z"
+}

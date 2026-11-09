@@ -100,7 +100,7 @@ async function main(){
     mark('Общие настройки, пустые партнёрские ссылки, черновик и публикация статьи Exclusive');
     stage='подписки и история';
     status(await admin('/api/admin/subscriptions',{userId:client.data.user.id,plan:'pro',expiresAt:null,reason:'Проверка независимого тарифа'}),200,'Не отозван Pro.');
-    visible=(await request(server,'/api/ideas',{cookie:client.cookie})).data.records;assert.deepEqual(visible.map(record=>record.id),[exclusive.id]);
+    visible=(await request(server,'/api/ideas',{cookie:client.cookie})).data.records;assert.deepEqual(new Set(visible.map(record=>record.id)),new Set([quick.id,long.id,exclusive.id]),'Exclusive includes PRO strategies');
     status(await grant('pro'),200,'Не восстановлен Pro.');
     const event=(id,body)=>admin('/api/admin/ideas/'+id+'/events',body);
     status(await event(quick.id,{action:'levels',d:{entry:100,stop:95,target:110,entryRule:'Учебное подтверждение.',cancelRule:'Учебный выход.'}}),200,'Не добавлены уровни.');
@@ -110,7 +110,7 @@ async function main(){
     const record=status(await request(server,'/api/ideas/'+quick.id,{cookie:client.cookie}),200,'Не открылась история.').data.record;
     assert.equal(record.meta.initial.entry,null);assert.equal(record.meta.initial.stop,null);assert.equal(record.meta.exit,110);assert.equal(record.meta.events.length,5);assert.equal(record.d.state,'closed');
     status(await request(server,'/api/admin/ideas/'+quick.id,{method:'DELETE',cookie:owner.cookie}),409,'Опубликованная история была удалена.');
-    mark('Независимые Pro / Exclusive, быстрый сигнал, уровни, стоп и неизменяемая история');
+    mark('PRO и включающий его Exclusive, быстрый сигнал, уровни, стоп и неизменяемая история');
 
     stage='личные сделки';const enteredAt=new Date(Date.now()-1000).toISOString(),closedAt=new Date().toISOString();
     const position={ideaId:long.id,entry:101,quantity:10,pointValue:1,enteredAt,exit:108,closedAt};

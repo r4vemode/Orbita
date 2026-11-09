@@ -1,0 +1,35 @@
+/* GENERATED from brokers.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .brokers-hero>p{color:var(--muted)}
+html[data-theme=light] .partner-disclosure{background:#0057e606}
+html[data-theme=light] .disclosure-mark{color:#1a58b2}
+html[data-theme=light] .partner-disclosure p{color:var(--muted)}
+html[data-theme=light] .partner-disclosure strong{color:#161e28}
+html[data-theme=light] .market-filters button{background:none;color:var(--muted)}
+html[data-theme=light] .market-filters button[aria-pressed=true]{background:#225caa;color:#f3f5f7;border-color:#1f5bad}
+html[data-theme=light] .market-filters button:hover{border-color:#2164c470}
+html[data-theme=light] .offers-status{color:var(--muted)}
+html[data-theme=light] .partner-card{background:linear-gradient(140deg,#0057e60a,transparent)}
+html[data-theme=light] .partner-card.pending{background:#0057e603}
+html[data-theme=light] .partner-market-icon{border:1px solid #0057e62f;color:#1d5baf}
+html[data-theme=light] .partner-card-label{color:#396193}
+html[data-theme=light] .partner-card:not(.pending) .partner-card-label{color:#315c9b}
+html[data-theme=light] .partner-card .market-name{color:#3f608d}
+html[data-theme=light] .partner-card p{color:var(--muted)}
+html[data-theme=light] .partner-features li{color:#3d618f}
+html[data-theme=light] .partner-features li:before{color:#205aac}
+html[data-theme=light] .partner-link{border:1px solid #246dc157;background:#285ca4;color:#f3f4f7}
+html[data-theme=light] .partner-link:hover{background:#151e2b}
+html[data-theme=light] .partner-link:disabled{background:none;color:#41536a;border-color:#0057e625}
+html[data-theme=light] .partner-link:disabled:hover{background:none}
+html[data-theme=light] .guide-link{color:#1c5ab0}
+html[data-theme=light] .broker-guide li>span{color:#456287}
+html[data-theme=light] .broker-guide p{color:var(--muted)}
+html[data-theme=light] .partner-settings{background:#0057e604}
+html[data-theme=light] .partner-settings>p{color:var(--muted)}
+html[data-theme=light] .partner-fields legend{color:#121821}
+html[data-theme=light] .partner-fields label{color:#40618c}
+html[data-theme=light] .partner-fields input[aria-invalid=true]{border-color:#983e34}
+html[data-theme=light] .settings-message{color:#244233}
+html[data-theme=light] .settings-message.error{color:#9d3e2f}
+html[data-theme=light] .settings-save{background:#1e5bae;color:#f3f5f7;border:1px solid #1a5bb2}
+html[data-theme=light] .settings-reset{background:none;color:#3c6090}

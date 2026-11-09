@@ -1,0 +1,7 @@
+/* GENERATED from launch-admin.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .metrics-grid article{border:1px solid #0057e635}
+html[data-theme=light] .metrics-grid p{color:#446188}
+html[data-theme=light] .launch-checks li{border-left:2px solid #8c6e40;background:#0057e609}
+html[data-theme=light] .launch-checks li[data-status=pass]{border-color:#438970}
+html[data-theme=light] .launch-checks li[data-status=fail]{border-color:#9a4232}
+html[data-theme=light] #refreshReport{border:1px solid #0057e646;background:#225daa;color:#f3f4f7}

@@ -1,0 +1,27 @@
+/* GENERATED from security.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .auth-reset{color:#004dcc}
+html[data-theme=light] .security-help{color:#456187}
+html[data-theme=light] .security-page header nav{color:#325f9a}
+html[data-theme=light] .security-hero p{color:#2c3d53}
+html[data-theme=light] .security-card{border:1px solid #0057e62c;background:#cbd9ed3d}
+html[data-theme=light] .security-card p{color:#41618b}
+html[data-theme=light] .security-card a{color:#0053cc}
+html[data-theme=light] .security-button,html[data-theme=light] .security-card button{border:1px solid #0057e646;background:#205bac;color:#f3f4f7;text-decoration:none}
+html[data-theme=light] .security-button.secondary,html[data-theme=light] .security-card button.secondary{background:transparent;color:#0f59bd}
+html[data-theme=light] .security-card .status,html[data-theme=light] .security-status{color:#76602d}
+html[data-theme=light] .security-card .status.success,html[data-theme=light] .security-status.success{color:#294c3a}
+html[data-theme=light] .security-card .status.error,html[data-theme=light] .security-status.error{color:#a23c2a}
+html[data-theme=light] .security-badge{border:1px solid #0057e63a;color:#1d5aaf}
+html[data-theme=light] .security-badge.verified{color:#294c3a;border-color:#121a286a}
+html[data-theme=light] .security-form-group{border-top:1px solid #0057e629}
+html[data-theme=light] .security-actions a{text-decoration:none}
+html[data-theme=light] .setup-uri{color:#1f2a39;border:1px solid #0057e629}
+html[data-theme=light] .recovery-panel{border-color:#a78a3e5e;background:#ac8f390a}
+html[data-theme=light] .recovery-list code{border:1px solid #0057e629;color:#10151d}
+html[data-theme=light] .recovery-check input{accent-color:#1a5bb2}
+html[data-theme=light] .recovery-check span{color:#223040}
+html[data-theme=light] .security-separator{border-top:1px solid #0057e625}
+html[data-theme=light] .security-admin-notice{border:1px solid #a688405e;color:#7a652a!important;background:#a6884009}
+html[data-theme=light] .security-card details{border-top:1px solid #0057e629}
+html[data-theme=light] .security-card summary{color:#17202b}
+html[data-theme=light] input:focus-visible,html[data-theme=light] button:focus-visible,html[data-theme=light] a:focus-visible,html[data-theme=light] summary:focus-visible{outline:2px solid #004dcc}

@@ -49,12 +49,12 @@ function card(offer, market) {
   const top = element('div', 'partner-card-head');
   const icon = element('span', 'partner-market-icon', info.icon);
   icon.setAttribute('aria-hidden', 'true');
-  top.append(icon, element('span', 'partner-card-label', isActive ? 'ПАРТНЁРСКОЕ РАЗМЕЩЕНИЕ' : 'ПРЕДЛОЖЕНИЯ СКОРО'));
+  top.append(icon, element('span', 'partner-card-label', isActive ? 'ПАРТНЁРСКОЕ РАЗМЕЩЕНИЕ' : 'НЕТ АКТИВНЫХ ПРЕДЛОЖЕНИЙ'));
   node.append(top, element('h3', '', offer?.name || info.heading), element('p', 'market-name', info.title), element('p', '', info.description));
   const list = element('ul', 'partner-features');
   info.features.forEach(feature => list.append(element('li', '', feature)));
   node.append(list);
-  const link = element(isActive ? 'a' : 'button', 'partner-link', isActive ? 'Перейти к партнёру' : 'Предложения скоро');
+  const link = element(isActive ? 'a' : 'button', 'partner-link', isActive ? 'Перейти к партнёру' : 'Нет активных предложений');
   if (isActive) {
     link.href = offer.url;
     link.target = '_blank';

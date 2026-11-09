@@ -1,0 +1,19 @@
+/* GENERATED from chart-formations.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .fx-grid{stroke:#121a280d}
+html[data-theme=light] .fx-area-top{stop-color:#0d1117}
+html[data-theme=light] .fx-area-bottom{stop-color:#0d1117}
+html[data-theme=light] .fx-line{fill:none;stroke:#0c1017}
+html[data-theme=light] .fx-drop{stroke:#121a2827}
+html[data-theme=light] .fx-glow{fill:#0d1117}
+html[data-theme=light] .fx-now{fill:#0c1017}
+html[data-theme=light] .fx-level{stroke:#121a286f}
+html[data-theme=light] .fx-level.target{stroke:#499c817f}
+html[data-theme=light] .fx-level.stop{stroke:#b4363270}
+html[data-theme=light] .fx-level.entry{stroke:#1760cf7f}
+html[data-theme=light] .fx-l.target{fill:#3f8d73}
+html[data-theme=light] .fx-l.entry{fill:#1055bc}
+html[data-theme=light] .fx-l.stop{fill:#a32d29}
+html[data-theme=light] .fx-neutral .fx-line{stroke:#414c5d}
+html[data-theme=light] .fx-caption{fill:#576378}
+html[data-theme=light] .fx-orbit-ring{fill:none;stroke:#004bcc}
+html[data-theme=light] .fx-orbit-dot{fill:#004dcc}

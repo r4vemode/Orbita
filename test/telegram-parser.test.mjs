@@ -47,3 +47,8 @@ test('Only trusted published non-demo compatible ideas extend the shared instrum
  const ambiguity=[record,{...record,id:'idea-other',d:{...record.d,market:'stocks',strategy:'Trend RU'}}];assert.equal(findInstruments('SIZ6',{records:ambiguity}).length,2);
  const original=structuredClone(record);findInstruments('SIZ6',{records:[record]});assert.deepEqual(record,original);
 });
+
+test('Telegram parser accepts an optional access tier word in any order after the ticker',()=>{
+ assert.equal(parseSignal('SBER EX 312 307 325').tier,'exclusive');assert.equal(parseSignal('sber short pro 312 318 300').tier,'pro');
+ assert.equal(parseSignal('SBER ЭКС ЛОНГ 312 307 325').direction,'LONG');assert.equal(parseSignal('SBER 312 307 325').tier,undefined);
+});

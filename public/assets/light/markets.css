@@ -1,0 +1,25 @@
+/* GENERATED from markets.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] body{background:var(--o-bg);color:var(--o-ink)}
+html[data-theme=light] .markets-filters label{color:var(--o-faint)}
+html[data-theme=light] .markets-filters input,html[data-theme=light] .markets-filters select{background:var(--o-surface);color:var(--o-ink)}
+html[data-theme=light] .markets-table th{color:var(--o-faint)}
+html[data-theme=light] .markets-table td{border-bottom:1px solid #121a2810}
+html[data-theme=light] .markets-table tbody tr:hover,html[data-theme=light] .markets-table tbody tr[aria-selected]{background:#121a280a}
+html[data-theme=light] .up{color:var(--o-long)}
+html[data-theme=light] .down{color:var(--o-short)}
+html[data-theme=light] td.up .o-small,html[data-theme=light] td.down .o-small{color:var(--o-faint)}
+html[data-theme=light] .stale{color:var(--o-warn)!important}
+html[data-theme=light] .markets-detail{background:var(--o-surface)}
+html[data-theme=light] .markets-facts dt{color:var(--o-faint)}
+html[data-theme=light] .markets-group dt{color:var(--o-faint)}
+html[data-theme=light] .markets-chart .zero{stroke:#121a2830}
+html[data-theme=light] .markets-method{color:var(--o-muted)}
+html[data-theme=light] .markets-method summary{color:var(--o-ink)}
+@media(max-width:767px){html[data-theme=light] .markets-table td::before{color:var(--o-faint)}}
+html[data-theme=light] .markets-howto{color:var(--o-muted)}
+html[data-theme=light] .markets-howto summary{color:var(--o-ink)}
+html[data-theme=light] .markets-howto b{color:var(--o-ink)}
+html[data-theme=light] .crowd[data-level=extreme] .v{color:var(--o-warn)}
+html[data-theme=light] .crowd[data-level=elevated] .v{color:var(--o-ink)}
+html[data-theme=light] .crowd[data-level=normal] .v{color:var(--o-faint)}
+html[data-theme=light] .markets-crowd{color:var(--o-muted)}

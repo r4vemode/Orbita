@@ -1,0 +1,14 @@
+/* GENERATED from security-compact.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .security-compact .security-status{color:var(--o-muted)}
+html[data-theme=light] .security-compact .security-card{background:var(--o-surface)}
+html[data-theme=light] .security-compact .security-help,html[data-theme=light] .security-compact #emailExplanation{color:var(--o-muted)}
+html[data-theme=light] .security-compact button,html[data-theme=light] .security-compact .security-button{background:#101721;color:#f3f4f7;border:1px solid #0d1117;text-decoration:none}
+html[data-theme=light] .security-compact button:hover,html[data-theme=light] .security-compact .security-button:hover{background:#141414;border-color:#121212}
+html[data-theme=light] .security-compact button.secondary,html[data-theme=light] .security-compact .security-button.secondary{background:transparent;color:var(--o-ink);border-color:#121a2850}
+html[data-theme=light] .security-compact button.secondary:hover,html[data-theme=light] .security-compact .security-button.secondary:hover{border-color:#121a28a0;background:#121a280d}
+html[data-theme=light] .security-compact button:disabled{background:#eceef3;border-color:#f3f4f7;color:#545e6e}
+html[data-theme=light] .security-compact .admin-entry{background:transparent;color:var(--o-ink);border:1px solid #9b7a3199}
+html[data-theme=light] .security-compact .admin-entry:hover{background:#ab883a1d;border-color:#9b7a31}
+html[data-theme=light] .security-compact label{color:var(--o-muted)}
+html[data-theme=light] .security-compact input{background:#f3f5f9;color:var(--o-ink)}
+html[data-theme=light] .security-compact summary{color:var(--o-ink)}

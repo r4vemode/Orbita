@@ -1,0 +1,28 @@
+/* GENERATED from idea-alerts.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] header .alerts-trigger{border:1px solid #0057e63e;background:#eef2f7;color:#171f2a;text-decoration:none}
+html[data-theme=light] header .alerts-trigger:hover{background:#294670;border-color:#0057e67b}
+html[data-theme=light] header .alerts-trigger b{color:#0c1117}
+html[data-theme=light] .alerts-dialog{border:1px solid #425c7c;background:linear-gradient(145deg,#eff2f7,#f2f5f9);color:#0c1117;box-shadow:0 28px 100px #fbfbfb99}
+html[data-theme=light] .alerts-dialog::backdrop{background:#f6f8fbb8}
+html[data-theme=light] .alerts-dialog .alerts-head h2{color:#0c1117}
+html[data-theme=light] .alerts-dialog button{border:1px solid #0057e63e;background:#ecf0f6;color:#141b25;box-shadow:none}
+html[data-theme=light] .alerts-dialog button:hover{background:#2c486d;border-color:#0062e67b}
+html[data-theme=light] .alerts-dialog .alerts-head .alerts-close{color:#0e1219}
+html[data-theme=light] .alerts-dialog .alerts-description{color:#3d5f8f}
+html[data-theme=light] .alerts-dialog .alerts-settings{border:1px solid #0057e62d;background:#dfe9f63d}
+html[data-theme=light] .alerts-dialog .alerts-settings summary{color:#0d58bf}
+html[data-theme=light] .alerts-dialog .alerts-settings summary::marker{color:#225caa}
+html[data-theme=light] .alerts-dialog .alerts-settings p{color:#42618a}
+html[data-theme=light] .alerts-dialog .alerts-settings label{color:#1b2533}
+html[data-theme=light] .alerts-dialog .alerts-settings input[type=checkbox]{accent-color:#1059bc}
+html[data-theme=light] .alerts-dialog #alertsStatus{color:#41628b}
+html[data-theme=light] .alerts-dialog .alert-item{border-bottom:1px solid #0057e623}
+html[data-theme=light] .alerts-dialog .alert-item a{color:#0f151c;text-decoration:none}
+html[data-theme=light] .alerts-dialog .alert-item small{color:#3f608d}
+html[data-theme=light] .alerts-dialog .alert-item p{color:#3d5f8f}
+html[data-theme=light] .alerts-dialog .alert-item.unread{border-left:2px solid #0058cc}
+html[data-theme=light] .alerts-dialog .alerts-empty{color:#436189}
+html[data-theme=light] .alerts-dialog :focus-visible,html[data-theme=light] header .alerts-trigger:focus-visible,html[data-theme=light] .idea-alert-toast :focus-visible{outline:2px solid #0057cc}
+html[data-theme=light] .idea-alert-toast{border:1px solid #0057e658;background:#ecf1f6;color:#0f141c;box-shadow:0 20px 70px #ffffff47}
+html[data-theme=light] .idea-alert-toast a{color:#0f141c;text-decoration:none}
+html[data-theme=light] .idea-alert-toast button{border:1px solid #0057e646;background:#0057e60c;color:#0d1218}

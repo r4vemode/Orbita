@@ -1,0 +1,6 @@
+/* GENERATED from referrals.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .referral-stat{border:1px solid #0057e62d;background:#f3f5f9}
+html[data-theme=light] .referral-stat span{color:#456287}
+html[data-theme=light] .referral-link{border:1px solid #0057e63e}
+html[data-theme=light] .referral-card details{border-top:1px solid #0057e62d}
+html[data-theme=light] .referral-entry{border-bottom:1px solid #0057e61a}

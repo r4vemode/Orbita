@@ -1,11 +1,12 @@
 (async () => {
-  if (new URLSearchParams(location.search).has('embed') || !window.OrbitaStore || !document.querySelector('header')) return;
+  if (new URLSearchParams(location.search).has('embed') || !window.OrbitaStore || !(document.querySelector('[data-shell-tools]') || document.querySelector('header'))) return;
   // Keep the shared dialog independent of each page's forms and modal styles.
   const stylesReady = new Promise(resolve => {
     const existing = document.getElementById('orbitaIdeaAlertsStyles');
     if (existing) { resolve(); return; }
     const link = document.createElement('link'); link.id = 'orbitaIdeaAlertsStyles'; link.rel = 'stylesheet'; link.href = '/assets/idea-alerts.css';
     link.onload = resolve; link.onerror = resolve; document.head.append(link);
+    if (document.documentElement.dataset.themePref) { const light = document.createElement('link'); light.rel = 'stylesheet'; light.href = '/assets/light/idea-alerts.css'; document.head.append(light); }
   });
   const S = window.OrbitaStore, esc = S.escape;
   const initial = () => ({ initialized: false, seen: [], itemIds: [], readIds: [], strategies: [], popups: true });
@@ -63,7 +64,7 @@
   trigger.className = 'alerts-trigger'; trigger.type = 'button'; trigger.hidden = true;
   trigger.setAttribute('aria-haspopup', 'dialog'); trigger.setAttribute('aria-controls', 'ideaAlertsDialog'); trigger.setAttribute('aria-expanded', 'false');
   trigger.innerHTML = 'Обновления идей <b>0</b>';
-  document.querySelector('header').append(trigger);
+  (document.querySelector('[data-shell-tools]') || document.querySelector('header')).append(trigger);
   const dialog = document.createElement('dialog'); dialog.className = 'alerts-dialog'; dialog.id = 'ideaAlertsDialog';
   dialog.setAttribute('aria-labelledby', 'ideaAlertsTitle');
   dialog.innerHTML = '<div class="alerts-head"><h2 id="ideaAlertsTitle">Обновления идей</h2><button type="button" class="alerts-close" aria-label="Закрыть обновления">×</button></div><p class="alerts-description">Изменения отслеживаемых идей и ваших позиций. Новые сигналы — по выбранным стратегиям вашей подписки. Обновления появляются, пока сайт открыт.</p><details class="alerts-settings"><summary>Настроить уведомления</summary><label><input id="ideaPopups" type="checkbox"><span>Показывать сообщения на открытом сайте</span></label><p>Новые сигналы по стратегиям:</p><div id="strategySubscriptions"></div></details><div class="alerts-tools"><button type="button" id="alertsRead">Прочитать всё</button><span role="status" id="alertsStatus"></span></div><div id="ideaAlertsFeed"></div>';

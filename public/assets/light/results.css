@@ -1,0 +1,14 @@
+/* GENERATED from results.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] body{background:var(--o-bg);color:var(--o-ink)}
+html[data-theme=light] .results-brand{color:var(--o-ink);text-decoration:none}
+html[data-theme=light] .results-top nav a{color:var(--o-muted);text-decoration:none}
+html[data-theme=light] .results-top nav a:hover{color:var(--o-ink)}
+html[data-theme=light] .results-summary span{color:var(--o-faint)}
+html[data-theme=light] .results-curve polyline{fill:none;stroke:var(--o-pro)}
+html[data-theme=light] .results-curve .zero{stroke:var(--o-line)}
+html[data-theme=light] .results-table th{color:var(--o-faint)}
+html[data-theme=light] .results-table .note{color:var(--o-muted)}
+html[data-theme=light] .up{color:var(--o-long)}
+html[data-theme=light] .down{color:var(--o-short)}
+html[data-theme=light] .results-method{color:var(--o-muted)}
+html[data-theme=light] .results-method summary{color:var(--o-ink)}

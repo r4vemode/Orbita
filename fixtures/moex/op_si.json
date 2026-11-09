@@ -1,0 +1,8 @@
+{
+"open_positions": {
+	"columns": ["tradedate", "asset", "is_fiz", "persons_long", "persons_short", "open_position_long", "open_position_short", "oichange_long", "oichange_short"], 
+	"data": [
+		["2026-11-06", "Si", 0, 391, 130, 3562800, 4831982, -14343, 1230],
+		["2026-11-06", "Si", 1, 11775, 2565, 1393873, 124691, -18651, -34224]
+	]
+}}

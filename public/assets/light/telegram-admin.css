@@ -1,0 +1,10 @@
+/* GENERATED from telegram-admin.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .telegram-connection-state{border:1px solid #0057e63e;color:#325f9a}
+html[data-theme=light] .telegram-connection-state[data-linked=true]{color:#274936;border-color:#121a286a}
+html[data-theme=light] .telegram-code-panel{border-top:1px solid #0057e62d}
+html[data-theme=light] .telegram-code-row code{border:1px solid #0057e63e;background:#f2f5f9}
+html[data-theme=light] .telegram-toggle input{accent-color:#1659b6}
+html[data-theme=light] .telegram-warning{border-left:2px solid #9e7b2e;background:#af89370a;color:#786336}
+html[data-theme=light] .telegram-example pre{border:1px solid #0057e62d;color:#0e1219;background:#f2f5f9}
+html[data-theme=light] #telegramStrategy{color:#0c1117;border:1px solid #0057e63e;background:#f2f5f9}
+html[data-theme=light] #telegramRadarForm input[type=number],html[data-theme=light] #telegramRadarType{color:#0c1117;border:1px solid #0057e63e;background:#f2f5f9}

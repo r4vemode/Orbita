@@ -18,6 +18,7 @@
       stylesheet.href = 'assets/legal.css';
       stylesheet.dataset.orbitaLegalStyle = '';
       document.head.append(stylesheet);
+      if (document.documentElement.dataset.themePref) { const light = document.createElement('link'); light.rel = 'stylesheet'; light.href = '/assets/light/legal.css'; document.head.append(light); }
     }
     const footer = document.createElement('footer');
     footer.className = 'orbita-legal-footer';

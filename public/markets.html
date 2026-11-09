@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><script src="/assets/theme-init.js"></script><meta name="viewport" content="width=device-width,initial-scale=1"><title>ORBITA — Рынки</title><meta name="description" content="Фьючерсы Мосбиржи: котировки, итоги сессии и открытые позиции участников."><link rel="stylesheet" href="assets/shell.css"><link rel="stylesheet" href="/assets/light/shell.css"><link rel="stylesheet" href="assets/markets.css"><link rel="stylesheet" href="/assets/light/markets.css"><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#0f141f"><link rel="icon" href="/icons/favicon-32.png" sizes="32x32"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="stylesheet" href="/assets/theme-light.css"><link rel="stylesheet" href="/assets/theme-light-fixes.css"></head>
+<body>
+<script src="assets/shell.js"></script><script src="assets/pwa.js"></script>
+<main class="o-page markets">
+  <div class="o-head"><div><h1>Рынки</h1><p class="o-sub">Фьючерсы Мосбиржи: цена, итоги последней сессии и позиции физических и юридических лиц. Торговые идеи — в «Стратегиях», события и новости — в Radar.</p></div><p id="marketsSource" class="o-small markets-source" aria-live="polite"></p></div>
+  <div id="marketsLocked" class="o-empty" hidden><h2 id="marketsLockedTitle">Нужна подписка</h2><p id="marketsLockedText">Раздел доступен по тарифам PRO и EXCLUSIVE.</p><a id="marketsLockedLink" class="o-btn o-btn-primary" href="/subscriptions.html?next=%2Fmarkets.html">Выбрать тариф</a></div>
+  <section id="marketsWorkspace" hidden>
+    <details class="markets-howto" open><summary>Зачем этот раздел и как его читать</summary><p>Здесь видно, <b>кто и в какую сторону стоит</b> на фьючерсах Мосбиржи. Физлица (частные трейдеры) и юрлица (банки, фонды, компании) всегда находятся по разные стороны: если физлица массово в лонге, юрлица — в шорте на ту же величину.</p><p>Полезно перед сделкой: если толпа уже «экстремально» в одной стороне, движение может быть перегретым. Нажмите на строку — откроются динамика позиций, цена и связанные идеи ORBITA.</p></details>
+    <form id="marketsFilters" class="markets-filters" role="search"><label><span>Поиск</span><input id="marketsSearch" type="search" maxlength="40" placeholder="Si, BR, Сбербанк…" autocomplete="off"></label><label><span>Группа</span><select id="marketsGroup"><option value="all">Все</option><option value="fx">Валюта</option><option value="index">Индексы</option><option value="commodities">Товары</option><option value="stocks">Акции</option></select></label><label><span>Сортировка</span><select id="marketsSort"><option value="oi">Открытый интерес</option><option value="fizNet">Самые крайние позиции толпы</option><option value="change">Изменение цены</option><option value="name">Название</option></select></label></form>
+    <div id="marketsError" class="o-error" role="alert" hidden></div>
+    <div id="marketsSkeleton" class="o-skeleton" aria-hidden="true"></div>
+    <div class="markets-table-wrap"><table id="marketsTable" class="markets-table" hidden>
+      <thead><tr><th scope="col">Инструмент</th><th scope="col" class="num">Цена</th><th scope="col" class="num">Объём, контр.</th><th scope="col" class="num">ОИ контракта</th><th scope="col" class="num">Физлица, нетто</th><th scope="col" title="Насколько позиция физлиц отличается от их обычной за 20 сессий">Толпа (физлица)</th><th scope="col">Данные</th></tr></thead>
+      <tbody id="marketsRows"></tbody>
+    </table></div>
+    <p id="marketsEmpty" class="o-empty" hidden>Нет инструментов по заданным условиям.</p>
+    <section id="marketsDetail" class="markets-detail" aria-live="polite" hidden></section>
+    <details class="markets-method"><summary>Методика и источники</summary>
+      <p><b>Цена, изменение, объём</b> — MOEX ISS, текущая торговая сессия; без платного ключа данные приходят с задержкой около 15 минут. Изменение — к цене закрытия предыдущей сессии.</p>
+      <p><b>Открытый интерес (ОИ)</b> — число открытых контрактов. В ISS поле OPENPOSITION учитывает обе стороны, поэтому ORBITA делит его на два (проверено сверкой с биржевой статистикой открытых позиций).</p>
+      <p><b>Толпа (физлица)</b> — насколько нетто-позиция физлиц сегодня отличается от их среднего за 20 сессий, в стандартных отклонениях (σ). «Экстремум» — больше 2σ. Юрлица держат зеркальную позицию (см. карточку инструмента).</p>
+      <p><b>Позиции физ- и юрлиц</b> — биржевая статистика открытых позиций по всем контрактам базового актива; публикуется после завершения торговой сессии, поэтому это данные T−1 — на дату последней завершённой сессии. «Нетто» — длинные минус короткие контракты группы. Нетто физлиц и юрлиц всегда противоположны: это две стороны одних и тех же контрактов.</p>
+      <p>Доли — доли контрактов, а не людей. Число лиц — количество клиентов с открытой длинной или короткой позицией. Это не торговый сигнал и не оценка «крупных игроков».</p>
+      <p>Даты сессий берутся из ответов биржи: выходные и праздники не создают новой даты. Если данные не обновлялись дольше допустимого срока, они помечаются как устаревшие.</p>
+    </details>
+  </section>
+</main>
+<script src="assets/access.js"></script><script src="assets/markets.js"></script>
+</body></html>

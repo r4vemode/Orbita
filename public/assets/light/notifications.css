@@ -1,0 +1,20 @@
+/* GENERATED from notifications.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .notification-intro{color:var(--muted)}
+html[data-theme=light] .notification-identity{color:#476285}
+html[data-theme=light] .telegram-panel,html[data-theme=light] .notification-preferences{background:#0057e604}
+html[data-theme=light] .telegram-state{border:1px solid #0057e629;color:#395f93}
+html[data-theme=light] .telegram-state.linked{border-color:#46a0703a;color:#284b36}
+html[data-theme=light] .telegram-panel p{color:var(--muted)}
+html[data-theme=light] .notification-primary,html[data-theme=light] .notification-secondary,html[data-theme=light] .telegram-open{border:1px solid #2569c13a}
+html[data-theme=light] .notification-primary{background:#1b59b1;color:#f3f4f7}
+html[data-theme=light] .notification-primary:hover{background:#141d29}
+html[data-theme=light] .notification-secondary{color:#325f9a;background:none}
+html[data-theme=light] .telegram-open{background:#226dc414;color:#0057cc}
+html[data-theme=light] .telegram-open:hover{border-color:#1c6bc975}
+html[data-theme=light] .preference-row input{accent-color:#1758b5}
+html[data-theme=light] .preference-row strong{color:#121921}
+html[data-theme=light] .preference-row small{color:var(--muted)}
+html[data-theme=light] .notification-example{background:#0057e607;color:#2562a7}
+html[data-theme=light] .notification-note,html[data-theme=light] .notification-footer{color:#476285}
+html[data-theme=light] #notificationStatus{color:#1462b8}
+html[data-theme=light] #notificationStatus.error{color:#9f3e2d}

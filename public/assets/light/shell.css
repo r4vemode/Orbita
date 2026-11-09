@@ -1,0 +1,43 @@
+/* GENERATED from shell.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light]{--o-bg:#f3f5f9;--o-surface:#f1f3f8;--o-line:#121a281d;--o-ink:#0c1017;--o-muted:#414c5d;--o-faint:#5e6879;--o-pro:#0051cc;--o-exclusive:#9b7a31;--o-long:#34986a;--o-short:#b0211c;--o-warn:#ab7721;--o-focus:#004dcc}
+html[data-theme=light] .orbita-shell{background:#f4f6fa;color:var(--o-ink)}
+html[data-theme=light] .shell-brand{color:var(--o-ink);text-decoration:none}
+html[data-theme=light] .shell-brand span{color:var(--o-pro)}
+html[data-theme=light] .shell-link{color:var(--o-muted);text-decoration:none}
+html[data-theme=light] .shell-link:hover{color:var(--o-ink);background:#121a280d}
+html[data-theme=light] .shell-link[aria-current=page]{color:var(--o-ink);background:#121a2816}
+html[data-theme=light] .shell-tools button{color:var(--o-muted);background:none}
+html[data-theme=light] .shell-tools button:hover{color:var(--o-ink)}
+html[data-theme=light] .shell-plan{color:var(--o-muted)}
+html[data-theme=light] .shell-plan[data-plan=pro]{color:var(--o-pro);border-color:#005be65e}
+html[data-theme=light] .shell-plan[data-plan=exclusive]{color:var(--o-exclusive);border-color:#ab883a70}
+html[data-theme=light] .shell-plan[data-plan=admin]{color:var(--o-ink);border-color:#121a2850}
+html[data-theme=light] .shell-email{color:var(--o-faint)}
+html[data-theme=light] .shell-logout{background:none;color:var(--o-muted)}
+html[data-theme=light] .shell-logout:hover{color:var(--o-ink);border-color:#121a2850}
+@media(max-width:1023px){html[data-theme=light] .shell-toggle{background:none;color:var(--o-ink)}}
+@media(max-width:1023px){html[data-theme=light] .shell-nav{background:#f4f6faf7}}
+html[data-theme=light] .o-page{color:var(--o-ink)}
+html[data-theme=light] .o-sub{color:var(--o-muted)}
+html[data-theme=light] .o-small{color:var(--o-faint)}
+html[data-theme=light] .o-btn{text-decoration:none}
+html[data-theme=light] .o-btn-primary{background:#101721;color:#f3f4f7}
+html[data-theme=light] .o-btn-primary:hover{background:#141414}
+html[data-theme=light] .o-btn-secondary{background:transparent;color:var(--o-ink);border-color:#121a2840}
+html[data-theme=light] .o-btn-secondary:hover{border-color:#121a2880}
+html[data-theme=light] .o-btn-tertiary{background:none;color:var(--o-pro)}
+html[data-theme=light] .o-tab{background:none;color:var(--o-muted)}
+html[data-theme=light] .o-tab[aria-selected=true]{color:var(--o-ink);border-bottom-color:var(--o-pro)}
+html[data-theme=light] .o-tab[data-tier=exclusive][aria-selected=true]{border-bottom-color:var(--o-exclusive)}
+html[data-theme=light] .o-tag{color:var(--o-muted)}
+html[data-theme=light] .o-tag.pro{color:var(--o-pro);border-color:#005be655}
+html[data-theme=light] .o-tag.exclusive{color:var(--o-exclusive);border-color:#ab883a62}
+html[data-theme=light] .o-tag.long{color:var(--o-long);border-color:#3da87755}
+html[data-theme=light] .o-tag.short{color:var(--o-short);border-color:#c2292355}
+html[data-theme=light] .o-tag.stale{color:var(--o-warn);border-color:#bd84295e}
+html[data-theme=light] .o-empty,html[data-theme=light] .o-error{color:var(--o-muted)}
+html[data-theme=light] .o-error{border-color:#c229235e;color:#a82c24}
+html[data-theme=light] .o-skeleton{background:linear-gradient(90deg,#121a280a,#121a2814,#121a280a)}
+html[data-theme=light] .orbita-shell .shell-link{background:transparent;box-shadow:none;text-decoration:none!important}
+html[data-theme=light] .orbita-shell .shell-link[aria-current=page]{background:#121a2816!important;color:var(--o-ink)!important}
+html[data-theme=light].has-shell main h1 em{color:var(--o-muted)}

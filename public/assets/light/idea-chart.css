@@ -1,0 +1,14 @@
+/* GENERATED from idea-chart.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .idea-chart-empty{color:var(--o-faint)}
+html[data-theme=light] .ic-grid{stroke:#121a280f}
+html[data-theme=light] .ic-path{fill:none;stroke:#18202d}
+html[data-theme=light] .ic-dot{fill:#0c1017}
+html[data-theme=light] .ic-level.ic-entry{stroke:#18202d99}
+html[data-theme=light] .ic-level.ic-stop{stroke:#b0211ca6}
+html[data-theme=light] .ic-level.ic-target{stroke:#34986aa6}
+html[data-theme=light] .ic-label.ic-entry{fill:#18202d}
+html[data-theme=light] .ic-label.ic-stop{fill:#ae261e}
+html[data-theme=light] .ic-label.ic-target{fill:#309c69}
+html[data-theme=light] .ic-reward{fill:#3da87711}
+html[data-theme=light] .ic-risk{fill:#c2292311}
+html[data-theme=light] .ic-caption{fill:#677285}

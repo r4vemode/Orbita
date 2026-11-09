@@ -1,0 +1,49 @@
+/* GENERATED from dashboard.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light]{--dash-bg:#f3f6f9;--dash-ink:#0c1117;--dash-muted:#34445b;--dash-line:#0057e62a;--dash-accent:#1959b3}
+html[data-theme=light] body{background:radial-gradient(ellipse at 90% 0,#24375270,transparent 48%),var(--dash-bg);color:var(--dash-ink)}
+html[data-theme=light] a{color:inherit;text-decoration:none}
+html[data-theme=light] a:focus-visible,html[data-theme=light] button:focus-visible{outline:2px solid #0754c5}
+html[data-theme=light] .brand{color:#111720}
+html[data-theme=light] header nav{color:#476185}
+html[data-theme=light] header nav a[aria-current]{color:#0e141b;border-bottom:1px solid #1d5caf}
+html[data-theme=light] .dashboard-account-link{color:#355f97}
+html[data-theme=light] .dashboard-eyebrow{color:#40608c}
+html[data-theme=light] .dashboard-intro{color:var(--dash-muted)}
+html[data-theme=light] .dashboard-button,html[data-theme=light] .dashboard-primary{border:1px solid #0057e63e;background:#2162c509;color:#151d27}
+html[data-theme=light] .dashboard-button:hover{background:#2162c517}
+html[data-theme=light] .dashboard-primary{background:#225aaa;color:#f3f4f7;border-color:transparent}
+html[data-theme=light] .dashboard-identity-row{color:#436089}
+html[data-theme=light] .dashboard-status{color:#305f9c}
+html[data-theme=light] .dashboard-error{border:1px solid #a562407b;background:#a067450a}
+html[data-theme=light] .dashboard-error p{color:#994f33}
+html[data-theme=light] .dashboard-reminder{border:1px solid #ab8f3a58;background:#ab8f3a0a}
+html[data-theme=light] .dashboard-reminder[data-reminder-state=expired]{border-color:#a6644058;background:#a6644009}
+html[data-theme=light] .dashboard-reminder h2{color:#76612d}
+html[data-theme=light] .dashboard-reminder[data-reminder-state=expired] h2{color:#8f5533}
+html[data-theme=light] .dashboard-reminder p{color:#2d3c4f}
+html[data-theme=light] .dashboard-section-heading>a,html[data-theme=light] .dashboard-panel-heading>a{color:#346098}
+html[data-theme=light] .dashboard-note{color:#2b3b50}
+html[data-theme=light] .dashboard-plan{background:#1f68c704}
+html[data-theme=light] .dashboard-plan[data-plan=exclusive]{border-color:#9e8c4841;background:linear-gradient(125deg,#a4904206,#1f68c704)}
+html[data-theme=light] .dashboard-tag{border:1px solid #0057e635;color:#395f93}
+html[data-theme=light] .dashboard-tag[data-state=active]{border-color:#4a9c8846;color:#2d5448}
+html[data-theme=light] .dashboard-tag[data-state=expired]{border-color:#a76f3f42;color:#856132}
+html[data-theme=light] .dashboard-plan p{color:#456087}
+html[data-theme=light] .dashboard-panel{background:#2364c203}
+html[data-theme=light] .dashboard-panel-description{color:#466386}
+html[data-theme=light] .dashboard-count{color:#456187}
+html[data-theme=light] .dashboard-item{border-top:1px solid #0057e61d}
+html[data-theme=light] .dashboard-item-top{color:#41618b}
+html[data-theme=light] .dashboard-item p{color:#436089}
+html[data-theme=light] .dashboard-item small{color:#466286}
+html[data-theme=light] .dashboard-item .dashboard-demo{color:#6e6235}
+html[data-theme=light] .dashboard-position-values span{color:#466286}
+html[data-theme=light] .dashboard-position-values strong{color:#151c26}
+html[data-theme=light] .dashboard-item .dashboard-review{color:#7f622e}
+html[data-theme=light] .dashboard-empty{border-top:1px solid #0057e61d}
+html[data-theme=light] .dashboard-empty p{color:#456087}
+html[data-theme=light] .dashboard-source-error{border-color:#a6644058}
+html[data-theme=light] .dashboard-limited{color:#675c43;border:1px solid #ab943b38}
+html[data-theme=light] .dashboard-support-reply{border-left:2px solid #31649b}
+html[data-theme=light] .dashboard-quick-links>a{color:#325f9a}
+html[data-theme=light] .dashboard-quick-links span{color:#456287}

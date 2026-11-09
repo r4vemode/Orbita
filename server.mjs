@@ -24,6 +24,9 @@ import {createParticipants} from './lib/participants.mjs';
 import {createSupport} from './lib/support.mjs';
 import {createDashboard} from './lib/dashboard.mjs';
 import {createTelegramAdmin} from './lib/telegram-admin/service.mjs';
+import {createMarkets} from './lib/markets/service.mjs';
+import {buildShowcase} from './lib/showcase.mjs';
+import {createPush} from './lib/push.mjs';
 if(Number(process.versions.node.split('.')[0])<22)throw Error(`Для ORBITA нужен Node.js 22 или новее; рекомендуется Node.js 24 LTS. Сейчас установлен Node.js ${process.versions.node}. Обновите Node.js и повторите npm start.`);
 const root=await realpath(fileURLToPath(new URL('./public/',import.meta.url)));
 const configuredDirectory=process.env.ORBITA_DATA_DIR||fileURLToPath(new URL('./data/',import.meta.url));
@@ -43,9 +46,11 @@ const payments=await createPayments(directory,{accounts,checkoutGate:createSales
 const referrals=createReferrals({accounts,publicOrigin:process.env.ORBITA_PUBLIC_ORIGIN||'',simulation:(await payments.publicConfig()).simulation});
 const radar=await createRadar(directory,{accounts,ideas});
 const participants=await createParticipants(directory,{accounts});
+const markets=await createMarkets(directory,{accounts,ideas});
 const support=await createSupport(directory,{accounts});
 const dashboard=createDashboard({accounts,ideas,radar,support});
-const notifications=await createNotifications(directory,{accounts,ideas,radar});
+const push=await createPush(directory,{accounts});
+const notifications=await createNotifications(directory,{accounts,ideas,radar,markets,push});
 const telegramAdmin=createTelegramAdmin({accounts,ideas,radar});
 const content=await createContent(directory,{accounts}),productSettings=await createProductSettings(directory,{accounts});
 const readiness=createReadiness({directory,publicDir:root});
@@ -53,14 +58,16 @@ const webhooks=new Set([...payments.webhookPaths,...notifications.webhookPaths,.
 const requestSecurity=createRequestSecurity({trustedProxyIps:process.env.ORBITA_TRUSTED_PROXY_IPS||''});
 const port=Number(process.env.PORT||3000),host=process.env.HOST||'127.0.0.1';
 if(!Number.isInteger(port)||port<0||port>65535)throw Error('PORT должен быть числом от 0 до 65535.');
-const types={'.html':'text/html','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
-const memberPages=new Set(['/app.html','/calculator.html','/learn.html','/participants.html']);
+const types={'.html':'text/html','.webmanifest':'application/manifest+json','.json':'application/json','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
+const memberPages=new Set(['/app.html','/calculator.html','/learn.html','/markets.html']);
+// Legacy addresses keep working after the sections were merged.
+const movedPages=new Map([['/participants.html','/markets.html'],['/market-demo.html','/markets.html']]);
 const accountPages=new Set(['/subscriptions.html','/security.html','/notifications.html','/support.html','/dashboard.html','/partner.html']);
 const accountAssets=new Set(['/assets/support.js','/assets/dashboard.js','/assets/referrals.js']);
-const adminPages=new Set(['/admin.html','/content-admin.html','/settings-admin.html','/launch-admin.html','/legal-admin.html','/radar-admin.html','/support-admin.html','/telegram-admin.html','/payments-admin.html','/partners-admin.html','/backtest-admin.html']);
+const adminPages=new Set(['/admin.html','/content-admin.html','/settings-admin.html','/launch-admin.html','/legal-admin.html','/radar-admin.html','/support-admin.html','/telegram-admin.html','/payments-admin.html','/partners-admin.html','/backtest-admin.html','/markets-admin.html']);
 const radarPages=new Set(['/radar.html']),radarAssets=new Set(['/assets/radar.js']);
-const paidAssets=new Set(['/assets/app.js','/assets/signal-visual.js','/assets/calculator.js','/assets/learning-data.js','/assets/learning.js','/assets/news.js','/assets/personal.js','/assets/participants.js','/assets/member-session.js']);
-const adminAssets=new Set(['/assets/admin.js','/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js','/assets/radar-admin.js','/assets/admin-session.js','/assets/support-admin.js','/assets/telegram-admin.js','/assets/payments-admin.js','/assets/backtest-admin.js','/assets/backtest-engine.js']);
+const paidAssets=new Set(['/assets/markets.js','/assets/app.js','/assets/signal-visual.js','/assets/calculator.js','/assets/learning-data.js','/assets/learning.js','/assets/news.js','/assets/personal.js','/assets/participants.js','/assets/member-session.js']);
+const adminAssets=new Set(['/assets/markets-admin.js','/assets/admin.js','/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js','/assets/radar-admin.js','/assets/admin-session.js','/assets/support-admin.js','/assets/telegram-admin.js','/assets/payments-admin.js','/assets/backtest-admin.js','/assets/backtest-engine.js']);
 const removedAssets=new Set(['/assets/editor-seed.js']);
 function redirect(res,destination){res.writeHead(303,{Location:destination,'Cache-Control':'no-store','Vary':'Cookie'});res.end();}
 function probe(res,status,data,head=false){const body=JSON.stringify(data);res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Content-Length':Buffer.byteLength(body)});res.end(head?undefined:body);}
@@ -71,7 +78,7 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
   res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=(), payment=(), usb=()');
   res.setHeader('Cross-Origin-Opener-Policy','same-origin');res.setHeader('Cross-Origin-Resource-Policy','same-origin');
   if(process.env.ORBITA_PUBLIC_ORIGIN?.startsWith('https://'))res.setHeader('Strict-Transport-Security','max-age=31536000');
-  res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'");
+  res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'");
   if(!req.url?.startsWith('/')||req.url.startsWith('//'))throw error(400,'Некорректный путь.');
   const url=new URL(req.url,'http://localhost');
   let pathname;try{pathname=decodeURIComponent(url.pathname);}catch{throw error(400,'Некорректный адрес.');}
@@ -101,11 +108,14 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
    if(await accounts.handle(req,res,url))return;
    const user=await accounts.identify(req);
    if(await payments.handle(req,res,url,user)||await notifications.handle(req,res,url,user))return;
-   if(await referrals.handle(req,res,url,user)||await telegramAdmin.handle(req,res,url,user)||await dashboard.handle(req,res,url,user)||await support.handle(req,res,url,user)||await participants.handle(req,res,url,user)||await radar.handle(req,res,url,user)||await legal.handle(req,res,url,user)||await content.handle(req,res,url,user)||await productSettings.handle(req,res,url,user))return;
+   if(await referrals.handle(req,res,url,user)||await telegramAdmin.handle(req,res,url,user)||await dashboard.handle(req,res,url,user)||await support.handle(req,res,url,user)||await participants.handle(req,res,url,user)||await markets.handle(req,res,url,user)||await push.handle(req,res,url,user)||await radar.handle(req,res,url,user)||await legal.handle(req,res,url,user)||await content.handle(req,res,url,user)||await productSettings.handle(req,res,url,user))return;
    if(url.pathname==='/api/public-config'&&req.method==='GET'){const settings=await productSettings.readPublic(),paymentConfig=await payments.publicConfig(),publication=await legal.readPublic();json(res,200,{legalVersion:await accounts.currentLegalVersion(),plans:PLANS,paymentsAvailable:paymentConfig.checkoutEnabled,mailEnabled:accounts.emailConfigured,telegramEnabled:notifications.configured,supportEmail:settings.supportEmail||process.env.ORBITA_SUPPORT_EMAIL||publication.profile.supportEmail||null,authorName:settings.authorName,editorialNote:settings.editorialNote});return;}
    if(url.pathname==='/api/admin/readiness'){requireAdmin(user);if(req.method!=='GET')throw error(405,'Метод не поддерживается.');const settings=await productSettings.readPublic();json(res,200,await readiness.adminReport({supportEmail:settings.supportEmail}));return;}
    if(url.pathname==='/api/admin/metrics'){requireAdmin(user);if(req.method!=='GET')throw error(405,'Метод не поддерживается.');let billing;try{billing=JSON.parse(await readFile(path.join(directory,'billing.json'),'utf8'));}catch(cause){if(cause.code!=='ENOENT')throw cause;}json(res,200,{metrics:buildMvpMetrics({accounts:await accounts.readDatabase(),billing}),checkedAt:new Date().toISOString()});return;}
-   if(url.pathname==='/api/ideas'&&req.method==='GET'){json(res,200,await ideas.list(user));return;}
+   if(url.pathname==='/api/public/results'&&req.method==='GET'){json(res,200,await ideas.results());return;}
+   if(url.pathname==='/api/public/stats'&&req.method==='GET'){json(res,200,{stats:await ideas.stats(),checkedAt:new Date().toISOString()});return;}
+   if(url.pathname==='/api/public/showcase'&&req.method==='GET'){json(res,200,{showcase:await buildShowcase({ideas,markets})});return;}
+   if(url.pathname==='/api/ideas'&&req.method==='GET'){const feed=await ideas.list(user);let quotes={},specs={};try{quotes=await markets.quotesFor(feed.records);specs=await markets.specsFor(feed.records);}catch{}json(res,200,{...feed,quotes,specs});return;}
    const single=url.pathname.match(/^\/api\/ideas\/([a-zA-Z0-9_-]+)$/);
    if(single&&req.method==='GET'){json(res,200,{record:await ideas.get(single[1],user)});return;}
    if(url.pathname==='/api/news'){requireMember(user);if(await news(req,res,url))return;}
@@ -119,6 +129,7 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
   accounts.checkRequest(req);
   if(!['GET','HEAD'].includes(req.method)){res.writeHead(405,{Allow:'GET, HEAD'}).end();return;}
   if(removedAssets.has(canonical))throw error(404,'Файл не найден.');
+  if(movedPages.has(canonical)){res.writeHead(301,{Location:movedPages.get(canonical),'Cache-Control':'no-store'});res.end();return;}
   const protectedPage=memberPages.has(canonical)||adminPages.has(canonical)||accountPages.has(canonical)||radarPages.has(canonical);
   const protectedAsset=paidAssets.has(canonical)||accountAssets.has(canonical)||adminAssets.has(canonical)||radarAssets.has(canonical);
   if(protectedPage||protectedAsset){
@@ -150,16 +161,19 @@ server.listen(port,host,()=>{
  console.log(`ORBITA: ${process.env.ORBITA_PUBLIC_ORIGIN||'http://'+host+':'+server.address().port}`);
  telegramAdmin.start();
  void radar.start().catch(()=>console.error('Radar: не удалось запустить получение источников; проверьте приватное хранилище и состояние адаптеров.'));
+ void markets.start().catch(()=>console.error('Рынки: не удалось запустить обновление данных MOEX; см. диагностику в редакции.'));
  void participants.start().catch(()=>console.error('Позиции участников: получение данных временно недоступно; проверьте настройки и подключение источника.'));
  if(payments.configured)schedule(()=>payments.sync(),60000,'CloudPayments');
- if(notifications.configured)schedule(()=>notifications.tick(),notificationInterval*1000,'Telegram');
+ if(notifications.configured||push.configured)schedule(()=>notifications.tick(),notificationInterval*1000,'Уведомления');
+ // Instant delivery: idea events (entry, stop, target…) trigger a pass immediately; the interval stays as a safety net.
+ if(notifications.configured||push.configured)ideas.subscribe(()=>{void notifications.tick().catch(()=>{});});
  if(backupDir)schedule(()=>createBackup({dataDir:directory,backupDir,passphrase:backupPassphrase,publicDir:root,keep:backupKeep}),backupHours*3600000,'Резервная копия');
 });
 let stopping=false;
 async function stop(){
  if(stopping)return;stopping=true;readiness.setDraining();timers.forEach(clearInterval);
  const closeHttp=server.listening?new Promise(resolve=>server.close(()=>resolve())):Promise.resolve();
- server.closeIdleConnections?.();const work=Promise.allSettled([closeHttp,telegramAdmin.close(),support.close(),participants.close(),radar.close(),notifications.close(),accounts.flushMail(),content.close(),legal.close(),Promise.allSettled([...backgroundJobs])]);let timer;
+ server.closeIdleConnections?.();const work=Promise.allSettled([closeHttp,telegramAdmin.close(),support.close(),participants.close(),markets.close(),radar.close(),notifications.close(),accounts.flushMail(),content.close(),legal.close(),Promise.allSettled([...backgroundJobs])]);let timer;
  const outcome=await Promise.race([work.then(()=>true),new Promise(resolve=>{timer=setTimeout(()=>resolve(false),10000);})]);clearTimeout(timer);
  if(!outcome){console.error('ORBITA shutdown timeout: процесс завершён принудительно.');server.closeAllConnections?.();process.exit(1);}
 }

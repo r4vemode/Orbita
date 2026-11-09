@@ -69,15 +69,15 @@ test('server enforces subscriptions and administrator permissions on direct and 
     });
 
     await t.test('guest and unpaid accounts cannot use member pages, assets or APIs',async()=>{
-      for(const path of ['/app.html','/%61pp.html','/assets/../app.html','/assets/%2e%2e/app.html','/app.html%2f..%2fapp.html','/calculator.html','/learn.html','/radar.html','/%72adar.html','/participants.html','/%70articipants.html']){
+      for(const path of ['/app.html','/%61pp.html','/assets/../app.html','/assets/%2e%2e/app.html','/app.html%2f..%2fapp.html','/calculator.html','/learn.html','/radar.html','/%72adar.html','/markets.html','/%6darkets.html']){
         const guest=await request(base,path);assert.equal(guest.status,303,path);assert.match(guest.headers.location,/^\/account\.html\?/);
         const member=await request(base,path,{cookie:unpaid.cookie});assert.equal(member.status,303,path);assert.match(member.headers.location,/^\/subscriptions\.html\?/);
       }
       assert.equal((await request(base,'/%61pp.html',{method:'HEAD'})).status,303);
-      for(const path of ['/assets/app.js','/assets/%61pp.js','/assets//app.js','/assets/signal-visual.js','/assets/learning-data.js','/assets/learning.js','/assets/member-session.js','/assets/news.js','/assets/radar.js','/assets/%72adar.js','/assets/participants.js','/assets/%70articipants.js']){
+      for(const path of ['/assets/app.js','/assets/%61pp.js','/assets//app.js','/assets/signal-visual.js','/assets/learning-data.js','/assets/learning.js','/assets/member-session.js','/assets/news.js','/assets/radar.js','/assets/%72adar.js','/assets/participants.js','/assets/%70articipants.js','/assets/markets.js']){
         assert.equal((await request(base,path)).status,401,path);assert.equal((await request(base,path,{cookie:unpaid.cookie})).status,403,path);
       }
-      for(const path of ['/api/ideas','/api/lessons','/api/news','/api/watchlist','/api/positions','/api/radar','/api/radar/companies','/api/radar/stream','/api/radar/subscriptions','/api/participants','/api/participants/config','/api/participants/demo','/api/participants/coverage','/api/participants/watchlist']){
+      for(const path of ['/api/ideas','/api/lessons','/api/news','/api/watchlist','/api/positions','/api/radar','/api/radar/companies','/api/radar/stream','/api/radar/subscriptions','/api/participants','/api/participants/config','/api/participants/demo','/api/participants/coverage','/api/participants/watchlist','/api/markets']){
         assert.equal((await request(base,path)).status,401,path);assert.equal((await request(base,path,{cookie:unpaid.cookie})).status,403,path);
       }
       for(const path of ['/api%2fideas','/%61pi/ideas','/api//ideas','/api/%2e/ideas'])assert.notEqual((await request(base,path,{cookie:unpaid.cookie})).status,200,path);
@@ -89,32 +89,34 @@ test('server enforces subscriptions and administrator permissions on direct and 
 
     await t.test('public pages and metadata reveal no paid records or downloadable seeds',async()=>{
       for(const path of ['/','/strategies.html','/strategy.html?strategy=orbita-exclusive','/guide.html','/assets/guide.css','/assets/guide.js','/offer.html','/privacy.html','/refunds.html'])assert.equal((await request(base,path)).status,200,path);
+      for(const [path,type] of [['/','text/html'],['/strategies.html','text/html'],['/results.html','text/html'],['/manifest.webmanifest','application/manifest+json'],['/sw.js','text/javascript'],['/assets/shell.css','text/css'],['/icons/icon-192.png','image/png']]){const r=await request(base,path);assert.equal(r.status,200,path);assert.match(r.headers['content-type'],new RegExp('^'+type.replace('+','\\+')),path);}
       for(const path of ['/assets','/assets/','/assets/editor-seed.js','/assets/%65ditor-seed.js','/assets//editor-seed.js','/fixtures/demo-ideas.json','/data/ideas.json','/data/accounts.json'])assert.equal((await request(base,path)).status,404,path);
       const catalog=await request(base,'/assets/strategy-data.js');assert.equal(catalog.status,200);
       assert.ok(!catalog.text.includes(proId)&&!catalog.text.includes(exclusiveId));assert.ok(!catalog.text.includes('exclusive-sber'));
       assert.equal((await request(base,'/assets/app.js',{cookie:pro.cookie})).status,200);
     });
 
-    await t.test('Pro and Exclusive have separate idea and lesson access',async()=>{
+    await t.test('PRO cannot read EXCLUSIVE; EXCLUSIVE includes PRO ideas and lesson access',async()=>{
       const proRows=await request(base,'/api/ideas',{cookie:pro.cookie});assert.equal(proRows.status,200);assert.deepEqual(proRows.data.records.map(r=>r.id),[proId]);
-      const exclusiveRows=await request(base,'/api/ideas',{cookie:exclusive.cookie});assert.equal(exclusiveRows.status,200);assert.deepEqual(exclusiveRows.data.records.map(r=>r.id),[exclusiveId]);
+      const exclusiveRows=await request(base,'/api/ideas',{cookie:exclusive.cookie});assert.equal(exclusiveRows.status,200);assert.deepEqual(exclusiveRows.data.records.map(r=>r.id).sort(),[proId,exclusiveId].sort(),'EXCLUSIVE includes PRO');assert.deepEqual(exclusiveRows.data.locked,[]);
       assert.equal((await request(base,'/api/ideas/'+exclusiveId,{cookie:pro.cookie})).status,404);
-      assert.equal((await request(base,'/api/ideas/'+proId,{cookie:exclusive.cookie})).status,404);
+      assert.equal((await request(base,'/api/ideas/'+proId,{cookie:exclusive.cookie})).status,200);
       assert.equal((await request(base,'/api/ideas/'+exclusiveId,{cookie:exclusive.cookie})).status,200);
       const proLessons=await request(base,'/api/lessons',{cookie:pro.cookie}),exclusiveLessons=await request(base,'/api/lessons',{cookie:exclusive.cookie});
       assert.equal(proLessons.status,200);assert.equal(exclusiveLessons.status,200);
       assert.ok(proLessons.data.lessons.length>0);assert.ok(proLessons.data.lessons.every(l=>!l.id.startsWith('exclusive-')));
       assert.ok(exclusiveLessons.data.lessons.some(l=>l.id.startsWith('exclusive-')));
       for(const path of ['/app.html','/%61pp.html','/calculator.html','/learn.html'])assert.equal((await request(base,path,{cookie:pro.cookie})).status,200,path);
-      for(const path of ['/radar.html','/assets/radar.js','/api/radar']){assert.equal((await request(base,path,{cookie:pro.cookie})).status,200,path);assert.equal((await request(base,path,{cookie:exclusive.cookie})).status,path.endsWith('.html')?303:403,path);}
-      for(const path of ['/participants.html','/assets/participants.js','/api/participants','/api/participants/demo'])for(const account of [pro,exclusive])assert.equal((await request(base,path,{cookie:account.cookie})).status,200,path);
+      for(const path of ['/radar.html','/assets/radar.js','/api/radar']){assert.equal((await request(base,path,{cookie:pro.cookie})).status,200,path);assert.equal((await request(base,path,{cookie:exclusive.cookie})).status,200,path);}
+      assert.equal((await request(base,'/participants.html',{cookie:pro.cookie})).status,301);
+      for(const path of ['/markets.html','/assets/markets.js','/api/markets','/assets/participants.js','/api/participants','/api/participants/demo'])for(const account of [pro,exclusive])assert.equal((await request(base,path,{cookie:account.cookie})).status,200,path);
       for(const path of ['/dashboard.html','/assets/dashboard.js','/api/dashboard'])for(const account of [pro,exclusive,admin])assert.equal((await request(base,path,{cookie:account.cookie})).status,200,path);
     });
 
     await t.test('incompatible market and strategy cannot be published through HTTP',async()=>{
       const before=(await request(base,'/api/admin/ideas',{cookie:admin.cookie})).data;
       for(const mode of ['quick','full','draft']){
-        const result=await request(base,'/api/admin/ideas',{method:'POST',cookie:admin.cookie,body:{mode,d:{ticker:'BTCUSDT',dir:'ЛОНГ',market:'crypto',strategy:'Orbita Exclusive',entry:100,stop:95,target:110,entryRule:'Вход',cancelRule:'Выход'}}});
+        const result=await request(base,'/api/admin/ideas',{method:'POST',cookie:admin.cookie,body:{mode,d:{ticker:'BTCUSDT',dir:'ЛОНГ',market:'crypto',strategy:'Momentum RU',entry:100,stop:95,target:110,entryRule:'Вход',cancelRule:'Выход'}}});
         assert.equal(result.status,400,mode);assert.match(result.data.error,/Стратегия не соответствует/);
       }
       assert.deepEqual((await request(base,'/api/admin/ideas',{cookie:admin.cookie})).data,before);
@@ -159,7 +161,7 @@ test('server enforces subscriptions and administrator permissions on direct and 
       assert.equal((await request(base,'/api/radar',{cookie:pro.cookie})).status,403);
       assert.equal((await request(base,'/radar.html',{cookie:pro.cookie})).status,303);
       assert.equal((await request(base,'/api/participants/demo',{cookie:pro.cookie})).status,403);
-      assert.equal((await request(base,'/participants.html',{cookie:pro.cookie})).status,303);
+      assert.equal((await request(base,'/markets.html',{cookie:pro.cookie})).status,303);assert.equal((await request(base,'/api/markets',{cookie:pro.cookie})).status,403);
       const me=await request(base,'/api/me',{cookie:exclusive.cookie});assert.deepEqual(me.data.user.access.activePlans,[]);
       for(const account of [pro,exclusive]){const dashboard=await request(base,'/api/dashboard',{cookie:account.cookie});assert.equal(dashboard.status,200);assert.equal(dashboard.data.sections.positions,'locked');assert.deepEqual(dashboard.data.positions.items,[]);assert.deepEqual(dashboard.data.updates.items,[]);assert.deepEqual(dashboard.data.radar.items,[]);assert.equal((await request(base,'/dashboard.html',{cookie:account.cookie})).status,200);}
       assert.equal((await request(base,'/api/admin/users',{cookie:admin.cookie})).status,200);

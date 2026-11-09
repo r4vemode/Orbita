@@ -57,6 +57,16 @@ test('unknown tickers require a catalogue choice, markets use matching strategie
  await f.engine.process(f.message('Si 100 90 110'));assert.match(f.last().payload.text,/Импульс/);await f.engine.process(f.callback('Опубликовать'));assert.equal((await all(f))[0].d.market,'futures');
 });
 
+test('the access tier can be set per signal (EX/PRO word or preview button) for any market',async t=>{
+ const f=await fixture(t);
+ await f.engine.process(f.message('Si EX 100 90 110'));assert.match(f.last().payload.text,/Orbita Exclusive/);assert.match(f.last().payload.text,/Доступ: EXCLUSIVE/);
+ await f.engine.process(f.callback('Опубликовать'));assert.equal((await all(f))[0].d.strategy,'Orbita Exclusive');assert.equal((await all(f))[0].d.market,'futures');
+ await f.engine.process(f.message('GAZP 150 140 180'));assert.match(f.last().payload.text,/Доступ: PRO/);
+ await f.engine.process(f.callback('Сделать EXCLUSIVE'));assert.match(f.last().payload.text,/Доступ: EXCLUSIVE/);
+ await f.engine.process(f.callback('Сделать PRO'));assert.match(f.last().payload.text,/Доступ: PRO/);
+ await f.engine.process(f.callback('Опубликовать'));assert.notEqual((await all(f))[0].d.strategy,'Orbita Exclusive');
+});
+
 test('instant publishing is opt-in and an existing idea still requires a duplicate confirmation',async t=>{
  const f=await fixture(t,{instantPublish:true});await f.engine.process(f.message('SBER 312 307 325'));assert.equal((await all(f)).length,1);await f.engine.process(f.message('SBER 315 310 330'));assert.equal((await all(f)).length,1);assert.match(f.last().payload.text,/уже есть сигнал/);await f.engine.process(f.callback('Создать ещё один'));assert.equal((await all(f)).length,2);
  f.prefs.instantPublish=false;await f.engine.process(f.message('GAZP 150 140 180'));assert.equal((await all(f)).length,2);assert.match(f.last().payload.text,/Новый сигнал/);

@@ -74,14 +74,15 @@
     $('emailBadge').textContent = user.emailVerified ? 'Email подтверждён' : 'Email не подтверждён'; $('emailBadge').classList.toggle('verified', !!user.emailVerified);
     $('emailExplanation').textContent = user.emailVerified ? 'Адрес подтверждён. Его можно использовать для оплаты подписки и восстановления доступа.' : 'Перед оплатой подписки подтвердите адрес по ссылке из письма.';
     $('mailConfiguration').textContent = mailReady ? '' : 'Отправка писем или публичный адрес сайта пока не настроены. Письмо подтверждения сейчас отправить нельзя.';
-    $('resendVerification').hidden = !!user.emailVerified; $('resendVerification').disabled = !mailReady;
+    $('resendVerification').hidden = !!user.emailVerified; $('passwordReset').hidden = !mailReady; $('passwordResetNote').hidden = !!mailReady;
+ $('resendVerification').disabled = !mailReady;
     $('mfaBadge').textContent = security.mfaEnabled ? 'Защита включена' : 'Защита не подключена'; $('mfaBadge').classList.toggle('verified', !!security.mfaEnabled);
     $('mfaSetupForm').hidden = !!security.mfaEnabled || !!setup; $('mfaSetupPanel').hidden = !!security.mfaEnabled || !setup;
     $('mfaEnabledSettings').hidden = !security.mfaEnabled; $('mfaDisableDetails').hidden = !!security.mfaRequiredForAdmin; $('mfaRequiredNotice').hidden = !security.mfaRequiredForAdmin;
     $('enrollmentNotice').hidden = !security.adminEnrollmentRequired;
     const continueLink = $('continueAccount');
-    if (user.access?.isAdmin && !security.adminEnrollmentRequired) { continueLink.href = 'admin.html'; continueLink.textContent = 'К панели администратора →'; }
-    else { continueLink.href = subscriptionsLink(user); continueLink.textContent = 'К подпискам →'; }
+    if (user.access?.isAdmin && !security.adminEnrollmentRequired) { continueLink.href = 'admin.html'; continueLink.textContent = 'Панель администратора'; continueLink.hidden = false; }
+    else { continueLink.href = subscriptionsLink(user); continueLink.hidden = true; }
   }
   async function refreshSettings() {
     const result = await A.request('/api/security/status'),current=await checkIdentity();

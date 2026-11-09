@@ -1,0 +1,4 @@
+/* GENERATED from navigation.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] header nav a,html[data-theme=light] header nav button,html[data-theme=light] header nav .calculator-nav{color:#3e495a;text-decoration:none}
+html[data-theme=light] header nav a:hover,html[data-theme=light] header nav button:hover,html[data-theme=light] header nav [aria-current=page],html[data-theme=light] header nav button.active{color:#0c1117}
+html[data-theme=light] header nav :focus-visible{outline:2px solid #004dcc}

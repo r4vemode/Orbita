@@ -6,7 +6,7 @@ import {readFile} from 'node:fs/promises';
 const source=await readFile(new URL('../public/assets/notifications.js',import.meta.url),'utf8'),flush=()=>new Promise(resolve=>setImmediate(resolve));
 
 test('notification preferences changed during a slow save remain in the form and duplicate submits cannot race',async()=>{
- const flags=['ideaUpdates','newSignals','expiryReminders','radarEvents'],nodes=new Map(),listeners={},calls=[];let finish;
+ const flags=['ideaUpdates','newSignals','expiryReminders','radarEvents','marketAlerts','morningDigest'],nodes=new Map(),listeners={},calls=[];let finish;
  const node=id=>{if(!nodes.has(id))nodes.set(id,{hidden:false,disabled:false,textContent:'',classList:{toggle(){}},addEventListener(name,listener){listeners[id+':'+name]=listener;},removeAttribute(name){delete this[name];}});return nodes.get(id);};
  const form=node('notificationForm');form.elements=Object.fromEntries(flags.map(flag=>[flag,{checked:false}]));
  let preferences=Object.fromEntries(flags.map(flag=>[flag,false]));

@@ -1,0 +1,65 @@
+/* GENERATED from participants.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .participants-heading p{color:#33435a}
+html[data-theme=light] .participants-button,html[data-theme=light] .participants-primary{border:1px solid #2162c543;background:#2162c508;color:#1358b9;text-decoration:none}
+html[data-theme=light] .participants-button:hover{background:#2162c518;border-color:#2162c576}
+html[data-theme=light] .participants-primary{background:#1c58b0;color:#f3f4f7;border-color:transparent}
+html[data-theme=light] .participants-principle>span{color:#2c5da0}
+html[data-theme=light] .participants-principle p{color:#446288}
+html[data-theme=light] .participants-principle strong{color:#18212d}
+html[data-theme=light] .participants-source{background:#2162c507;border:1px solid #2162c528}
+html[data-theme=light] .participants-source-state{color:#141b25}
+html[data-theme=light] .participants-source-state:before{background:#3b5f91}
+html[data-theme=light] .participants-source-state[data-state=stale]:before,html[data-theme=light] .participants-source-state[data-state=off]:before{background:#967936}
+html[data-theme=light] .participants-source-state[data-state=live]:before{background:#448871}
+html[data-theme=light] .participants-source p{color:#446288}
+html[data-theme=light] .participants-demo-notice{border:1px solid #ac8c3958;background:#ac8c390c;color:#635743}
+html[data-theme=light] .participants-demo-notice strong{color:#7b5e1e}
+html[data-theme=light] .participants-tabs button{background:transparent;border:1px solid #0057e62f;color:#446188}
+html[data-theme=light] .participants-tabs button[aria-pressed=true]{background:#265ba6;border-color:transparent;color:#f3f4f7}
+html[data-theme=light] .participants-filters label{color:#436189}
+html[data-theme=light] .participants-small{color:#486284!important}
+html[data-theme=light] .participants-status{color:#386194}
+html[data-theme=light] .participants-status.error{color:#9f3d2d}
+html[data-theme=light] .participants-feed-heading{color:#446288}
+html[data-theme=light] .participants-legal-color{background:#2532a7}
+html[data-theme=light] .participants-individual-color{background:#418b83}
+html[data-theme=light] .participants-card{border:1px solid #0057e62a;background:linear-gradient(135deg,#2162c507,transparent 65%)}
+html[data-theme=light] .participants-card[data-stale=true]{border-color:#ac8c394c}
+html[data-theme=light] .participants-card-identity h2 button{color:inherit;background:none}
+html[data-theme=light] .participants-card-identity p{color:#476285}
+html[data-theme=light] .participants-proxy{color:#476285}
+html[data-theme=light] .participants-follow{border:1px solid #2162c537;background:transparent;color:#3f608d}
+html[data-theme=light] .participants-follow[aria-pressed=true]{background:#2b66bb14;border-color:#2b66bb86;color:#0e1219}
+html[data-theme=light] .participants-measure-head strong{color:#141b25}
+html[data-theme=light] .participants-measure-head>span{color:#476285}
+html[data-theme=light] .participants-bar{background:#0057e60c}
+html[data-theme=light] .participants-bar .legal{background:#2532a7}
+html[data-theme=light] .participants-bar .individual{background:#418b83}
+html[data-theme=light] .participants-bar-unavailable{background:repeating-linear-gradient(135deg,#0057e60b,#0057e60b 5px,#0057e604 5px,#0057e604 10px)}
+html[data-theme=light] .participants-measure-legend{color:#42618a}
+html[data-theme=light] .participants-measure-legend b{color:#0f141c}
+html[data-theme=light] .participants-no-data{color:#466286}
+html[data-theme=light] .participants-card-net{border-top:1px solid #0057e61f}
+html[data-theme=light] .participants-card-net span{color:#466186}
+html[data-theme=light] .participants-card-net strong{color:#1d5aaf}
+html[data-theme=light] .participants-card-foot{color:#456287}
+html[data-theme=light] .participants-card-foot time{color:#456287}
+html[data-theme=light] .participants-demo-label{color:#7c6327}
+html[data-theme=light] .participants-card-foot button{background:none;color:#2f5e9d}
+html[data-theme=light] .participants-card-note{color:#67573e}
+html[data-theme=light] .participants-empty{border:1px dashed #0057e63a;background:#2162c504}
+html[data-theme=light] .participants-empty p{color:#436289}
+html[data-theme=light] .participants-error{border:1px solid #99594d5e;background:#99594d07;color:#984834}
+html[data-theme=light] .participants-skeleton{border:1px solid #0057e623;background:linear-gradient(110deg,#0057e603 20%,#0057e60c 45%,#0057e603 70%)}
+html[data-theme=light] .participants-method{border-top:1px solid #0057e625}
+html[data-theme=light] .participants-method p{color:#436289}
+html[data-theme=light] .participants-dialog{background:#f1f4f8;color:#0c1117;border:1px solid #2162c551;box-shadow:0 30px 100px #ffffff52}
+html[data-theme=light] .participants-dialog::backdrop{background:#f7f8fbb8}
+html[data-theme=light] .participants-close{background:#2162c509;border:1px solid #0057e62d;color:#195ab3}
+html[data-theme=light] .participants-dialog p{color:#42628a}
+html[data-theme=light] .participants-dialog h3{color:#121921}
+html[data-theme=light] .participants-detail-tag{border:1px solid #0057e62d;color:#3e618e}
+html[data-theme=light] .participants-detail-times dt{color:#456187}
+html[data-theme=light] .participants-detail-times dd{color:#1a2430}
+html[data-theme=light] .participants-detail-source{color:#1c58b0}
+html[data-theme=light] .participants-dialog button:focus-visible,html[data-theme=light] .participants-main button:focus-visible,html[data-theme=light] .participants-main a:focus-visible{outline:2px solid #1357b9}

@@ -4,7 +4,8 @@ import {fileURLToPath} from 'node:url';
 // Test fixtures must never inherit live provider settings or private data paths.
 // Tests that exercise a configuration construct it explicitly in their process.
 const cwd=fileURLToPath(new URL('../',import.meta.url)),env={...process.env};
-for(const key of Object.keys(env))if(/^(ORBITA_|CLOUDPAYMENTS_|RESEND_|TELEGRAM_|RADAR_|MOEX_)/.test(key)||['NODE_ENV','HOST','PORT'].includes(key))delete env[key];
+for(const key of Object.keys(env))if(/^(ORBITA_|CLOUDPAYMENTS_|RESEND_|TELEGRAM_|RADAR_|MOEX_|MARKETS_)/.test(key)||['NODE_ENV','HOST','PORT'].includes(key))delete env[key];
+env.MARKETS_MODE='off';
 const files=(await readdir(new URL('../test/',import.meta.url))).filter(name=>name.endsWith('.test.mjs')).sort().map(name=>'test/'+name);
 const child=spawn(process.execPath,['--test',...process.argv.slice(2),...files],{cwd,env,stdio:'inherit'});
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>child.kill(signal));

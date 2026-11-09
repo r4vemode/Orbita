@@ -17,7 +17,7 @@ const full=(overrides={})=>({mode:'full',d:{ticker:'SBER',dir:'ЛОНГ',entry:3
 async function fixture(t){const directory=await mkdtemp(join(tmpdir(),'orbita-ideas-'));t.after(()=>rm(directory,{recursive:true,force:true}));return {directory,ideas:await createIdeas(directory)}}
 
 test('normal startup is empty and guests, unpaid and expired users receive no ideas',async t=>{
-  const {ideas}=await fixture(t);assert.deepEqual(await ideas.list(admin),{revision:0,records:[]});
+  const {ideas}=await fixture(t);assert.deepEqual(await ideas.list(admin),{revision:0,access:{tiers:['pro','exclusive']},locked:[],records:[]});
   for(const [user,status] of [[null,401],[noPlan,403],[expired,403]]){
     await rejected(ideas.list(user),status);await rejected(ideas.get('anything',user),status);
   }
@@ -26,16 +26,18 @@ test('normal startup is empty and guests, unpaid and expired users receive no id
   for(const action of [()=>ideas.create(pro,full()),()=>ideas.update(pro,'id',{action:'note',note:'x'}),()=>ideas.remove(pro,'id'),()=>ideas.importDemo(pro)])await rejected(action(),403);
 });
 
-test('strategy entitlements are separate and drafts are visible only to administrators',async t=>{
+test('EXCLUSIVE includes PRO, PRO cannot read EXCLUSIVE and drafts are visible only to administrators',async t=>{
   const {ideas}=await fixture(t);
   const regular=(await ideas.create(admin,full())).record;
   const special=(await ideas.create(admin,full({strategy:'Orbita Exclusive'}))).record;
   const draft=(await ideas.create(admin,{mode:'draft',d:{}})).record;
   assert.deepEqual((await ideas.list(pro)).records.map(r=>r.id),[regular.id]);
-  assert.deepEqual((await ideas.list(exclusive)).records.map(r=>r.id),[special.id]);
+  assert.deepEqual((await ideas.list(exclusive)).records.map(r=>r.id).sort(),[regular.id,special.id].sort());
+  assert.deepEqual((await ideas.list(pro)).locked,['exclusive']);assert.deepEqual((await ideas.list(exclusive)).locked,[]);
+  assert.ok(!JSON.stringify(await ideas.list(pro)).includes(special.id),'locked tier leaks no ids');
   assert.equal((await ideas.list(admin)).records.length,3);
   assert.equal((await ideas.list({...pro,subscriptions:[...pro.subscriptions,...exclusive.subscriptions]})).records.length,2);
-  await rejected(ideas.get(special.id,pro),404);await rejected(ideas.get(regular.id,exclusive),404);await rejected(ideas.get(draft.id,pro),404);
+  await rejected(ideas.get(special.id,pro),404);assert.equal((await ideas.get(regular.id,exclusive)).id,regular.id);await rejected(ideas.get(draft.id,pro),404);
   assert.equal((await ideas.get(special.id,admin)).id,special.id);
 });
 
@@ -56,6 +58,7 @@ test('strategy and market must match and omitted counterparts are inferred befor
   const {ideas}=await fixture(t);
   const markets={'Momentum RU':'stocks','Trend RU':'stocks','Импульс':'futures','Crypto Momentum':'crypto','Crypto Trend':'crypto','Orbita Exclusive':'stocks'};
   for(const [strategy,market]of Object.entries(markets)){
+    if(strategy==='Orbita Exclusive')continue; // EXCLUSIVE is a cross-market premium feed
     const mismatched=market==='stocks'?'crypto':'stocks';
     for(const mode of ['quick','full','draft']){
       const payload={...full({strategy,market:mismatched}),mode};
@@ -76,7 +79,7 @@ test('strategy and market must match and omitted counterparts are inferred befor
     }
   }
   const draft=(await ideas.create(admin,{mode:'draft',d:{ticker:'DRAFT'}})).record,before=await ideas.list(admin);
-  await rejected(ideas.update(admin,draft.id,{mode:'full',d:full({market:'crypto',strategy:'Orbita Exclusive'}).d}),400);
+  await rejected(ideas.update(admin,draft.id,{mode:'full',d:full({market:'crypto',strategy:'Momentum RU'}).d}),400);
   assert.deepEqual(await ideas.list(admin),before,'invalid draft publication preserves the stored draft');
 });
 
@@ -172,7 +175,7 @@ test('demo import is explicit, idempotent, server-only and visible to an already
   const command=await run(process.execPath,['scripts/seed-demo.mjs'],{cwd:new URL('../',import.meta.url),env:{...process.env,ORBITA_DATA_DIR:directory}});
   assert.match(command.stdout,/импортированы: 9/);
   const result=await ideas.list(admin);assert.equal(result.revision,1);assert.equal(result.records.length,9);assert.ok(result.records.every(r=>r.demo&&r.importedAt));
-  assert.equal((await ideas.list(pro)).records.length,6);assert.equal((await ideas.list(exclusive)).records.length,3);
+  assert.equal((await ideas.list(pro)).records.length,6);assert.equal((await ideas.list(exclusive)).records.length,9);
   assert.deepEqual(await ideas.importDemo(admin),{revision:1,imported:0});
   assert.ok(result.records.some(r=>r.d.state==='closed'&&r.meta.exit<r.d.entry));assert.ok(result.records.some(r=>r.d.state==='closed'&&r.meta.exit>r.d.entry));
   for(const r of result.records){assert.ok(r.meta.initial);assert.ok(r.meta.events.every(e=>e[3]?.id&&e[3]?.at))}

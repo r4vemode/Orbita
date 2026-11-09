@@ -1,0 +1,43 @@
+/* GENERATED from signals.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] a{color:inherit;text-decoration:none}
+html[data-theme=light] .app-status{color:#1b5cb1}
+html[data-theme=light] .account-toolbar{border-bottom:1px solid #121a280d}
+html[data-theme=light] .account-toolbar a,html[data-theme=light] .account-toolbar button{color:#486084;border:1px solid #0057e623}
+html[data-theme=light] .account-toolbar a:hover,html[data-theme=light] .account-toolbar button:hover{color:#0e141b;border-color:#0057e66a}
+html[data-theme=light] #accountLink{color:#2f5d9d}
+html[data-theme=light] .signal-stage .ambient{background:radial-gradient(ellipse at 60% 51%,#4164a53e,transparent 47%),radial-gradient(ellipse at 25% 90%,#ebeef5,transparent 60%)}
+html[data-theme=light] .signal-stage .story p{color:#28374b}
+html[data-theme=light] .signal-switcher{color:#466186}
+html[data-theme=light] .signal-switcher button{border:1px solid #0057e635;color:#2e5d9e}
+html[data-theme=light] .signal-switcher button:hover{border-color:#0052cc;background:#0057e60c}
+html[data-theme=light] .signal-stage .direction-long,html[data-theme=light] .signal-card .direction-long{color:#223f37}
+html[data-theme=light] .signal-stage .direction-short,html[data-theme=light] .signal-card .direction-short{color:#934239}
+html[data-theme=light] .signal-contour{fill:none;stroke:#1758b5}
+html[data-theme=light] .signal-plan-line{fill:none;stroke:#0059cc}
+html[data-theme=light] .signal-plan-glow{fill:none;stroke:#004dcc}
+html[data-theme=light] .signal-stop-line{fill:none}
+html[data-theme=light] .signal-entry-orb{fill:#0d1319}
+html[data-theme=light] .signal-plot-note{fill:#496283}
+html[data-theme=light] .signal-pending-ring{fill:none;stroke:#004dcc}
+html[data-theme=light] .signal-pending-inner{fill:#0057e604;stroke:#0057e623}
+html[data-theme=light] .signal-pending-direction{fill:none;stroke:#0056cc}
+html[data-theme=light] .signal-stage .detail p.visual-note{color:#4b6281}
+html[data-theme=light] .signal-stage .detail-updated{color:#4a6082}
+html[data-theme=light] .signal-card{background:linear-gradient(145deg,#0057e608,#f2f4f9 75%);border-color:#0057e625}
+html[data-theme=light] .signal-card:hover{border-color:#0057e66f;background:linear-gradient(145deg,#0057e60f,#f1f3f8 80%);box-shadow:0 12px 45px #edf3fc22}
+html[data-theme=light] .signal-card .signal-direction{border:1px solid #0057e625}
+html[data-theme=light] .state-closed{color:#325146}
+html[data-theme=light] .state-closed i{background:#418b73}
+html[data-theme=light] .state-error{color:#944038}
+html[data-theme=light] .state-error i{background:#92423a}
+html[data-theme=light] .state-cancelled{color:#444d5c}
+html[data-theme=light] .signal-card p.signal-title{color:#10161e}
+html[data-theme=light] .signal-card p.signal-summary{color:#476285}
+html[data-theme=light] .signal-card .signal-levels span:nth-child(2) b{color:#8f453d}
+html[data-theme=light] .signal-card .signal-levels span:nth-child(3) b{color:#27493e}
+html[data-theme=light] .signal-card .announced-note{color:#446188}
+html[data-theme=light] .announced-note{color:#1f2b3a;border-top:1px solid #121a2816}
+html[data-theme=light] .paid-detail{border-top:1px solid #0057e629;background:linear-gradient(180deg,#d2dbeb33,transparent 320px)}
+html[data-theme=light] .paid-detail-heading .detail-updated{color:#415269}
+html[data-theme=light] .paid-conditions>p,html[data-theme=light] .paid-history p{color:#41608b}
+html[data-theme=light] .paid-conditions .signal-levels{border:1px solid #0057e629;background:#0057e606}

@@ -1,0 +1,21 @@
+{
+  "name": "ORBITA — торговые идеи",
+  "short_name": "ORBITA",
+  "description": "Торговые идеи с уровнями входа, стопа и цели, Radar и рынки MOEX.",
+  "lang": "ru",
+  "start_url": "/strategies.html?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f141f",
+  "theme_color": "#0f141f",
+  "icons": [
+    {"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "/icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+    {"src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "shortcuts": [
+    {"name": "Стратегии", "url": "/strategies.html", "icons": [{"src": "/icons/icon-192.png", "sizes": "192x192"}]},
+    {"name": "Рынки", "url": "/markets.html", "icons": [{"src": "/icons/icon-192.png", "sizes": "192x192"}]}
+  ]
+}

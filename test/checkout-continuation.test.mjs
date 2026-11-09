@@ -36,7 +36,7 @@ async function page({ storage = new Map(), search = '?plan=pro', checkout, order
     OrbitaAccess: A, URL, URLSearchParams, AbortController, crypto: { randomUUID },
     sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
     location: { search, assign: url => navigation.push(url), replace: url => navigation.push(url) },
-    document: { hidden: false, getElementById: node, querySelectorAll: selector => selector === '[data-plan]' ? cards : buttons, addEventListener: (name, listener) => { listeners[name] = listener; } },
+    document: { hidden: false, getElementById: node, querySelectorAll: selector => selector === '.subscription-cards article[data-plan]' ? cards : selector === '[data-select]' ? buttons : [], addEventListener: (name, listener) => { listeners[name] = listener; } },
     window: { addEventListener() {} }, setTimeout: () => 1, clearTimeout() {}
   });
   await vm.runInContext(source, context); await flush();

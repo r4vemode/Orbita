@@ -1,0 +1,7 @@
+/* GENERATED from trade-scheme.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .trade-scheme{border:1px solid #0057e62c;background:linear-gradient(135deg,#0057e60a,#f3f5f9)}
+html[data-theme=light] .scheme-heading{color:#2f5d9d}
+html[data-theme=light] .scheme-route{fill:none}
+html[data-theme=light] .scheme-foot{color:#215dab}
+html[data-theme=light] .trade-scheme p,html[data-theme=light] .scheme-empty{color:#476185}
+html[data-theme=light] .scheme-empty{border:1px dashed #0057e635}

@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><script src="/assets/theme-init.js"></script><meta name="viewport" content="width=device-width,initial-scale=1"><title>ORBITA — Источники рыночных данных</title><link rel="stylesheet" href="assets/shell.css"><link rel="stylesheet" href="/assets/light/shell.css"><link rel="stylesheet" href="assets/markets.css"><link rel="stylesheet" href="/assets/light/markets.css"><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#0f141f"><link rel="icon" href="/icons/favicon-32.png" sizes="32x32"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="stylesheet" href="/assets/theme-light.css"><link rel="stylesheet" href="/assets/theme-light-fixes.css"></head>
+<body>
+<script src="assets/shell.js"></script><script src="assets/pwa.js"></script>
+<main class="o-page markets">
+  <div class="o-head"><div><h1>Источники данных</h1><p class="o-sub">Состояние загрузки MOEX ISS для раздела «Рынки». Ручной запуск защищён от повторов и ограничен по частоте.</p></div><a class="o-btn o-btn-secondary" href="/admin.html">← Редакция</a></div>
+  <p id="adminMarketsConfig" class="o-small"></p>
+  <div id="adminMarketsError" class="o-error" role="alert" hidden></div>
+  <div class="markets-table-wrap"><table class="markets-table"><thead><tr><th>Источник</th><th>Состояние</th><th>Последний успех</th><th>Время данных у биржи</th><th class="num">Записей</th><th>Последняя ошибка</th><th></th></tr></thead><tbody id="adminMarketsRows"></tbody></table></div>
+  <p><button id="adminMarketsAll" class="o-btn o-btn-primary" type="button">Обновить всё</button> <span id="adminMarketsStatus" class="o-small" role="status" aria-live="polite"></span></p>
+  <h2 style="margin-top:28px">Журнал запусков</h2>
+  <div class="markets-table-wrap"><table class="markets-table"><thead><tr><th>Источник</th><th>Начало</th><th>Итог</th><th class="num">Записей</th><th>Запуск</th><th>Ошибка</th></tr></thead><tbody id="adminMarketsRuns"></tbody></table></div>
+</main>
+<script src="assets/markets-admin.js"></script>
+</body></html>

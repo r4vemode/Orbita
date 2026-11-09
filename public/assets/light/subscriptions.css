@@ -1,0 +1,28 @@
+/* GENERATED from subscriptions.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .subscription-main>p{color:#2a3a4e}
+html[data-theme=light] .subscription-status{border:1px solid #005de638;color:#225daa}
+html[data-theme=light] .subscription-cards article{border:1px solid #005de638;background:#0057e607}
+html[data-theme=light] .subscription-cards article.exclusive{border-color:#9d874970;background:linear-gradient(145deg,#9d874912,#f1f4f8)}
+html[data-theme=light] .subscription-cards article>span{color:#315c9b}
+html[data-theme=light] .subscription-cards p{color:#40618c}
+html[data-theme=light] .subscription-cards small{color:#42618a}
+html[data-theme=light] .subscription-cards button,html[data-theme=light] .checkout-button{border:1px solid #0057e65e;background:#165ab6;color:#f3f4f7;text-decoration:none!important}
+html[data-theme=light] .subscription-cards article.selected{box-shadow:0 0 0 2px #005de65e}
+html[data-theme=light] .plan-state{color:#2a5da2}
+html[data-theme=light] .subscription-details,html[data-theme=light] .subscription-notice{border:1px solid #0057e638}
+html[data-theme=light] .subscription-details p,html[data-theme=light] .subscription-notice p{color:#243142}
+html[data-theme=light] .subscription-details a,html[data-theme=light] .subscription-link{color:#105abc}
+html[data-theme=light] .subscription-notice{background:#9a814b09;border-color:#9a814b4b}
+html[data-theme=light] .subscription-notice h2{color:#78612b}
+html[data-theme=light] .checkout-price{color:#3c6090}
+html[data-theme=light] .checkout-price strong{color:#0e1219}
+html[data-theme=light] .payment-order{background:#0057e606}
+html[data-theme=light] .payment-actions button{border:1px solid #0057e64b;background:transparent;color:#205cac}
+html[data-theme=light] .subscription-main p.subscription-note{color:#425f8a}
+html[data-theme=light] #subscriptionError,html[data-theme=light] #checkoutMessage{color:#ab2f21}
+html[data-theme=light] #subscriptionLogout{background:none;border:1px solid #0057e638;color:#305d9c}
+html[data-theme=light] button:focus-visible,html[data-theme=light] a:focus-visible{outline:2px solid #0156cb}
+html[data-theme=light] .recurring-choice input{accent-color:#1659b6}
+html[data-theme=light] .billing-row{border-bottom:1px solid #121a281c}
+html[data-theme=light] #billingHistory button{border:1px solid #0057e64b;background:transparent;color:#205cac}
+html[data-theme=light] #billingHistory button:hover{background:#0057e614}

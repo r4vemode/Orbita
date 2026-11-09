@@ -1,0 +1,30 @@
+/* Hand-tuned light theme: design tokens and fixes the generator cannot infer. */
+html[data-theme=light]{--o-bg:#f5f7fb;--o-surface:#ffffff;--o-line:#0f172a1f;--o-ink:#0f1726;--o-muted:#465165;--o-faint:#5b6678;
+ --o-pro:#1f5fd1;--o-exclusive:#86651a;--o-long:#13764a;--o-short:#bd2f29;--o-warn:#935700;--o-focus:#1f5fd1;color-scheme:light}
+html[data-theme=light] body{background:var(--o-bg)!important;color:var(--o-ink)}
+/* App Shell */
+html[data-theme=light] .orbita-shell{background:#ffffff;border-color:var(--o-line)}
+html[data-theme=light] .orbita-shell .shell-link{color:var(--o-muted)}
+html[data-theme=light] .orbita-shell .shell-link:hover{color:var(--o-ink);background:#0f172a0a}
+html[data-theme=light] .orbita-shell .shell-link[aria-current=page]{background:#1f5fd114!important;color:var(--o-ink)!important}
+html[data-theme=light] .shell-brand{color:var(--o-ink)}
+@media(max-width:1023px){html[data-theme=light] .shell-nav{background:#fffffff7}}
+.theme-toggle{white-space:nowrap;align-self:flex-start;background:none;border:1px solid var(--o-line);color:var(--o-muted);border-radius:7px;padding:6px 10px;font:12.5px Manrope,Arial,sans-serif;cursor:pointer}
+.theme-toggle:hover{color:var(--o-ink)}.theme-toggle:focus-visible{outline:2px solid var(--o-focus);outline-offset:2px}
+.theme-toggle.floating{position:fixed;right:14px;bottom:14px;z-index:60;background:var(--o-surface)}
+header .theme-toggle{align-self:center;margin-left:8px}
+/* Buttons: primary is ink on light, readable in both states */
+html[data-theme=light] .o-btn-primary{background:#0f1726;color:#fff}html[data-theme=light] .o-btn-primary:hover{background:#26324a}
+html[data-theme=light] .o-btn-secondary{color:var(--o-ink);border-color:#0f172a33}
+html[data-theme=light] .o-skeleton{background:linear-gradient(90deg,#0f172a08,#0f172a10,#0f172a08)}
+/* Illustration on white */
+html[data-theme=light] .fx-line{stroke:#0f1726}html[data-theme=light] .fx-area-top{stop-color:#1f5fd1;stop-opacity:.12}html[data-theme=light] .fx-area-bottom{stop-color:#1f5fd1;stop-opacity:0}
+html[data-theme=light] .fx-glow{fill:#1f5fd1;fill-opacity:.15}html[data-theme=light] .fx-now{fill:#0f1726}html[data-theme=light] .fx-drop{stroke:#0f172a1f}
+html[data-theme=light] .fx-l.target{fill:#13764a}html[data-theme=light] .fx-l.entry{fill:#1f5fd1}html[data-theme=light] .fx-l.stop{fill:#bd2f29}
+html[data-theme=light] .fx-orbit-ring{stroke:#1f5fd1;stroke-opacity:.18}html[data-theme=light] .fx-orbit-dot{fill:#1f5fd1}
+/* Dark decorative backdrops on legacy pages */
+html[data-theme=light] .ambient,html[data-theme=light] .grain{opacity:.35}
+/* Theme switch & logout keep their own look regardless of page button styles */
+html[data-theme=light] .theme-toggle,html[data-theme=light] .orbita-shell .shell-logout,html[data-theme=light] .orbita-shell .shell-tools button{background:transparent!important;color:var(--o-muted)!important;border:1px solid var(--o-line)!important}
+html[data-theme=light] .theme-toggle:hover,html[data-theme=light] .orbita-shell .shell-logout:hover{color:var(--o-ink)!important}
+html[data-theme=light] .c-tgt{color:var(--o-long)}html[data-theme=light] .c-stop{color:var(--o-short)}html[data-theme=light] .telegram-warning{color:var(--o-warn)}

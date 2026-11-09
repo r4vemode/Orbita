@@ -1,0 +1,51 @@
+/* GENERATED from ideas-feed.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] body{background:var(--o-bg);color:var(--o-ink)}
+html[data-theme=light] .feed-filters label{color:var(--o-faint)}
+html[data-theme=light] .feed-filters input,html[data-theme=light] .feed-filters select{background:var(--o-surface);color:var(--o-ink)}
+html[data-theme=light] .idea{background:var(--o-surface)}
+html[data-theme=light] .idea[data-tier=exclusive]{border-top:2px solid #ab883a70}
+html[data-theme=light] .idea[data-tier=pro]{border-top:2px solid #005be646}
+html[data-theme=light] .idea-meta{color:var(--o-muted)}
+html[data-theme=light] .state-active{color:var(--o-ink)}
+html[data-theme=light] .state-closed,html[data-theme=light] .state-cancelled{color:var(--o-faint)}
+html[data-theme=light] .levels div{background:#121a2808}
+html[data-theme=light] .levels dt{color:var(--o-faint)}
+html[data-theme=light] .idea-foot{border-top:1px solid #121a2810}
+html[data-theme=light] .up{color:var(--o-long)}
+html[data-theme=light] .down{color:var(--o-short)}
+html[data-theme=light] .feed-about{color:var(--o-muted)}
+html[data-theme=light] .feed-about summary{color:var(--o-ink)}
+html[data-theme=light] .feed-catalog a{color:var(--o-ink)}
+html[data-theme=light] .feed-welcome{border:1px solid #3da8775e;background:#3da87714}
+html[data-theme=light] .feed-welcome a{color:var(--o-ink)}
+html[data-theme=light] .feed-howto{background:#121a2805}
+html[data-theme=light] .feed-howto a{color:var(--o-pro)}
+html[data-theme=light] .howto-steps li{color:var(--o-muted)}
+html[data-theme=light] .howto-steps li::before{background:#121a2819;color:var(--o-ink)}
+html[data-theme=light] .howto-steps b{color:var(--o-ink)}
+html[data-theme=light] .feed-quick button{background:none;color:var(--o-muted)}
+html[data-theme=light] .feed-quick button b{color:var(--o-faint)}
+html[data-theme=light] .feed-quick button[aria-pressed=true]{color:var(--o-ink);border-color:#121a286a;background:#121a2810}
+html[data-theme=light].has-shell main .iday-head,html[data-theme=light] .iday-head{color:var(--o-muted)}
+html[data-theme=light] .iday-head-cols{color:var(--o-faint)}
+html[data-theme=light] .irow{border-bottom:1px solid #121a280e}
+html[data-theme=light] .irow[data-tier=exclusive] .c-name b{color:#7d611c}
+html[data-theme=light] .irow-main{background:none;color:var(--o-ink)}
+html[data-theme=light] .irow-main:hover,html[data-theme=light] .irow.open .irow-main{background:#121a280a}
+html[data-theme=light] .c-time{color:var(--o-faint)}
+html[data-theme=light] .c-stop{color:#ae261e}
+html[data-theme=light] .c-tgt{color:#24754f}
+html[data-theme=light] .c-state{color:var(--o-muted)}
+html[data-theme=light] .st-active{color:var(--o-ink)}
+html[data-theme=light] .st-closed,html[data-theme=light] .st-cancelled{color:var(--o-faint)}
+html[data-theme=light] .c-more{color:var(--o-faint)}
+html[data-theme=light] .ix-text p{color:var(--o-muted)}
+html[data-theme=light] .ix-text b{color:var(--o-ink)}
+html[data-theme=light] .ix-facts dt{color:var(--o-faint)}
+@media(max-width:767px){html[data-theme=light] .c-lv i,html[data-theme=light] .c-rr i{color:var(--o-faint)}}
+html[data-theme=light] .feed-filters-box>summary{color:var(--o-muted)}
+html[data-theme=light] .sizer{background:#121a2806}
+html[data-theme=light] .sizer-in label{color:var(--o-faint)}
+html[data-theme=light] .sizer-in input{background:var(--o-bg);color:var(--o-ink)}
+html[data-theme=light] .sizer-out{color:var(--o-ink)!important}
+html[data-theme=light] .sizer-warn{color:var(--o-warn)}

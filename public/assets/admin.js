@@ -64,7 +64,8 @@
     try { await work(); } catch (error) { message(error.message,true); }
     finally { mutating = false;controls.forEach(control=>control.disabled=false);for(const button of $('ideaList').querySelectorAll('button'))button.disabled=false; }
   }
-  function readFullData() { return Object.fromEntries(fields.map(key => { const value = form.elements[key].value.trim(); return [key,numericFields.includes(key) ? value === '' ? null : Number(value) : value]; })); }
+  const parseTargets=value=>String(value||'').split(/[;\s]+/).map(item=>item.trim().replace(',','.')).filter(Boolean).map(Number);
+  function readFullData() { const data=Object.fromEntries(fields.map(key => { const value = form.elements[key].value.trim(); return [key,numericFields.includes(key) ? value === '' ? null : Number(value) : value]; }));const extra=parseTargets($('fullTargets')?.value);if(extra.length)data.targets=extra;return data; }
   function validateLevels(data) {
     if (![data.entry,data.stop,data.target].every(value => Number.isFinite(value) && value > 0)) throw new Error('Вход, стоп и цель должны быть положительными числами.');
     if (data.dir === 'ЛОНГ' && !(data.stop < data.entry && data.entry < data.target)) throw new Error('Для лонга: стоп < вход < цель.');
@@ -73,8 +74,9 @@
   function compatibleStrategies(market,select,preferred=select.value) {
     const names = (window.ORBITA_STRATEGIES || []).map(strategy => strategy.name);
     if (!names.length) names.push(...Object.keys(strategyMarkets));
-    const compatible=names.filter(name=>strategyMarkets[name]===market);
-    select.innerHTML=compatible.map(name=>`<option>${escape(name)}</option>`).join('');
+    // EXCLUSIVE is available for every market; the strategy sets the access tier.
+    const compatible=names.filter(name=>name==='Orbita Exclusive'||strategyMarkets[name]===market),pro=compatible.filter(name=>name!=='Orbita Exclusive');
+    select.innerHTML=`<optgroup label="PRO / Дейтрейдинг">${pro.map(name=>`<option value="${escape(name)}">${escape(name)} · PRO</option>`).join('')}</optgroup>${compatible.includes('Orbita Exclusive')?'<optgroup label="EXCLUSIVE"><option value="Orbita Exclusive">Orbita Exclusive · EXCLUSIVE</option></optgroup>':''}`;
     select.value=compatible.includes(preferred)?preferred:defaultStrategies[market];
   }
   function strategyOptions() {
@@ -88,11 +90,13 @@
   }
   function preview() {
     const data = readFullData();
-    $('fullPreview').innerHTML = data.ticker ? ideaCard({d:data,published:false}) + (window.TradeScheme ? TradeScheme.markup(data) : '') : '';
+    $('fullPreview').innerHTML = data.ticker ? ideaCard({d:data,published:false}) + (window.OrbitaIdeaChart ? OrbitaIdeaChart.svg({id:draftId||'preview-'+data.ticker,d:data}) : window.TradeScheme ? TradeScheme.markup(data) : '') + `<p class="form-note">Доступ: ${data.strategy==='Orbita Exclusive'?'EXCLUSIVE (только подписчики EXCLUSIVE)':'PRO (подписчики PRO и EXCLUSIVE)'}</p>` : '';
   }
   function renderList() {
     $('count').textContent = String(db.records.length);
-    $('ideaList').innerHTML = db.records.length ? db.records.map(record => `<button type="button" class="list-item${record.id === current ? ' active' : ''}" data-id="${escape(record.id)}" aria-pressed="${record.id === current}"><strong>${escape(record.d?.ticker || 'Черновик')}<span>${record.d?.dir === 'ШОРТ' ? '↘' : '↗'}</span></strong><small>${escape(record.erroneous ? 'Ошибочная публикация' : record.published ? record.d?.status || record.d?.state : 'Черновик')}</small><small>${escape(record.d?.strategy || '')}${record.createdVia === 'TELEGRAM' ? ' · Telegram' : ''}</small></button>`).join('') : '<p class="empty-list">Пока нет идей. Опубликуйте первый сигнал.</p>';
+    const tierOf=record=>record.tier||(record.d?.strategy==='Orbita Exclusive'?'exclusive':'pro'),tierFilter=$('listTier')?.value||'',stateFilter=$('listState')?.value||'';
+    const visible=db.records.filter(record=>(!tierFilter||tierOf(record)===tierFilter)&&(!stateFilter||(stateFilter==='draft'?!record.published:stateFilter==='archived'?record.archived:stateFilter==='open'?record.published&&!record.archived&&['announced','waiting','active'].includes(record.d?.state):record.published&&!record.archived&&['closed','cancelled'].includes(record.d?.state))));
+    $('ideaList').innerHTML = visible.length ? visible.map(record => `<button type="button" class="list-item${record.id === current ? ' active' : ''}" data-id="${escape(record.id)}" aria-pressed="${record.id === current}"><strong>${escape(record.d?.ticker || 'Черновик')}<span>${record.d?.dir === 'ШОРТ' ? '↘' : '↗'}</span></strong><small>${escape(record.erroneous ? 'Ошибочная публикация' : record.published ? record.d?.status || record.d?.state : 'Черновик')}</small><small>${tierOf(record)==='exclusive'?'EXCLUSIVE':'PRO'} · ${escape(record.d?.strategy || '')}${record.createdVia === 'TELEGRAM' ? ' · Telegram' : ''}${record.archived?' · архив':''}${record.showcase?' · пример на лендинге':''}</small></button>`).join('') : `<p class="empty-list">${db.records.length?'Нет идей по фильтру.':'Пока нет идей. Опубликуйте первый сигнал.'}</p>`;
     $('ideaList').querySelectorAll('[data-id]').forEach(button => {button.disabled=mutating;button.addEventListener('click', () => {if(!mutating)select(button.dataset.id);});});
   }
   function eventFields() {
@@ -101,6 +105,8 @@
     $('levelHorizon').parentElement.hidden = action === 'terms-change';
     $('descriptionFields').hidden = action !== 'description';
     for (const id of ['levelEntry','levelStop','levelTarget','levelEntryRule','levelCancelRule']) $(id).required = ['levels','terms-change'].includes(action);
+    $('strategyChangeField').hidden = action !== 'strategy-change';
+    if(action==='strategy-change'){const record=db.records.find(item=>item.id===current);if(record){compatibleStrategies(record.d.market,$('strategyChangeSelect'),record.d.strategy);}}
     $('exitField').hidden = !['manual','stop-change','target-change'].includes(action);
     $('exitPrice').required = ['manual','stop-change','target-change'].includes(action);
     $('exitLabel').textContent = action === 'stop-change' ? 'Новый стоп' : action === 'target-change' ? 'Новая цель' : 'Цена закрытия';
@@ -129,6 +135,9 @@
     if (record?.published) {
       const state = record.d.state, active = !record.erroneous;
       const actions = [['note','Комментарий автора'],...(active ? [['description','Изменить описание и разбор']] : []),...(active && state === 'waiting' ? [['terms-change','Уточнить вход и условия до входа']] : []),...(active && state === 'announced' ? [['levels','Добавить уровни входа, стопа и цели']] : []),...(active && ['waiting','active'].includes(state) ? [['stop-change','Изменить стоп'],['target-change','Изменить цель']] : []),...(active && state === 'waiting' ? [['activate','Подтвердить вход']] : []),...(active && ['announced','waiting'].includes(state) ? [['cancel','Отменить до входа']] : []),...(active && state === 'active' ? [['target','Закрыть по цели'],['stop','Закрыть по стопу'],['manual','Закрыть вручную']] : []),...(active ? [['error','Пометить ошибочную публикацию']] : [])];
+      if(active)actions.push(['strategy-change','Перенести в другую стратегию (PRO ↔ EXCLUSIVE)']);
+      actions.push(record.archived?['unarchive','Вернуть из архива']:['archive','Перенести в архив (скрыть у клиентов)']);
+      if(record.showcase)actions.push(['unshowcase','Снять публичный пример с лендинга']);else if(active&&!record.archived&&record.tier!=='exclusive'&&record.d.strategy!=='Orbita Exclusive'&&['announced','waiting','active'].includes(state))actions.push(['showcase','Показать на лендинге как пример PRO']);
       $('eventAction').innerHTML = actions.map(([value,label]) => `<option value="${value}">${label}</option>`).join('');
       $('eventForm').reset();
       $('eventAction').required=true;
@@ -202,8 +211,10 @@
   $('saveDraft').addEventListener('click', () => mutation(() => saveFull('draft')));
   $('clearFullForm').addEventListener('click', () => { if (!dirty || confirm('Очистить несохранённую форму?')) clearFull(); });
   $('newIdea').addEventListener('click', () => { $('quickTicker').focus(); $('quickForm').scrollIntoView({behavior:'smooth',block:'center'}); });
+  for(const id of ['listTier','listState'])$(id)?.addEventListener('change',renderList);
   $('eventAction').addEventListener('change',()=>{
     const record=db.records.find(item=>item.id===current),action=$('eventAction').value;
+    if(record&&action==='terms-change')$('levelTargets').value=(record.d.targets||[]).join('; ');
     if(record&&action==='terms-change')for(const [id,field]of [['levelEntry','entry'],['levelStop','stop'],['levelTarget','target'],['levelEntryRule','entryRule'],['levelCancelRule','cancelRule']])$(id).value=record.d[field]??'';
     if(record&&action==='description')for(const [id,field]of [['descriptionName','name'],['descriptionTitle','title'],['descriptionSummary','summary'],['descriptionThesis','thesis'],['descriptionHorizon','horizon'],['descriptionChart','chartUrl']])$(id).value=record.d[field]??'';
     eventFields();
@@ -217,14 +228,16 @@
       if (!record?.published) throw new Error('Выберите опубликованную идею.');
       const action = $('eventAction').value, note = $('eventNote').value.trim();
       if(!action)throw new Error('Выберите действие, доступное для текущего статуса идеи. Черновик полей сохранён.');
-      if (!note) throw new Error('Добавьте пояснение к изменению.');
-      const payload = {revision:db.revision,action,note};
+      if (!note && !['archive','unarchive','showcase','unshowcase'].includes(action)) throw new Error('Добавьте пояснение к изменению.');
+      if(action==='strategy-change'){const next=$('strategyChangeSelect').value;if(!next||next===record.d.strategy)throw new Error('Выберите другую стратегию.');if(!confirm(`Перенести ${record.d.ticker} в «${next}»? Доступ клиентов изменится сразу.`))return;}
+      const payload = {revision:db.revision,action,...(note?{note}:{})};
+      if(action==='strategy-change')payload.d={strategy:$('strategyChangeSelect').value};
       if (['manual','stop-change','target-change'].includes(action)) {
         payload.price = Number($('exitPrice').value);
         if (!Number.isFinite(payload.price) || payload.price <= 0) throw new Error('Укажите положительную цену.');
       }
       if (['levels','terms-change'].includes(action)) {
-        payload.d = {entry:Number($('levelEntry').value),stop:Number($('levelStop').value),target:Number($('levelTarget').value),...(action==='levels'?{horizon:$('levelHorizon').value.trim()}:{}),entryRule:$('levelEntryRule').value.trim(),cancelRule:$('levelCancelRule').value.trim()};
+        payload.d = {entry:Number($('levelEntry').value),stop:Number($('levelStop').value),target:Number($('levelTarget').value),...(parseTargets($('levelTargets').value).length||record.d.targets?.length?{targets:parseTargets($('levelTargets').value)}:{}),...(action==='levels'?{horizon:$('levelHorizon').value.trim()}:{}),entryRule:$('levelEntryRule').value.trim(),cancelRule:$('levelCancelRule').value.trim()};
         validateLevels({...payload.d,dir:record.d.dir});
         if (!payload.d.entryRule || !payload.d.cancelRule) throw new Error('Укажите условия входа, отмены и выхода.');
         if (!payload.d.horizon) delete payload.d.horizon;

@@ -29,12 +29,16 @@
     if (plan) A.rememberPlan(user.id, plan);
     const chosenPlan = plan || A.preferredPlan(user.id);
     if (user.security?.adminEnrollmentRequired) { location.assign('/security.html?enroll=1'); return; }
-    if (!user.emailVerified) { location.assign('/security.html?verify=1' + (chosenPlan ? '&plan=' + chosenPlan : '')); return; }
+    // A new client lands in Strategies right after registration; email
+    // confirmation is requested there and again before payment.
+    if (register && !parameters.get('next')) { location.assign('/strategies.html?welcome=1' + (chosenPlan ? '&plan=' + chosenPlan : '')); return; }
+    if (!user.emailVerified && user.access?.isAdmin) { location.assign('/security.html?verify=1'); return; }
     const next = parameters.get('next');
-    if (next && (user.access?.hasSubscription || /^\/(?:dashboard|security|subscriptions|support|notifications)\.html(?:\?|$)/.test(next))) { location.assign(A.safeNext(next, '/dashboard.html')); return; }
-    if (user.access?.isAdmin) location.assign('/admin.html');
-    else if (user.access?.hasSubscription) location.assign('/dashboard.html');
-    else location.assign(chosenPlan ? '/subscriptions.html?plan=' + chosenPlan : '/dashboard.html');
+    // Restore the protected page the user originally opened; the server still
+    // re-checks the plan and sends an unpaid visitor to the plan page.
+    if (next) { const target = new URL(A.safeNext(next, '/strategies.html'), location.origin); if (target.pathname === '/subscriptions.html' && chosenPlan) target.searchParams.set('plan', chosenPlan); location.assign(target.pathname + target.search); return; }
+    if (!user.access?.hasSubscription && chosenPlan) { location.assign('/subscriptions.html?plan=' + chosenPlan); return; }
+    location.assign(user.access?.isAdmin ? '/admin.html' : '/strategies.html');
   }
   async function loadConfiguration() {
     configurationError = null;

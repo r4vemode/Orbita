@@ -1,0 +1,19 @@
+/* GENERATED from radar-admin.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light] .radar-provider-panel{background:#0057e603}
+html[data-theme=light] .radar-provider-panel>summary{color:#17202b}
+html[data-theme=light] .radar-provider-panel>summary span{color:var(--muted)}
+html[data-theme=light] .radar-provider-status{border:1px solid #0e5fd835;color:#3c6290}
+html[data-theme=light] .radar-provider-status.online{color:#2b4f38;border-color:#121a2850}
+html[data-theme=light] .radar-provider-status.error{color:#ab2f21;border-color:#bd382946}
+html[data-theme=light] .radar-provider dt{color:var(--muted)}
+html[data-theme=light] .radar-provider dd{color:#1c2533}
+html[data-theme=light] .radar-provider .provider-error{color:#ab2f21}
+html[data-theme=light] .radar-item-score{color:#78632c}
+html[data-theme=light] .radar-item-type{color:#2f5d9d}
+html[data-theme=light] .radar-admin-item.is-demo{border-left:2px solid #a68a405e}
+html[data-theme=light] .radar-existing-actions a{color:#0f59bd}
+html[data-theme=light] .radar-checkbox input{accent-color:#1458b8}
+html[data-theme=light] .radar-raw{border:1px solid #0e5fd81a;color:#436089;background:#f4f6fa}
+html[data-theme=light] .radar-trace{color:#3d5f8f}
+html[data-theme=light] .radar-list-skeleton{background:linear-gradient(90deg,#0e5fd806,#0e5fd814,#0e5fd806)}
+html[data-theme=light] .radar-loading{color:var(--muted)}

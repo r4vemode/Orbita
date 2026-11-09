@@ -1,0 +1,35 @@
+/* GENERATED from content-admin.css by scripts/build-light-theme.mjs — manual fixes go to theme-light-fixes.css */
+html[data-theme=light]{--ink:#0c1117;--muted:#34455d;--line:#0e5fd82a;--accent:#1458b8}
+html[data-theme=light] body{background:radial-gradient(ellipse at 85% 0,#263a5962,transparent 45%),#f2f5f9;color:var(--ink)}
+html[data-theme=light] a{color:inherit;text-decoration:none}
+html[data-theme=light] button{color:var(--ink);background:transparent;border:1px solid #0e5fd846}
+html[data-theme=light] button:hover{background:#0e5fd80e}
+html[data-theme=light] .primary{color:#f3f4f7;background:var(--accent);border-color:transparent}
+html[data-theme=light] .primary:hover{background:#121a26}
+html[data-theme=light] .danger{color:#ab2f21;border-color:#b43d325e}
+html[data-theme=light] button:focus-visible,html[data-theme=light] a:focus-visible,html[data-theme=light] summary:focus-visible,html[data-theme=light] input:focus-visible,html[data-theme=light] textarea:focus-visible,html[data-theme=light] select:focus-visible{outline:2px solid #0052cc}
+html[data-theme=light] .brand span{color:var(--muted)}
+html[data-theme=light] .content-header nav{color:#2b5ca1}
+html[data-theme=light] .eyebrow{color:#376195}
+html[data-theme=light] h1 em{color:#1a5cb2}
+html[data-theme=light] p{color:var(--muted)}
+html[data-theme=light] .message{color:#25443a}
+html[data-theme=light] .message.error{color:#ab2f21}
+html[data-theme=light] .sidebar-heading span{color:var(--muted)}
+html[data-theme=light] .sidebar-heading button{color:#225eaa}
+html[data-theme=light] .content-item{border-color:transparent}
+html[data-theme=light] .content-item.active{border-color:#0e5fd85e;background:#0e5fd80f}
+html[data-theme=light] .content-item small{color:var(--muted)}
+html[data-theme=light] .content-editor{background:#0057e603}
+html[data-theme=light] .unsaved{color:#78632c}
+html[data-theme=light] label{color:#243143}
+html[data-theme=light] input,html[data-theme=light] textarea,html[data-theme=light] select{border:1px solid #0e5fd833;background:#f3f6f9;color:var(--ink)}
+html[data-theme=light] input::placeholder,html[data-theme=light] textarea::placeholder{color:#50627c}
+html[data-theme=light] .section-top span{color:#356197}
+html[data-theme=light] .content-preview summary{color:#225eaa}
+html[data-theme=light] .preview-kicker{color:#285fa4}
+html[data-theme=light] .conflict{background:#a188450b;border:1px solid #a188455e}
+html[data-theme=light] .conflict h2{color:#7b6328}
+html[data-theme=light] .auth-state a{color:#0f59bd}
+html[data-theme=light] dialog{border:1px solid #0e5fd85e;background:#eef2f7;color:var(--ink)}
+html[data-theme=light] dialog::backdrop{background:#f6f8fbbb}

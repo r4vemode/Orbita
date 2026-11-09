@@ -66,3 +66,29 @@ test('unconfigured transport and unenrolled administrator cannot disclose paid i
  const f=await fixture({}, {requireAdminMfa:true});try{const u=await f.register('unenrolled@example.test');await f.accounts.promote(u.data.user.email);await f.preferences(u,{newSignals:true});await f.bind(u);await f.ideas.create(admin,full());await f.service.tick();assert.equal(f.sent.length,0);}finally{await f.close();}
  const absent=await fixture({config:{botToken:'',botUsername:'',webhookSecret:'',publicOrigin:''}});try{const u=await absent.register('unconfigured@example.test');assert.equal((await absent.preferences(u,{newSignals:true})).data.configured,false);assert.equal((await absent.request('/api/notifications/telegram/link',{method:'POST',cookie:u.cookie,body:{}})).status,503);assert.equal((await absent.service.tick()).sent,0);}finally{await absent.close();}
 });
+
+test('morning digest: weekdays after 09:30 MSK, once per day, open ideas + crowd extremes + overnight news',async()=>{
+ // Monday 2026-11-09 09:31 MSK.
+ const base=Date.parse('2026-11-09T06:31:00Z'),markets={canAccess:()=>true,alerts:async()=>[{name:'Доллар США / рубль',asset:'Si',direction:'long',z:2.13}]};
+ let clock=base-3600000;const f=await fixture({now:()=>clock,markets});try{
+  const {writeFile}=await import('node:fs/promises');
+  await writeFile(join(f.directory,'news.json'),JSON.stringify({items:[{id:'n1',title:'Сбербанк отчитался выше ожиданий',source:'test',publishedAt:new Date(base-3*3600000).toISOString(),url:'https://example.test/n1',topics:['stocks'],tickers:['SBER'],urgent:true},{id:'n2',title:'Старая новость',source:'test',publishedAt:new Date(base-3*86400000).toISOString(),url:'https://example.test/n2',topics:['macro']}]}));
+  const u=await f.register('digest@example.test');await f.grant(u);await f.ideas.create(admin,full('GAZP'));
+  await f.preferences(u,{morningDigest:true});await f.bind(u);
+  await f.service.tick();assert.equal(f.sent.length,0,'nothing before 09:30');
+  clock=base;await f.service.tick();assert.equal(f.sent.length,1);const text=f.sent[0].text;
+  assert.match(text,/утро 09\.11/);assert.match(text,/GAZP LONG — ждёт входа/);assert.match(text,/Доллар США \/ рубль: лонг/);assert.match(text,/⚡ Сбербанк отчитался/);assert.doesNotMatch(text,/Старая новость/);
+  clock=base+3600000;await f.service.tick();assert.equal(f.sent.length,1,'one digest per day');
+ }finally{await f.close();}
+});
+
+test('push-only users (no Telegram) receive the same idea events through the browser push channel',async()=>{
+ const pushed=[],push={configured:true,earliest:async()=>new Date(Date.now()-1000).toISOString(),send:async(userId,message)=>{pushed.push({userId,...message});return {sent:1,devices:1};}};
+ const f=await fixture({push,config:{}});try{
+  const u=await f.register('push@example.test');await f.grant(u);const idea=(await f.ideas.create(admin,full())).record;
+  await f.accounts.transact(db=>{db.users.find(x=>x.id===u.data.user.id).watchlist=[idea.id];});
+  await f.preferences(u,{ideaUpdates:true});await f.service.tick();assert.equal(pushed.length,0,'no replay of old events');
+  await f.ideas.update(admin,idea.id,{action:'activate',note:'Вход'});await f.service.tick();
+  assert.equal(pushed.length,1);assert.match(pushed[0].title,/SBER LONG: вход выполнен по 310/);assert.equal(pushed[0].url,'/app.html?idea='+idea.id);assert.equal(f.sent.length,0,'Telegram is not configured');
+ }finally{await f.close();}
+});

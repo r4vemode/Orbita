@@ -23,7 +23,7 @@ function harness({search='',configuration=Promise.resolve({legalVersion:'CURRENT
 test('login submit is guarded before delayed public configuration and never needs native form navigation',async()=>{
   const pending=deferred(),page=harness({configuration:pending.promise});
   assert.equal(typeof page.nodes.accountForm.onsubmit,'function');assert.equal(page.nodes.submit.disabled,false);
-  await page.submit();assert.equal(page.prevented,true);assert.equal(page.calls.filter(call=>call.path==='/api/login').length,1);assert.match(page.navigations[0],/^\/security\.html/);assert.ok(!page.navigations[0].includes('password'));
+  await page.submit();assert.equal(page.prevented,true);assert.equal(page.calls.filter(call=>call.path==='/api/login').length,1);assert.match(page.navigations[0],/^\/strategies\.html/);assert.ok(!page.navigations[0].includes('password'));
   pending.resolve({legalVersion:'CURRENT-LEGAL'});await page.completion;
 });
 
@@ -31,7 +31,7 @@ test('registration waits for current consent version and ignores repeated submit
   const pending=deferred(),page=harness({search:'?mode=register&plan=exclusive',configuration:pending.promise});
   const first=page.submit();await page.submit();await tick();assert.equal(page.prevented,true);assert.equal(page.calls.filter(call=>call.path==='/api/register').length,0);assert.equal(page.nodes.submit.disabled,true);
   pending.resolve({legalVersion:'CURRENT-LEGAL'});await first;await page.completion;
-  const submitted=page.calls.filter(call=>call.path==='/api/register');assert.equal(submitted.length,1);assert.equal(submitted[0].body.legalVersion,'CURRENT-LEGAL');assert.equal(submitted[0].body.plan,'exclusive');assert.equal(page.navigations[0],'/security.html?verify=1&plan=exclusive');
+  const submitted=page.calls.filter(call=>call.path==='/api/register');assert.equal(submitted.length,1);assert.equal(submitted[0].body.legalVersion,'CURRENT-LEGAL');assert.equal(submitted[0].body.plan,'exclusive');assert.equal(page.navigations[0],'/strategies.html?welcome=1&plan=exclusive');
 });
 
 test('failed or malformed configuration cannot register with a stale fallback consent version',async()=>{
@@ -45,18 +45,18 @@ test('registration retries failed configuration on the same page and uses the re
   const page=harness({search:'?mode=register&plan=exclusive',configuration:()=>++configurationCalls===1?initial.promise:Promise.resolve({legalVersion:'RECOVERED-LEGAL'})});
   const first=page.submit();initial.reject(Error('Temporary configuration failure'));await first;await page.completion;
   assert.equal(page.calls.filter(call=>call.path==='/api/register').length,0);assert.equal(page.navigations.length,0);assert.equal(page.nodes.submit.disabled,false);
-  await page.submit();const registered=page.calls.filter(call=>call.path==='/api/register');assert.equal(configurationCalls,2);assert.equal(registered.length,1);assert.equal(registered[0].body.legalVersion,'RECOVERED-LEGAL');assert.equal(registered[0].body.plan,'exclusive');assert.equal(page.navigations[0],'/security.html?verify=1&plan=exclusive');
+  await page.submit();const registered=page.calls.filter(call=>call.path==='/api/register');assert.equal(configurationCalls,2);assert.equal(registered.length,1);assert.equal(registered[0].body.legalVersion,'RECOVERED-LEGAL');assert.equal(registered[0].body.plan,'exclusive');assert.equal(page.navigations[0],'/strategies.html?welcome=1&plan=exclusive');
 });
 
 test('tariff survives a subscription paywall next URL, explicit selection wins, and external next cannot inject a tariff',async()=>{
   for(const [search,expected]of [
-    ['?next='+encodeURIComponent('/subscriptions.html?plan=exclusive'),'exclusive'],
-    ['?plan=pro&next='+encodeURIComponent('/subscriptions.html?plan=exclusive'),'pro'],
-    ['?next='+encodeURIComponent('https://orbita.example/subscriptions.html?plan=exclusive'),'exclusive'],
-    ['?next='+encodeURIComponent('https://outside.example/subscriptions.html?plan=exclusive'),null],
-    ['?next='+encodeURIComponent('/app.html?plan=exclusive'),null]
+    ['?next='+encodeURIComponent('/subscriptions.html?plan=exclusive'),'/subscriptions.html?plan=exclusive'],
+    ['?plan=pro&next='+encodeURIComponent('/subscriptions.html?plan=exclusive'),'/subscriptions.html?plan=pro'],
+    ['?next='+encodeURIComponent('https://orbita.example/subscriptions.html?plan=exclusive'),'/subscriptions.html?plan=exclusive'],
+    ['?next='+encodeURIComponent('https://outside.example/subscriptions.html?plan=exclusive'),'/strategies.html'],
+    ['?next='+encodeURIComponent('/app.html?plan=exclusive'),'/app.html?plan=exclusive']
   ]){
-    const page=harness({search});await page.completion;await page.submit();assert.equal(page.navigations[0],'/security.html?verify=1'+(expected?'&plan='+expected:''));
+    const page=harness({search});await page.completion;await page.submit();assert.equal(page.navigations[0],expected,search);
   }
 });
 
@@ -64,17 +64,17 @@ test('account HTML uses POST and starts disabled as a fail-safe before JavaScrip
   const html=await readFile(new URL('../public/account.html',import.meta.url),'utf8');assert.match(html,/<form\b[^>]*id="accountForm"[^>]*method="post"/i);assert.match(html,/<button\b[^>]*id="submit"[^>]*disabled/);
 });
 
-test('verified client login opens My Orbita while explicit tariff and protected deep links survive',async()=>{
+test('verified client login opens Strategies while explicit tariff and protected deep links survive',async()=>{
   const free={id:'fixture-user',emailVerified:true,access:{hasSubscription:false,isAdmin:false}};
   const paid={...free,access:{hasSubscription:true,isAdmin:false}};
   for(const [user,search,expected] of [
-    [free,'','/dashboard.html'],
-    [paid,'','/dashboard.html'],
+    [free,'','/strategies.html'],
+    [paid,'','/strategies.html'],
     [free,'?plan=exclusive','/subscriptions.html?plan=exclusive'],
     [free,'?next='+encodeURIComponent('/dashboard.html'),'/dashboard.html'],
     [free,'?next='+encodeURIComponent('/support.html?ticket=fixture-ticket'),'/support.html?ticket=fixture-ticket'],
     [paid,'?next='+encodeURIComponent('/app.html?idea=fixture-idea'),'/app.html?idea=fixture-idea'],
-    [paid,'?next='+encodeURIComponent('https://outside.example/dashboard.html'),'/dashboard.html']
+    [paid,'?next='+encodeURIComponent('https://outside.example/dashboard.html'),'/strategies.html']
   ]){
     const page=harness({user,search});await page.completion;await page.submit();assert.equal(page.navigations[0],expected);
   }
@@ -84,7 +84,7 @@ test('dashboard landing preserves administrator MFA enrollment and verification 
   for(const [user,expected] of [
     [{id:'fixture-admin',emailVerified:true,access:{isAdmin:true,hasSubscription:true}},'/admin.html'],
     [{id:'fixture-admin',emailVerified:true,access:{isAdmin:false,hasSubscription:false},security:{adminEnrollmentRequired:true}},'/security.html?enroll=1'],
-    [{id:'fixture-user',emailVerified:false,access:{isAdmin:false,hasSubscription:true}},'/security.html?verify=1']
+    [{id:'fixture-user',emailVerified:false,access:{isAdmin:false,hasSubscription:true}},'/strategies.html']
   ]){
     const page=harness({user});await page.completion;await page.submit();assert.equal(page.navigations[0],expected);
   }
