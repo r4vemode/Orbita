@@ -1,3 +1,7 @@
+Актуальные результаты: [обновлённые тесты и Telegram](docs/testing-update-2026-11-09.md).
+
+Telegram-бот с Mac: [локальная настройка через HTTPS-туннель](TELEGRAM-ADMIN-LOCAL.md). Проверки бота без токена: `npm run test:telegram`.
+
 Актуальная подготовка загруженной версии: [аудит запуска](docs/launch-audit-2026-11-09.md), [хостинг и сервер](HOSTING.md).
 
 # ORBITA / Орбита

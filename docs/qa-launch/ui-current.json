@@ -1,0 +1,1457 @@
+{
+  "startedAt": "2026-11-09T08:52:58.057Z",
+  "engine": "chromium",
+  "locale": "ru-RU",
+  "timezone": "Europe/Moscow",
+  "mode": "headless",
+  "synthetic": true,
+  "checks": [
+    {
+      "suite": "Аккаунт",
+      "title": "Регистрация: медленная загрузка условий не отправляет пароль в URL и ждёт актуальную версию согласия",
+      "status": "passed",
+      "durationMs": 1145
+    },
+    {
+      "suite": "Аккаунт",
+      "title": "Вход: задержка настроек не включает нативный GET с паролем и не блокирует обработку ошибки",
+      "status": "passed",
+      "durationMs": 671
+    },
+    {
+      "suite": "Аккаунт",
+      "title": "Ошибка загрузки условий: регистрация остановлена, введённый email сохранён, повтор доступен без утечки",
+      "status": "passed",
+      "durationMs": 768
+    },
+    {
+      "suite": "Аккаунт",
+      "title": "Выбор Exclusive проходит через гостевой переход к подписке и вход без потери тарифа",
+      "status": "passed",
+      "durationMs": 1041
+    },
+    {
+      "suite": "Аккаунт",
+      "title": "Регистрация после временной ошибки условий повторяет загрузку на той же странице и сохраняет Exclusive",
+      "status": "passed",
+      "durationMs": 1141
+    },
+    {
+      "suite": "Аккаунт",
+      "title": "Без JavaScript форма использует POST и не раскрывает email или пароль в адресе страницы",
+      "status": "passed",
+      "durationMs": 564
+    },
+    {
+      "suite": "Аккаунт",
+      "title": "Обучение: Escape возвращает фокус к карточке после отметки прочтения, а при пустом фильтре — к поиску",
+      "status": "passed",
+      "durationMs": 1420
+    },
+    {
+      "suite": "Аккаунт",
+      "title": "MFA редакции: подключение, сохранение резервных кодов, вход со вторым фактором и запрет повторного кода",
+      "status": "passed",
+      "durationMs": 4807
+    },
+    {
+      "suite": "Редакция",
+      "title": "Редакция: вход через форму и быстрый сигнал из тикера/направления",
+      "status": "passed",
+      "durationMs": 1495
+    },
+    {
+      "suite": "Редакция",
+      "title": "Редакция: уровни сохраняются при переключении, обновлении и конфликте версий",
+      "status": "passed",
+      "durationMs": 1011
+    },
+    {
+      "suite": "Редакция",
+      "title": "Редакция: подтверждение входа, перенос стопа, закрытие и неизменяемая история",
+      "status": "passed",
+      "durationMs": 713
+    },
+    {
+      "suite": "Редакция",
+      "title": "Редакция: совместимые стратегии и действия на ширинах 320 и 390",
+      "status": "passed",
+      "durationMs": 238
+    },
+    {
+      "suite": "Редакция",
+      "title": "Редакция материалов: черновик, безопасный предпросмотр и публикация Exclusive",
+      "status": "passed",
+      "durationMs": 549
+    },
+    {
+      "suite": "Редакция",
+      "title": "Редакция материалов: конфликт не стирает текст; снятие скрывает статью у клиента",
+      "status": "passed",
+      "durationMs": 658
+    },
+    {
+      "suite": "Редакция",
+      "title": "Настройки: общая публикация, конфликт версий и пустые партнёрские ссылки",
+      "status": "passed",
+      "durationMs": 610
+    },
+    {
+      "suite": "Редакция — параллельные действия",
+      "title": "Редакция: медленная публикация блокирует смену контекста и сохраняет соседний черновик",
+      "status": "passed",
+      "durationMs": 920
+    },
+    {
+      "suite": "Безопасность — смена аккаунта",
+      "title": "Безопасность: поздний ключ настройки MFA не раскрывается после смены аккаунта",
+      "status": "passed",
+      "durationMs": 928
+    },
+    {
+      "suite": "Редакция — приватность",
+      "title": "Редакция: смена аккаунта очищает клиентов и частный черновик; сбой проверки сохраняет поля скрытыми",
+      "status": "passed",
+      "durationMs": 1400
+    },
+    {
+      "suite": "Кабинеты клиентов",
+      "title": "Вход четырёх ролей и честный статус неподключённой почты",
+      "status": "passed",
+      "durationMs": 3070
+    },
+    {
+      "suite": "Кабинеты клиентов",
+      "title": "Матрица доступа: PRO не видит Exclusive, Exclusive включает PRO",
+      "status": "passed",
+      "durationMs": 580
+    },
+    {
+      "suite": "Кабинеты клиентов",
+      "title": "Публичная стратегия скрывает идеи и сохраняет выбор Exclusive",
+      "status": "passed",
+      "durationMs": 490
+    },
+    {
+      "suite": "Кабинеты клиентов",
+      "title": "Бесплатный аккаунт не открывает платные страницы и данные напрямую",
+      "status": "passed",
+      "durationMs": 110
+    },
+    {
+      "suite": "Кабинеты клиентов",
+      "title": "Калькулятор сохраняет стратегию и соблюдает уровни PRO / EXCLUSIVE",
+      "status": "passed",
+      "durationMs": 1329
+    },
+    {
+      "suite": "Кабинеты клиентов",
+      "title": "Отслеживание и личный вход сохраняются только в своём аккаунте",
+      "status": "passed",
+      "durationMs": 947
+    },
+    {
+      "suite": "Кабинеты клиентов",
+      "title": "Авторский и личный результаты различаются; исходные условия сохранены",
+      "status": "passed",
+      "durationMs": 803
+    },
+    {
+      "suite": "Кабинеты клиентов",
+      "title": "Удаление личной отметки: отмена, сбой, повтор и сохранность истории",
+      "status": "passed",
+      "durationMs": 683
+    },
+    {
+      "suite": "Кабинеты клиентов",
+      "title": "Обучение: тарифы, поиск, прогресс и закрытые ссылки на статьи",
+      "status": "passed",
+      "durationMs": 1392
+    },
+    {
+      "suite": "Кабинеты клиентов",
+      "title": "Тренажёр: лонг, плечо, стоп шорта и повтор сделки",
+      "status": "passed",
+      "durationMs": 336
+    },
+    {
+      "suite": "Кабинеты клиентов",
+      "title": "Кабинет, история, обучение и калькулятор на ширинах 320 и 390",
+      "status": "passed",
+      "durationMs": 1684
+    },
+    {
+      "suite": "Кабинеты клиентов",
+      "title": "Выход, возврат назад и смена аккаунта не раскрывают прежние данные",
+      "status": "passed",
+      "durationMs": 1283
+    },
+    {
+      "suite": "Кабинеты клиентов",
+      "title": "Отзыв подписки закрывает действующую сессию при обновлении",
+      "status": "passed",
+      "durationMs": 142
+    },
+    {
+      "suite": "Кабинеты клиентов",
+      "title": "Клиентские сценарии проходят без ошибок JavaScript",
+      "status": "passed",
+      "durationMs": 0
+    },
+    {
+      "suite": "Открытые кабинеты — смена доступа",
+      "title": "Открытый кабинет меняет аккаунт без чужой личной сделки и отслеживания",
+      "status": "passed",
+      "durationMs": 895
+    },
+    {
+      "suite": "Открытые кабинеты — смена доступа",
+      "title": "Открытая статья закрывается после выхода в другой вкладке",
+      "status": "passed",
+      "durationMs": 708
+    },
+    {
+      "suite": "Открытые кабинеты — смена доступа",
+      "title": "Калькулятор убирает открытую историю после отзыва подписки без ручного пересчёта",
+      "status": "passed",
+      "durationMs": 681
+    },
+    {
+      "suite": "Открытые кабинеты — смена доступа",
+      "title": "Новости сохраняют учебную карточку при опросе и синхронизации настроек другой вкладки",
+      "status": "passed",
+      "durationMs": 1349
+    },
+    {
+      "suite": "Документы и реквизиты",
+      "title": "Документы: доступ редакции и частный черновик без раскрытия посетителям",
+      "status": "passed",
+      "durationMs": 768
+    },
+    {
+      "suite": "Документы и реквизиты",
+      "title": "Документы: обязательные поля, контроль ИНН и повторное подтверждение пароля",
+      "status": "passed",
+      "durationMs": 602
+    },
+    {
+      "suite": "Документы и реквизиты",
+      "title": "Документы: новая редакция сохраняет прежний текст и правильные ссылки архива",
+      "status": "passed",
+      "durationMs": 310
+    },
+    {
+      "suite": "Документы и реквизиты",
+      "title": "Документы: конфликт сохраняет набранное, поля защиты очищаются, мобильная форма помещается",
+      "status": "passed",
+      "durationMs": 469
+    },
+    {
+      "suite": "Документы и реквизиты",
+      "title": "Документы: публикация требует новый второй фактор и отклоняет использованный резервный код",
+      "status": "passed",
+      "durationMs": 1007
+    },
+    {
+      "suite": "Radar",
+      "title": "Radar: лендинг показывает отмеченную демонстрацию, преимущества и переход",
+      "status": "passed",
+      "durationMs": 504
+    },
+    {
+      "suite": "Radar",
+      "title": "Radar: бесплатный закрыт, PRO и EXCLUSIVE получают доступ, API ленты не раскрывает исходный текст",
+      "status": "passed",
+      "durationMs": 637
+    },
+    {
+      "suite": "Radar",
+      "title": "Radar: поиск, категории, компания, влияние и минимальная значимость фильтруют ленту",
+      "status": "passed",
+      "durationMs": 606
+    },
+    {
+      "suite": "Radar",
+      "title": "Radar: детализация, временные метки, источники, реакция рынка и отслеживание компании",
+      "status": "passed",
+      "durationMs": 945
+    },
+    {
+      "suite": "Radar",
+      "title": "Radar: realtime добавляет событие без перезагрузки, уведомления требуют правила и разрешения",
+      "status": "passed",
+      "durationMs": 5418
+    },
+    {
+      "suite": "Radar",
+      "title": "Radar: внешний текст отображается безопасно, скрытое событие исчезает из открытой ленты",
+      "status": "passed",
+      "durationMs": 9703
+    },
+    {
+      "suite": "Radar",
+      "title": "Radar: административная форма создаёт черновик и публикует событие",
+      "status": "passed",
+      "durationMs": 5430
+    },
+    {
+      "suite": "Radar",
+      "title": "Radar: карточки, настройки и подробное событие помещаются на мобильных экранах",
+      "status": "passed",
+      "durationMs": 2796
+    },
+    {
+      "suite": "Radar",
+      "title": "Radar: отзыв подписки закрывает realtime и убирает данные из уже открытого кабинета",
+      "status": "passed",
+      "durationMs": 1430
+    },
+    {
+      "suite": "Редакция Radar",
+      "title": "Radar редакция: гостевые и клиентские обращения не открывают страницу, скрипт и API администратора",
+      "status": "passed",
+      "durationMs": 597
+    },
+    {
+      "suite": "Редакция Radar",
+      "title": "Radar редакция: отключённые источники показываются честно, повтор запроса сохраняет сообщение об отказе",
+      "status": "passed",
+      "durationMs": 97
+    },
+    {
+      "suite": "Редакция Radar",
+      "title": "Radar редакция: ручной черновик, публикация и безопасный исходный текст не создают торговый сигнал",
+      "status": "passed",
+      "durationMs": 246
+    },
+    {
+      "suite": "Редакция Radar",
+      "title": "Radar редакция: конфликт версии сохраняет набранное, исправление анализа сохраняет первоначальную оценку",
+      "status": "passed",
+      "durationMs": 347
+    },
+    {
+      "suite": "Редакция Radar",
+      "title": "Radar редакция: скрытие и отметка дубля закрывают клиентскую карточку, сохраняя запись и историю",
+      "status": "passed",
+      "durationMs": 243
+    },
+    {
+      "suite": "Редакция Radar",
+      "title": "Radar редакция: объединение дополняет источники и сохраняет обе исходные записи с историей",
+      "status": "passed",
+      "durationMs": 475
+    },
+    {
+      "suite": "Редакция Radar",
+      "title": "Radar → сигнал: тикер и источник сохранены, публикация требует отдельного подтверждения",
+      "status": "passed",
+      "durationMs": 668
+    },
+    {
+      "suite": "Уведомления идей",
+      "title": "Уведомления идей: единое оформление на стратегиях, идее, калькуляторе и странице стратегии",
+      "status": "passed",
+      "durationMs": 3527
+    },
+    {
+      "suite": "Уведомления идей",
+      "title": "Уведомления идей: checkbox рядом с текстом и окно помещается на 320, 390, 768 и 1440 px",
+      "status": "passed",
+      "durationMs": 1211
+    },
+    {
+      "suite": "Уведомления идей",
+      "title": "Уведомления идей: предпочтения сохраняются и новые сообщения отмечаются прочитанными",
+      "status": "passed",
+      "durationMs": 1758
+    },
+    {
+      "suite": "Уведомления идей",
+      "title": "Уведомления идей: Escape и закрытие возвращают фокус к кнопке, ошибок JavaScript нет",
+      "status": "passed",
+      "durationMs": 268
+    },
+    {
+      "suite": "Рынки и позиции участников",
+      "title": "Рынки: API и страница закрыты гостю и бесплатному аккаунту, доступны PRO и EXCLUSIVE",
+      "status": "passed",
+      "durationMs": 264
+    },
+    {
+      "suite": "Рынки и позиции участников",
+      "title": "Рынки: отключённый источник не выдаёт вымышленные цены",
+      "status": "passed",
+      "durationMs": 518
+    },
+    {
+      "suite": "Рынки и позиции участников",
+      "title": "Рынки: поиск, фильтр и карточка показывают доли контрактов и дату источника",
+      "status": "passed",
+      "durationMs": 335
+    },
+    {
+      "suite": "Рынки и позиции участников",
+      "title": "Рынки: ошибка источника видна, текст безопасен, интерфейс помещается в обеих темах",
+      "status": "passed",
+      "durationMs": 217
+    },
+    {
+      "suite": "Рынки и позиции участников",
+      "title": "Рынки: отзыв доступа блокирует открытую страницу и прямой API",
+      "status": "passed",
+      "durationMs": 48
+    },
+    {
+      "suite": "Поддержка",
+      "title": "Поддержка: гостям закрыты обращения, бесплатному аккаунту доступна своя форма, редакция отделена",
+      "status": "passed",
+      "durationMs": 189
+    },
+    {
+      "suite": "Поддержка",
+      "title": "Поддержка: клиент создаёт обращение, повтор того же запроса не дублирует его, чужой аккаунт не читает",
+      "status": "passed",
+      "durationMs": 587
+    },
+    {
+      "suite": "Поддержка",
+      "title": "Поддержка: редакция отвечает и меняет статус, клиент видит ответ и может возобновить закрытое обращение",
+      "status": "passed",
+      "durationMs": 1973
+    },
+    {
+      "suite": "Поддержка",
+      "title": "Поддержка: потерянный ответ повторяется без дубликата, конфликт версии сохраняет набранный текст",
+      "status": "passed",
+      "durationMs": 1392
+    },
+    {
+      "suite": "Поддержка",
+      "title": "Поддержка: неполный ответ сервера не стирает сообщение и повторяет прежний запрос",
+      "status": "passed",
+      "durationMs": 1066
+    },
+    {
+      "suite": "Поддержка",
+      "title": "Поддержка: пользовательская разметка выводится текстом, опасные адреса страницы не сохраняются",
+      "status": "passed",
+      "durationMs": 716
+    },
+    {
+      "suite": "Поддержка",
+      "title": "Поддержка: смена пользователя очищает переписку, отзыв подписки сохраняет доступ к собственным обращениям",
+      "status": "passed",
+      "durationMs": 1101
+    },
+    {
+      "suite": "Поддержка",
+      "title": "Поддержка: форма и переписка клиента и редакции помещаются на узких экранах",
+      "status": "passed",
+      "durationMs": 1726
+    },
+    {
+      "suite": "Моя Орбита",
+      "title": "Моя Орбита: гость закрыт, бесплатный аккаунт видит свои подписки и помощь без платных данных",
+      "status": "passed",
+      "durationMs": 632
+    },
+    {
+      "suite": "Моя Орбита",
+      "title": "Моя Орбита: личные позиции разделены по аккаунтам и независимым тарифам",
+      "status": "passed",
+      "durationMs": 813
+    },
+    {
+      "suite": "Моя Орбита",
+      "title": "Моя Орбита: обновления относятся к своим идеям, Radar учитывает тариф, ответы поддержки приватны",
+      "status": "passed",
+      "durationMs": 211
+    },
+    {
+      "suite": "Моя Орбита",
+      "title": "Моя Орбита: напоминания Pro и Exclusive независимы и ведут к своему продлению без автоматической оплаты",
+      "status": "passed",
+      "durationMs": 397
+    },
+    {
+      "suite": "Моя Орбита",
+      "title": "Моя Орбита: Exclusive сохраняет доступ PRO после его истечения, отзыв обоих оставляет помощь",
+      "status": "passed",
+      "durationMs": 119
+    },
+    {
+      "suite": "Моя Орбита",
+      "title": "Моя Орбита: смена аккаунта очищает прежние карточки до получения новой сводки",
+      "status": "passed",
+      "durationMs": 201
+    },
+    {
+      "suite": "Моя Орбита",
+      "title": "Моя Орбита: отказ источника не превращается в ноль, внешний текст не исполняется",
+      "status": "passed",
+      "durationMs": 490
+    },
+    {
+      "suite": "Моя Орбита",
+      "title": "Моя Орбита: карточки и напоминания помещаются на мобильных экранах",
+      "status": "passed",
+      "durationMs": 765
+    },
+    {
+      "suite": "Telegram редакции",
+      "title": "Telegram редакции: гости и клиенты закрыты, выключенный бот не притворяется подключённым",
+      "status": "passed",
+      "durationMs": 564
+    },
+    {
+      "suite": "Telegram редакции",
+      "title": "Telegram редакции: одноразовая команда показана только в текущей вкладке и скрывается при уходе",
+      "status": "passed",
+      "durationMs": 243
+    },
+    {
+      "suite": "Telegram редакции",
+      "title": "Telegram редакции: публикация без предпросмотра требует явного подтверждения и сохраняет выбранную стратегию",
+      "status": "passed",
+      "durationMs": 428
+    },
+    {
+      "suite": "Telegram редакции",
+      "title": "Telegram редакции: неверные ссылки и просроченные коды отклоняются, прежнюю привязку можно отключить при выключенном боте",
+      "status": "passed",
+      "durationMs": 661
+    },
+    {
+      "suite": "Telegram редакции",
+      "title": "Telegram редакции: сигнал из общего сервиса открывается по прямой ссылке и сопровождается через веб с неизменной исходной историей",
+      "status": "passed",
+      "durationMs": 1087
+    },
+    {
+      "suite": "Telegram редакции",
+      "title": "Telegram редакции: поздний ответ с кодом не раскрывается после смены аккаунта",
+      "status": "passed",
+      "durationMs": 348
+    },
+    {
+      "suite": "Аналитика и OHLC",
+      "title": "OHLC-проверка и движок доступны только редактору",
+      "status": "passed",
+      "durationMs": 431
+    },
+    {
+      "suite": "Аналитика и OHLC",
+      "title": "Учебный OHLC-пример, независимый Node-результат и выгрузка отчёта совпадают",
+      "status": "passed",
+      "durationMs": 136
+    },
+    {
+      "suite": "Аналитика и OHLC",
+      "title": "Некорректная и непокрытая история не сохраняет старые показатели",
+      "status": "passed",
+      "durationMs": 67
+    },
+    {
+      "suite": "Аналитика и OHLC",
+      "title": "Импортированный текст безопасен; редакция истории помещается на мобильном экране",
+      "status": "passed",
+      "durationMs": 249
+    },
+    {
+      "suite": "Аналитика и OHLC",
+      "title": "Калькулятор разделяет учебные идеи, показывает издержки и статистику",
+      "status": "passed",
+      "durationMs": 806
+    },
+    {
+      "suite": "Оплаты и партнёры",
+      "title": "Платежи и партнёры: новые страницы и API защищены от гостя и клиента",
+      "status": "passed",
+      "durationMs": 150
+    },
+    {
+      "suite": "Оплаты и партнёры",
+      "title": "Партнёр: администратор создаёт ссылку и условия через интерфейс",
+      "status": "passed",
+      "durationMs": 523
+    },
+    {
+      "suite": "Оплаты и партнёры",
+      "title": "Партнёрская ссылка: регистрация привязывается один раз, платный доступ не выдаётся",
+      "status": "passed",
+      "durationMs": 410
+    },
+    {
+      "suite": "Оплаты и партнёры",
+      "title": "Подписки: согласие на продление выключено по умолчанию, тестовый заказ явно обозначен",
+      "status": "passed",
+      "durationMs": 435
+    },
+    {
+      "suite": "Оплаты и партнёры",
+      "title": "Симулятор: подтверждённая оплата даёт только купленный тариф и первую комиссию",
+      "status": "passed",
+      "durationMs": 369
+    },
+    {
+      "suite": "Оплаты и партнёры",
+      "title": "Повторная оплата и отключение: комиссия меняется, оплаченный срок сохраняется",
+      "status": "passed",
+      "durationMs": 293
+    },
+    {
+      "suite": "Оплаты и партнёры",
+      "title": "Партнёрский кабинет: только своя статистика без email привлечённых клиентов",
+      "status": "passed",
+      "durationMs": 570
+    },
+    {
+      "suite": "Оплаты и партнёры",
+      "title": "Партнёрские выплаты: резерв и отмена работают в интерфейсе без перевода денег",
+      "status": "passed",
+      "durationMs": 321
+    },
+    {
+      "suite": "Оплаты и партнёры",
+      "title": "Новые кабинеты: адаптивность 320/390/768/1440 и отсутствие ошибок JavaScript",
+      "status": "passed",
+      "durationMs": 1739
+    },
+    {
+      "suite": "Оплаты и партнёры",
+      "title": "Возврат в редакции: явное подтверждение, очистка пароля и тот же запрос после обрыва связи",
+      "status": "passed",
+      "durationMs": 442
+    },
+    {
+      "suite": "Оплаты и партнёры",
+      "title": "Партнёрский кабинет: поздний ответ не раскрывает статистику после смены аккаунта",
+      "status": "passed",
+      "durationMs": 226
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: index.html, 320px",
+      "status": "passed",
+      "durationMs": 44
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: index.html, 390px",
+      "status": "passed",
+      "durationMs": 32
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: index.html, 768px",
+      "status": "passed",
+      "durationMs": 50
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: index.html, 1440px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: account.html?mode=register, 320px",
+      "status": "passed",
+      "durationMs": 42
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: account.html?mode=register, 390px",
+      "status": "passed",
+      "durationMs": 41
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: account.html?mode=register, 768px",
+      "status": "passed",
+      "durationMs": 42
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: account.html?mode=register, 1440px",
+      "status": "passed",
+      "durationMs": 42
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: dashboard.html, 320px",
+      "status": "passed",
+      "durationMs": 43
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: dashboard.html, 390px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: dashboard.html, 768px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: dashboard.html, 1440px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: subscriptions.html, 320px",
+      "status": "passed",
+      "durationMs": 43
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: subscriptions.html, 390px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: subscriptions.html, 768px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: subscriptions.html, 1440px",
+      "status": "passed",
+      "durationMs": 43
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: security.html, 320px",
+      "status": "passed",
+      "durationMs": 28
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: security.html, 390px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: security.html, 768px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: security.html, 1440px",
+      "status": "passed",
+      "durationMs": 32
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: notifications.html, 320px",
+      "status": "passed",
+      "durationMs": 41
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: notifications.html, 390px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: notifications.html, 768px",
+      "status": "passed",
+      "durationMs": 36
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: notifications.html, 1440px",
+      "status": "passed",
+      "durationMs": 31
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: strategies.html, 320px",
+      "status": "passed",
+      "durationMs": 38
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: strategies.html, 390px",
+      "status": "passed",
+      "durationMs": 37
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: strategies.html, 768px",
+      "status": "passed",
+      "durationMs": 31
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: strategies.html, 1440px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: strategy.html?strategy=orbita-exclusive, 320px",
+      "status": "passed",
+      "durationMs": 39
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: strategy.html?strategy=orbita-exclusive, 390px",
+      "status": "passed",
+      "durationMs": 35
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: strategy.html?strategy=orbita-exclusive, 768px",
+      "status": "passed",
+      "durationMs": 36
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: strategy.html?strategy=orbita-exclusive, 1440px",
+      "status": "passed",
+      "durationMs": 45
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: calculator.html, 320px",
+      "status": "passed",
+      "durationMs": 44
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: calculator.html, 390px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: calculator.html, 768px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: calculator.html, 1440px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: learn.html, 320px",
+      "status": "passed",
+      "durationMs": 42
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: learn.html, 390px",
+      "status": "passed",
+      "durationMs": 35
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: learn.html, 768px",
+      "status": "passed",
+      "durationMs": 47
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: learn.html, 1440px",
+      "status": "passed",
+      "durationMs": 35
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: learn.html — статья, 320px",
+      "status": "passed",
+      "durationMs": 60
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: learn.html — статья, 390px",
+      "status": "passed",
+      "durationMs": 67
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: learn.html — статья, 768px",
+      "status": "passed",
+      "durationMs": 44
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: learn.html — статья, 1440px",
+      "status": "passed",
+      "durationMs": 73
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: app.html, 320px",
+      "status": "passed",
+      "durationMs": 42
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: app.html, 390px",
+      "status": "passed",
+      "durationMs": 32
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: app.html, 768px",
+      "status": "passed",
+      "durationMs": 96
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: app.html, 1440px",
+      "status": "passed",
+      "durationMs": 57
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: app.html — открытая идея, 320px",
+      "status": "passed",
+      "durationMs": 78
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: app.html — открытая идея, 390px",
+      "status": "passed",
+      "durationMs": 36
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: app.html — открытая идея, 768px",
+      "status": "passed",
+      "durationMs": 49
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: app.html — открытая идея, 1440px",
+      "status": "passed",
+      "durationMs": 76
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: participants.html, 320px",
+      "status": "passed",
+      "durationMs": 40
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: participants.html, 390px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: participants.html, 768px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: participants.html, 1440px",
+      "status": "passed",
+      "durationMs": 35
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: support.html, 320px",
+      "status": "passed",
+      "durationMs": 29
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: support.html, 390px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: support.html, 768px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: support.html, 1440px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: support-admin.html, 320px",
+      "status": "passed",
+      "durationMs": 29
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: support-admin.html, 390px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: support-admin.html, 768px",
+      "status": "passed",
+      "durationMs": 41
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: support-admin.html, 1440px",
+      "status": "passed",
+      "durationMs": 26
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: radar.html, 320px",
+      "status": "passed",
+      "durationMs": 46
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: radar.html, 390px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: radar.html, 768px",
+      "status": "passed",
+      "durationMs": 35
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: radar.html, 1440px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: radar-admin.html, 320px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: radar-admin.html, 390px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: radar-admin.html, 768px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: radar-admin.html, 1440px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: admin.html, 320px",
+      "status": "passed",
+      "durationMs": 44
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: admin.html, 390px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: admin.html, 768px",
+      "status": "passed",
+      "durationMs": 35
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: admin.html, 1440px",
+      "status": "passed",
+      "durationMs": 35
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: admin.html — полный сценарий, 320px",
+      "status": "passed",
+      "durationMs": 46
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: admin.html — полный сценарий, 390px",
+      "status": "passed",
+      "durationMs": 32
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: admin.html — полный сценарий, 768px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: admin.html — полный сценарий, 1440px",
+      "status": "passed",
+      "durationMs": 36
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: content-admin.html, 320px",
+      "status": "passed",
+      "durationMs": 12
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: content-admin.html, 390px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: content-admin.html, 768px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: content-admin.html, 1440px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: settings-admin.html, 320px",
+      "status": "passed",
+      "durationMs": 44
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: settings-admin.html, 390px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: settings-admin.html, 768px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: settings-admin.html, 1440px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: telegram-admin.html, 320px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: telegram-admin.html, 390px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: telegram-admin.html, 768px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: telegram-admin.html, 1440px",
+      "status": "passed",
+      "durationMs": 32
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: launch-admin.html, 320px",
+      "status": "passed",
+      "durationMs": 40
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: launch-admin.html, 390px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: launch-admin.html, 768px",
+      "status": "passed",
+      "durationMs": 32
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: launch-admin.html, 1440px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: legal-admin.html, 320px",
+      "status": "passed",
+      "durationMs": 41
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: legal-admin.html, 390px",
+      "status": "passed",
+      "durationMs": 36
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: legal-admin.html, 768px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: legal-admin.html, 1440px",
+      "status": "passed",
+      "durationMs": 35
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: guide.html, 320px",
+      "status": "passed",
+      "durationMs": 36
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: guide.html, 390px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: guide.html, 768px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: guide.html, 1440px",
+      "status": "passed",
+      "durationMs": 35
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: brokers.html, 320px",
+      "status": "passed",
+      "durationMs": 52
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: brokers.html, 390px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: brokers.html, 768px",
+      "status": "passed",
+      "durationMs": 35
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: brokers.html, 1440px",
+      "status": "passed",
+      "durationMs": 32
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: offer.html, 320px",
+      "status": "passed",
+      "durationMs": 42
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: offer.html, 390px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: offer.html, 768px",
+      "status": "passed",
+      "durationMs": 32
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: offer.html, 1440px",
+      "status": "passed",
+      "durationMs": 36
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: privacy.html, 320px",
+      "status": "passed",
+      "durationMs": 46
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: privacy.html, 390px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: privacy.html, 768px",
+      "status": "passed",
+      "durationMs": 34
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: privacy.html, 1440px",
+      "status": "passed",
+      "durationMs": 35
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: refunds.html, 320px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: refunds.html, 390px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: refunds.html, 768px",
+      "status": "passed",
+      "durationMs": 33
+    },
+    {
+      "suite": "Адаптивность",
+      "title": "Адаптивность: refunds.html, 1440px",
+      "status": "passed",
+      "durationMs": 33
+    }
+  ],
+  "suites": [
+    {
+      "name": "Аккаунт",
+      "status": "passed",
+      "checks": 8
+    },
+    {
+      "name": "Редакция",
+      "status": "passed",
+      "checks": 7
+    },
+    {
+      "name": "Редакция — параллельные действия",
+      "status": "passed",
+      "checks": 1
+    },
+    {
+      "name": "Безопасность — смена аккаунта",
+      "status": "passed",
+      "checks": 1
+    },
+    {
+      "name": "Редакция — приватность",
+      "status": "passed",
+      "checks": 1
+    },
+    {
+      "name": "Кабинеты клиентов",
+      "status": "passed",
+      "checks": 14
+    },
+    {
+      "name": "Открытые кабинеты — смена доступа",
+      "status": "passed",
+      "checks": 4
+    },
+    {
+      "name": "Документы и реквизиты",
+      "status": "passed",
+      "checks": 5
+    },
+    {
+      "name": "Radar",
+      "status": "passed",
+      "checks": 9
+    },
+    {
+      "name": "Редакция Radar",
+      "status": "passed",
+      "checks": 7
+    },
+    {
+      "name": "Уведомления идей",
+      "status": "passed",
+      "checks": 4
+    },
+    {
+      "name": "Рынки и позиции участников",
+      "status": "passed",
+      "checks": 5
+    },
+    {
+      "name": "Поддержка",
+      "status": "passed",
+      "checks": 8
+    },
+    {
+      "name": "Моя Орбита",
+      "status": "passed",
+      "checks": 8
+    },
+    {
+      "name": "Telegram редакции",
+      "status": "passed",
+      "checks": 6
+    },
+    {
+      "name": "Аналитика и OHLC",
+      "status": "passed",
+      "checks": 5
+    },
+    {
+      "name": "Оплаты и партнёры",
+      "status": "passed",
+      "checks": 11
+    },
+    {
+      "name": "Адаптивность",
+      "status": "passed",
+      "checks": 120
+    }
+  ],
+  "pending": [
+    "Реальные iPhone/Safari и Android/Chrome",
+    "Доставка почты и ссылки на публичном домене",
+    "CloudPayments и Telegram с реальными настройками",
+    "Бета с участниками и проверка будущего хостинга"
+  ],
+  "browserVersion": "154.0.8037.57",
+  "finishedAt": "2026-11-09T08:55:14.387Z",
+  "status": "passed",
+  "passed": 224,
+  "failed": 0
+}

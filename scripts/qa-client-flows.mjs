@@ -15,7 +15,7 @@ export async function runClientFlows({session,browser,record}){
   async function login(page,role){
     const account=fixtureAccounts[role];await page.goto(base+'/account.html?mode=login');
     await page.locator('[name=email]').fill(account.email);await page.locator('[name=password]').fill(account.password);await page.locator('#submit').click();
-    await page.waitForURL(url=>url.pathname==='/security.html');await page.waitForSelector('#securitySettings:not([hidden])');
+    await page.waitForURL(url=>url.pathname===(role==='admin'?'/security.html':'/strategies.html'));await page.goto(base+'/security.html');await page.waitForSelector('#securitySettings:not([hidden])');
     assert.match(await page.locator('#accountEmail').innerText(),new RegExp(account.email.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
     assert.match(await page.locator('#mailConfiguration').innerText(),/не настроен|не подключ|пока не/i);
   }
@@ -31,17 +31,17 @@ export async function runClientFlows({session,browser,record}){
       assert.deepEqual(users[0].access.activePlans,['pro']);assert.deepEqual(users[1].access.activePlans,['exclusive']);assert.equal(users[2].access.hasSubscription,false);
       assert.ok(users.every(user=>user.emailVerified===false));
     });
-    await check('Раздельный доступ Pro и Exclusive к идеям и API',async()=>{
+    await check('Матрица доступа: PRO не видит Exclusive, Exclusive включает PRO',async()=>{
       const full=(ticker,strategy)=>({mode:'full',d:{ticker,strategy,dir:'ЛОНГ',entry:100,stop:95,target:110,entryRule:'Учебная проверка: вход после подтверждения.',cancelRule:'Учебная проверка: выход по стопу.',title:'Учебный сценарий браузерной приёмки',summary:'Тестовые цены, без реального рынка.'}});
       regular=(await post(editor,'/api/admin/ideas',full('QACLIENT','Momentum RU'))).record;
       special=(await post(editor,'/api/admin/ideas',full('QAEXCLUSIVE','Orbita Exclusive'))).record;
       for(const [role,ctx,own,other]of [['pro',pro,regular,special],['exclusive',exclusive,special,regular]]){
         const page=pages[role],rows=(await(await ctx.request.get(base+'/api/ideas')).json()).records;
-        assert.ok(rows.some(row=>row.id===own.id));assert.ok(!rows.some(row=>row.id===other.id));
-        assert.ok(rows.every(row=>role==='exclusive'?row.d.strategy==='Orbita Exclusive':row.d.strategy!=='Orbita Exclusive'));
-        assert.equal((await get(ctx,'/api/ideas/'+other.id)).status,404);
+        assert.ok(rows.some(row=>row.id===own.id));assert.equal(rows.some(row=>row.id===other.id),role==='exclusive');
+        if(role==='pro')assert.ok(rows.every(row=>row.d.strategy!=='Orbita Exclusive'));else assert.ok(rows.some(row=>row.d.strategy==='Orbita Exclusive')&&rows.some(row=>row.d.strategy==='Momentum RU'));
+        assert.equal((await get(ctx,'/api/ideas/'+other.id)).status,role==='exclusive'?200:404);
         await page.goto(base+'/app.html');await page.waitForSelector('#cards [data-idea]');
-        assert.equal(await page.locator('#cards [data-idea]').count(),rows.length);assert.equal(await page.locator('#cards [data-idea="'+other.id+'"]').count(),0);
+        assert.equal(await page.locator('#cards [data-idea]').count(),rows.length);assert.equal(await page.locator('#cards [data-idea="'+other.id+'"]').count(),role==='exclusive'?1:0);
       }
     });
     await check('Публичная стратегия скрывает идеи и сохраняет выбор Exclusive',async()=>{
@@ -62,13 +62,13 @@ export async function runClientFlows({session,browser,record}){
       for(const path of ['/api/ideas','/api/lessons','/api/watchlist','/api/positions','/assets/app.js','/assets/learning-data.js'])assert.equal((await get(free,path)).status,403,path);
       await pages.free.goto(base+'/app.html?idea='+regular.id);await pages.free.waitForURL(url=>url.pathname==='/subscriptions.html');
     });
-    await check('Калькулятор сохраняет стратегию и закрывает чужой тариф',async()=>{
+    await check('Калькулятор сохраняет стратегию и соблюдает уровни PRO / EXCLUSIVE',async()=>{
       for(const [role,slug,name,other]of [['pro','momentum-ru','Momentum RU','Orbita Exclusive'],['exclusive','orbita-exclusive','Orbita Exclusive','Momentum RU']]){
         const page=pages[role];await page.goto(base+'/strategy.html?strategy='+slug);await page.waitForSelector('.detail-hero .primary-link');
         await page.locator('.detail-hero .primary-link').click();await page.waitForURL(url=>url.pathname==='/calculator.html');await page.waitForFunction(expected=>document.getElementById('strategy')?.value===expected,name);
-        assert.ok(!(await page.locator('#strategy option').allTextContents()).includes(other));
+        assert.equal((await page.locator('#strategy option').allTextContents()).includes(other),role==='exclusive');
         await page.locator('#capital').fill('500000');await page.locator('#calcForm [type=submit]').click();assert.equal(await page.locator('#formError').innerText(),'');assert.ok((await page.locator('#finalCapital').innerText()).includes('₽'));
-        await page.goto(base+'/calculator.html?strategy='+encodeURIComponent(other));await page.waitForFunction(()=>document.getElementById('resultMessage')?.textContent.includes('отдельной подписке'));
+        if(role==='exclusive'){await page.goto(base+'/calculator.html?strategy='+encodeURIComponent(other));await page.waitForFunction(expected=>document.getElementById('strategy')?.value===expected,other);continue;}await page.goto(base+'/calculator.html?strategy='+encodeURIComponent(other));await page.waitForFunction(()=>document.getElementById('resultMessage')?.textContent.includes('отдельной подписке'));
         assert.equal(await page.locator('#calcForm [type=submit]').isDisabled(),true);
       }
     });
@@ -123,10 +123,10 @@ export async function runClientFlows({session,browser,record}){
       }
     });
     await check('Выход, возврат назад и смена аккаунта не раскрывают прежние данные',async()=>{
-      const page=pages.pro;await page.goto(base+'/app.html?idea='+regular.id);await page.waitForSelector('.personal-form');await page.goto(base+'/subscriptions.html');await page.waitForSelector('#subscriptionLogout');await page.locator('#subscriptionLogout').click();await page.waitForURL(url=>url.pathname==='/account.html');
+      const page=pages.pro;await page.goto(base+'/app.html?idea='+regular.id);await page.waitForSelector('.personal-form');await page.goto(base+'/subscriptions.html');if(await page.locator('.shell-toggle').isVisible())await page.locator('.shell-toggle').click();await page.locator('.shell-logout').click();await page.waitForURL(url=>url.pathname==='/account.html');
       await page.goBack();await page.waitForURL(url=>url.pathname==='/account.html');assert.equal(await page.locator('.personal-form').count(),0);assert.equal((await get(pro,'/api/positions')).status,401);assert.equal((await get(pro,'/app.html')).status,303);
       await login(page,'exclusive');await page.goto(base+'/learn.html');await page.waitForSelector('.lesson-card');assert.match(await page.locator('#progress').innerText(),/^0 из/);
-      assert.deepEqual((await(await pro.request.get(base+'/api/positions')).json()).positions,[]);await page.goto(base+'/app.html');await page.waitForSelector('#cards [data-idea]');assert.equal(await page.locator('#cards [data-idea="'+regular.id+'"]').count(),0);
+      assert.deepEqual((await(await pro.request.get(base+'/api/positions')).json()).positions,[]);await page.goto(base+'/app.html');await page.waitForSelector('#cards [data-idea]');assert.equal(await page.locator('#cards [data-idea="'+regular.id+'"]').count(),1);assert.deepEqual((await(await pro.request.get(base+'/api/watchlist')).json()).ids,[]);
     });
     await check('Отзыв подписки закрывает действующую сессию при обновлении',async()=>{
       const page=pages.pro;await post(editor,'/api/admin/subscriptions',{userId:(await(await pro.request.get(base+'/api/me')).json()).user.id,plan:'exclusive',expiresAt:null,reason:'Учебная проверка отзыва в действующей сессии.'});

@@ -44,3 +44,8 @@ body{margin:0;background:var(--o-bg);color:var(--o-ink)}
 .crowd .v{font-size:13px}.crowd[data-level=extreme] .v{color:var(--o-warn);font-weight:600}.crowd[data-level=elevated] .v{color:var(--o-ink)}.crowd[data-level=normal] .v{color:var(--o-faint)}
 .markets-crowd{margin:14px 0 0;font-size:13.5px;color:var(--o-muted)}
 .lg{display:inline-block;width:14px;height:0;border-top:2px solid var(--o-ink);vertical-align:middle;margin-right:4px}.lg-net{border-top:2px dashed var(--o-pro)}
+/* Instrument names and source text can be long; keep detail cards usable on phones. */
+.markets-detail{min-width:0;overflow-wrap:anywhere}
+.markets-detail-head{flex-wrap:wrap}.markets-detail-head h2{min-width:0;flex:1 1 180px}
+.markets-group dl{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.markets-groups>* , .markets-charts>*{min-width:0}

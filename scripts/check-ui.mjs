@@ -13,7 +13,7 @@ import {runLegalFlows} from './qa-legal-flows.mjs';
 import {runRadarFlows} from './qa-radar-flows.mjs';
 import {runRadarAdminFlows} from './qa-radar-admin-flows.mjs';
 import {runIdeaAlertFlows} from './qa-idea-alerts-flows.mjs';
-import {runParticipantsFlows} from './qa-participants-flows.mjs';
+import {runMarketsFlows} from './qa-markets-flows.mjs';
 import {runAdminRaceFlows} from './qa-admin-race-flows.mjs';
 import {runSecurityRaceFlows} from './qa-security-race-flows.mjs';
 import {runMemberSessionFlows} from './qa-member-session-flows.mjs';
@@ -42,7 +42,7 @@ export async function runUiAcceptance(args=process.argv.slice(2)){
   let browser,failed=false;
   try{
     browser=await playwright[engine].launch({headless:!args.includes('--headed'),...(executablePath?{executablePath}:{})});report.browserVersion=browser.version();
-    for(const [name,run]of [['Аккаунт',runAuthFlows],['Редакция',runAdminFlows],['Редакция — параллельные действия',runAdminRaceFlows],['Безопасность — смена аккаунта',runSecurityRaceFlows],['Редакция — приватность',runAdminPrivacyFlows],['Кабинеты клиентов',runClientFlows],['Открытые кабинеты — смена доступа',runMemberSessionFlows],['Документы и реквизиты',runLegalFlows],['Radar',runRadarFlows],['Редакция Radar',runRadarAdminFlows],['Уведомления идей',runIdeaAlertFlows],['Позиции участников',runParticipantsFlows],['Поддержка',runSupportFlows],['Моя Орбита',runDashboardFlows],['Telegram редакции',runTelegramAdminFlows],['Аналитика и OHLC',runAnalyticsFlows],['Оплаты и партнёры',runBillingReferralFlows],['Адаптивность',runLayoutFlows]]){
+    for(const [name,run]of [['Аккаунт',runAuthFlows],['Редакция',runAdminFlows],['Редакция — параллельные действия',runAdminRaceFlows],['Безопасность — смена аккаунта',runSecurityRaceFlows],['Редакция — приватность',runAdminPrivacyFlows],['Кабинеты клиентов',runClientFlows],['Открытые кабинеты — смена доступа',runMemberSessionFlows],['Документы и реквизиты',runLegalFlows],['Radar',runRadarFlows],['Редакция Radar',runRadarAdminFlows],['Уведомления идей',runIdeaAlertFlows],['Рынки и позиции участников',runMarketsFlows],['Поддержка',runSupportFlows],['Моя Орбита',runDashboardFlows],['Telegram редакции',runTelegramAdminFlows],['Аналитика и OHLC',runAnalyticsFlows],['Оплаты и партнёры',runBillingReferralFlows],['Адаптивность',runLayoutFlows]]){
       controller.signal.throwIfAborted();let session;const suite={name,status:'running',checks:0};report.suites.push(suite);
       try{
         session=await startLocalBeta({signal:controller.signal,payments:run===runBillingReferralFlows});

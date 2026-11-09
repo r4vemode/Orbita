@@ -18,7 +18,8 @@
     "telegram:admin:webhook": "node scripts/setup-telegram-admin.mjs",
     "test": "node scripts/test.mjs",
     "backtest": "node scripts/backtest.mjs",
-    "local": "node scripts/beta-local.mjs --port=3000"
+    "local": "node scripts/beta-local.mjs --port=3000",
+    "test:telegram": "node scripts/test.mjs --scope=telegram"
   },
   "devDependencies": {
     "playwright": "1.62.1"

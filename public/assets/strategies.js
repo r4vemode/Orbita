@@ -12,7 +12,7 @@
   const detailHref = strategy => 'strategy.html?strategy=' + encodeURIComponent(strategy.slug);
   const subscriptionHref = strategy => 'subscriptions.html?plan=' + encodeURIComponent(planFor(strategy));
   let records = [], user = null, feedError = null;
-  const canView = strategy => !feedError && !!user && (user.access?.isAdmin || user.role === 'admin' || user.access?.activePlans?.includes(planFor(strategy)));
+  const canView = strategy => !feedError && !!user && (user.access?.isAdmin || user.role === 'admin' || user.access?.tiers?.includes(planFor(strategy)));
   const result = record => record.d.state === 'closed' && !erroneous(record) && positive(record.d.entry) && positive(record.meta?.exit) ? (record.meta.exit / record.d.entry - 1) * (record.d.dir === 'ШОРТ' ? -100 : 100) : null;
   const rowsFor = strategy => canView(strategy) ? records.filter(record => record.d.strategy === strategy.name) : [];
   const isOpen = record => ['announced', 'waiting', 'active'].includes(record.d.state) && !erroneous(record);

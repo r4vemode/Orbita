@@ -21,8 +21,8 @@ export async function runAuthFlows({session,browser,record}){
       await credentials(page,'qa-auth-'+randomUUID()+'@example.test','Qa-auth-'+randomUUID());await page.locator('[name=acceptTerms]').check();await page.locator('[name=acceptPrivacy]').check();
       await page.locator('#submit').click();await page.waitForFunction(()=>document.getElementById('submit').disabled&&document.getElementById('message').textContent.includes('Загружаем условия'));
       assert.equal(registrations,0);queryIsPrivate(page);release();
-      await page.waitForURL('**/security.html?verify=1&plan=exclusive');queryIsPrivate(page);assert.equal(registrations,1);
-      const me=await(await ctx.request.get(session.base+'/api/me')).json();assert.equal(me.user.emailVerified,false);assert.equal(me.user.access.hasSubscription,false);
+      await page.waitForURL(url=>url.pathname==='/strategies.html');queryIsPrivate(page);assert.equal(registrations,1);
+      const me=await(await ctx.request.get(session.base+'/api/me')).json();assert.equal(me.user.emailVerified,false);assert.equal(me.user.access.hasSubscription,false);assert.equal(await page.evaluate(id=>window.OrbitaAccess.preferredPlan(id),me.user.id),'exclusive');
     }finally{release();await ctx.close();}
   });
 
@@ -53,7 +53,7 @@ export async function runAuthFlows({session,browser,record}){
     try{
       const page=await ctx.newPage(),free=session.accounts.find(account=>account.role==='free');
       await page.goto(session.base+'/subscriptions.html?plan=exclusive');await page.waitForURL('**/account.html?**');await credentials(page,free.email,free.password);await page.locator('#submit').click();
-      await page.waitForURL('**/security.html?verify=1&plan=exclusive');await page.waitForSelector('#continueAccount');assert.match(await page.locator('#continueAccount').getAttribute('href'),/plan=exclusive/);queryIsPrivate(page);
+      await page.waitForURL('**/subscriptions.html?plan=exclusive');await page.waitForFunction(()=>document.getElementById('checkoutTitle')?.textContent==='Orbita Exclusive');assert.equal(await page.locator('#createCheckout').isDisabled(),true);queryIsPrivate(page);
     }finally{await ctx.close();}
   });
 
@@ -64,8 +64,8 @@ export async function runAuthFlows({session,browser,record}){
       const page=await ctx.newPage();let registrations=0;page.on('request',req=>{if(new URL(req.url()).pathname==='/api/register')registrations++;});
       await page.goto(session.base+'/account.html?mode=register&plan=exclusive');const email='qa-retry-'+randomUUID()+'@example.test';await credentials(page,email,'Qa-retry-'+randomUUID());await page.locator('[name=acceptTerms]').check();await page.locator('[name=acceptPrivacy]').check();await page.locator('#submit').click();
       await page.waitForFunction(()=>document.getElementById('message').textContent.includes('Условия временно недоступны')&&!document.getElementById('submit').disabled);assert.equal(registrations,0);queryIsPrivate(page);assert.equal(await page.locator('[name=email]').inputValue(),email);assert.ok(configurations>=1);
-      available=true;await page.locator('#submit').click();await page.waitForURL('**/security.html?verify=1&plan=exclusive');queryIsPrivate(page);assert.equal(registrations,1);assert.ok(configurations>=2);
-      const me=await(await ctx.request.get(session.base+'/api/me')).json();assert.equal(me.user.emailVerified,false);assert.equal(me.user.access.hasSubscription,false);
+      available=true;await page.locator('#submit').click();await page.waitForURL(url=>url.pathname==='/strategies.html');queryIsPrivate(page);assert.equal(registrations,1);assert.ok(configurations>=2);
+      const me=await(await ctx.request.get(session.base+'/api/me')).json();assert.equal(me.user.emailVerified,false);assert.equal(me.user.access.hasSubscription,false);assert.equal(await page.evaluate(id=>window.OrbitaAccess.preferredPlan(id),me.user.id),'exclusive');
     }finally{await ctx.close();}
   });
 
@@ -82,7 +82,7 @@ export async function runAuthFlows({session,browser,record}){
     const ctx=await context(browser);
     try{
       const page=await ctx.newPage(),pro=session.accounts.find(account=>account.role==='pro');
-      await page.goto(session.base+'/account.html');await credentials(page,pro.email,pro.password);await page.locator('#submit').click();await page.waitForURL('**/security.html?verify=1');
+      await page.goto(session.base+'/account.html');await credentials(page,pro.email,pro.password);await page.locator('#submit').click();await page.waitForURL('**/strategies.html');
       await page.goto(session.base+'/learn.html');await page.waitForSelector('.lesson-card');const firstId=await page.locator('.lesson-card').first().getAttribute('data-lesson');
       await page.locator('.lesson-card').first().focus();await page.keyboard.press('Enter');await page.waitForSelector('#article[open]');await page.locator('#markRead').click();await page.keyboard.press('Escape');
       await page.waitForFunction(id=>document.activeElement?.dataset.lesson===id,firstId);assert.equal(new URL(page.url()).searchParams.has('lesson'),false);
@@ -97,7 +97,7 @@ export async function runAuthFlows({session,browser,record}){
     try{
       const page=await ctx.newPage();
       const login=async()=>{await page.goto(session.base+'/account.html');await credentials(page,owner.email,owner.password);await page.locator('#submit').click();};
-      const logout=async()=>{await page.goto(session.base+'/subscriptions.html');await page.locator('#subscriptionLogout').click();await page.waitForURL(/\/account\.html(?:\?|$)/);};
+      const logout=async()=>{await page.goto(session.base+'/subscriptions.html');if(await page.locator('.shell-toggle').isVisible())await page.locator('.shell-toggle').click();await page.locator('.shell-logout').click();await page.waitForURL(/\/account\.html(?:\?|$)/);};
       const assertAnonymous=async()=>{const me=await(await ctx.request.get(session.base+'/api/me')).json();assert.equal(me.user,null);assert.equal((await ctx.request.get(session.base+'/api/admin/users')).status(),401);};
       await login();await page.waitForURL('**/security.html?verify=1');await page.waitForSelector('#mfaSetupForm:not([hidden])');
       stage='настройка второго фактора';await page.locator('#mfaSetupForm [name=password]').fill(owner.password);await page.locator('#mfaSetupForm [type=submit]').click();await page.waitForSelector('#mfaSetupPanel:not([hidden])');secret=await page.locator('#setupSecret').inputValue();assert.ok(/^[A-Z2-7]+$/.test(secret),'Ключ настройки получен через интерфейс');

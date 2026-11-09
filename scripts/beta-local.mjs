@@ -14,7 +14,7 @@ const project=fileURLToPath(new URL('../',import.meta.url));
 export function localBetaEnvironment(directory,source=process.env){
   const environment={};
   for(const key of ['PATH','SystemRoot','SYSTEMROOT','WINDIR','TEMP','TMP','TMPDIR'])if(source[key]!==undefined)environment[key]=source[key];
-  return {...environment,HOST:'127.0.0.1',PORT:'0',ORBITA_DATA_DIR:directory,ORBITA_PUBLIC_ORIGIN:'',ORBITA_REQUIRE_ADMIN_MFA:'false',CLOUDPAYMENTS_PUBLIC_ID:'',CLOUDPAYMENTS_API_SECRET:'',RESEND_API_KEY:'',ORBITA_MAIL_FROM:'',TELEGRAM_BOT_TOKEN:'',TELEGRAM_BOT_USERNAME:'',TELEGRAM_WEBHOOK_SECRET:'',ORBITA_BACKUP_DIR:'',ORBITA_BACKUP_PASSPHRASE:'',RADAR_ENABLED:'true',RADAR_PROVIDER_MODE:'off',RADAR_NOTIFICATIONS_ENABLED:'true'};
+  return {...environment,HOST:'127.0.0.1',PORT:'0',ORBITA_DATA_DIR:directory,ORBITA_PUBLIC_ORIGIN:'',ORBITA_REQUIRE_ADMIN_MFA:'false',CLOUDPAYMENTS_PUBLIC_ID:'',CLOUDPAYMENTS_API_SECRET:'',RESEND_API_KEY:'',ORBITA_MAIL_FROM:'',TELEGRAM_BOT_TOKEN:'',TELEGRAM_BOT_USERNAME:'',TELEGRAM_WEBHOOK_SECRET:'',ORBITA_BACKUP_DIR:'',ORBITA_BACKUP_PASSPHRASE:'',MARKETS_MODE:'off',ORBITA_PUSH_ENABLED:'false',RADAR_ENABLED:'true',RADAR_PROVIDER_MODE:'off',RADAR_NOTIFICATIONS_ENABLED:'true'};
 }
 
 async function request(base,route,body,cookie,signal){

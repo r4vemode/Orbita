@@ -69,8 +69,8 @@ export async function runAdminFlows({session,browser,record}){
     });
 
     await record('Редакция: совместимые стратегии и действия на ширинах 320 и 390',async()=>{
-      await page.locator('.quick-options').evaluate(node=>node.open=true);await page.locator('#quickMarket').selectOption('crypto');assert.deepEqual(await page.locator('#quickStrategy option').allTextContents(),['Crypto Momentum','Crypto Trend']);await page.locator('#quickMarket').selectOption('stocks');
-      await page.locator('#fullComposer').evaluate(node=>node.open=true);await page.locator('#ideaForm [name=market]').selectOption('futures');assert.deepEqual(await page.locator('#fullStrategy option').allTextContents(),['Импульс']);
+      await page.locator('.quick-options').evaluate(node=>node.open=true);await page.locator('#quickMarket').selectOption('crypto');assert.deepEqual(await page.locator('#quickStrategy option').allTextContents(),['Crypto Momentum · PRO','Crypto Trend · PRO','Orbita Exclusive · EXCLUSIVE']);await page.locator('#quickMarket').selectOption('stocks');
+      await page.locator('#fullComposer').evaluate(node=>node.open=true);await page.locator('#ideaForm [name=market]').selectOption('futures');assert.deepEqual(await page.locator('#fullStrategy option').allTextContents(),['Импульс · PRO','Orbita Exclusive · EXCLUSIVE']);
       for(const width of [320,390]){await page.setViewportSize({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert.equal(await page.locator('#quickTicker').isVisible(),true);assert.equal(await page.locator('#eventAction').isVisible(),true);}
       // Clear the explicitly changed full composer before navigating away.
       page.once('dialog',dialog=>dialog.accept());await page.locator('#clearFullForm').click();await page.setViewportSize({width:1440,height:1000});

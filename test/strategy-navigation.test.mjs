@@ -24,7 +24,7 @@ test('guest strategy login preserves plan and a local strategy return target',as
 });
 
 test('a paid strategy still links directly to its preselected calculator',async()=>{
-  for(const strategy of catalog){const links=hrefs(await render({slug:strategy.slug,user:{access:{activePlans:[strategy.plan]}}})),calculator=links.find(url=>url.pathname==='/calculator.html');assert.ok(calculator);assert.equal(calculator.searchParams.get('strategy'),strategy.name);assert.equal(links.filter(url=>url.pathname==='/subscriptions.html').length,0);}
+  for(const strategy of catalog){const links=hrefs(await render({slug:strategy.slug,user:{access:{activePlans:[strategy.plan],tiers:strategy.plan==='exclusive'?['pro','exclusive']:['pro']}}})),calculator=links.find(url=>url.pathname==='/calculator.html');assert.ok(calculator);assert.equal(calculator.searchParams.get('strategy'),strategy.name);assert.equal(links.filter(url=>url.pathname==='/subscriptions.html').length,0);}
 });
 
 test('Exclusive article purchase links select Exclusive for guests, free users and Pro subscribers',async()=>{
@@ -32,4 +32,10 @@ test('Exclusive article purchase links select Exclusive for guests, free users a
     const links=hrefs(await render({user}));assert.equal(links.filter(url=>url.pathname==='/learn.html').length,0);
     const purchases=links.filter(url=>url.pathname==='/subscriptions.html');assert.ok(purchases.length>=3);assert.ok(purchases.every(url=>url.searchParams.get('plan')==='exclusive'));
   }
+});
+
+// Exclusive buys the higher access tier; owning a separate PRO billing period is not required.
+test('Exclusive includes PRO strategy navigation without a separate PRO subscription',async()=>{
+ const user={access:{activePlans:['exclusive'],tiers:['pro','exclusive']}};
+ for(const strategy of catalog){const links=hrefs(await render({slug:strategy.slug,user}));assert.ok(links.some(url=>url.pathname==='/calculator.html'&&url.searchParams.get('strategy')===strategy.name));assert.ok(!links.some(url=>url.pathname==='/subscriptions.html'));}
 });
