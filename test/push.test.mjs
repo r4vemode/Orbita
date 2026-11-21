@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createECDH,createDecipheriv,hkdfSync,verify,createPublicKey} from 'node:crypto';
-import {encryptPayload,vapidKeys,vapidHeader,validEndpoint} from '../lib/push.mjs';
+import {readFile} from 'node:fs/promises';
+import {runInNewContext} from 'node:vm';
+import {createPush,encryptPayload,vapidKeys,vapidHeader,validEndpoint} from '../lib/push.mjs';
+import {serviceFixture} from './service-fixture.mjs';
 
 test('RFC 8291 Appendix A test vector: aes128gcm body matches byte for byte',()=>{
  const body=encryptPayload('When I grow up, I want to be a watermelon',{p256dh:'BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4',auth:'BTBZMqHH6r4Tts7J_aSIgg'},{asPrivate:'yfWPiYE-n46HLnH0KqZOF1fJJU3MYrct3AELtAQ-oRw',salt:Buffer.from('DGv6ra1nlYgDCS1FRnbzlw','base64url')});
@@ -25,4 +28,75 @@ test('a browser-side decrypt recovers the payload; VAPID JWT verifies with the p
 test('only real browser push services are accepted as endpoints (no SSRF)',()=>{
  for(const ok of ['https://fcm.googleapis.com/fcm/send/x','https://updates.push.services.mozilla.com/wpush/v2/x','https://web.push.apple.com/Q','https://wns2-par02p.notify.windows.com/w/?token=x'])assert.equal(validEndpoint(ok),true,ok);
  for(const bad of ['http://fcm.googleapis.com/x','https://169.254.169.254/latest','https://evil.example/fcm.googleapis.com','https://fcm.googleapis.com.evil.example/x','https://user:pw@fcm.googleapis.com/x'])assert.equal(validEndpoint(bad),false,bad);
+});
+
+test('push status and device changes belong to the active account', async t=>{
+ let now=Date.now();
+ const fixture=await serviceFixture(async ({directory,accounts})=>({
+  ...await createPush(directory,{accounts,env:{ORBITA_PUSH_ENABLED:'true'},now:()=>now}),
+  webhookPaths:[]
+ }));
+ t.after(()=>fixture.close());
+ const first=await fixture.register('push-first@example.test');
+ const other=await fixture.register('push-other@example.test');
+ const userId=account=>account.data.user.id;
+ const endpoint='https://fcm.googleapis.com/fcm/send/push-fixture';
+ const key=createECDH('prime256v1');key.generateKeys();
+ const body={endpoint,keys:{p256dh:key.getPublicKey().toString('base64url'),auth:Buffer.alloc(16,7).toString('base64url')}};
+ const config=async account=>(await fixture.request('/api/push/config',{cookie:account.cookie,headers:{'X-Orbita-Push-Endpoint':endpoint}})).data;
+ const change=(account,method,input)=>fixture.request('/api/push/subscription',{method,cookie:account.cookie,body:input});
+ const grant=account=>fixture.accounts.transact(db=>{
+  db.users.find(user=>user.id===userId(account)).subscriptions=[{plan:'pro',expiresAt:new Date(now+86400000).toISOString()}];
+ });
+ assert.equal((await config(first)).eligible,false);
+ assert.equal((await change(first,'POST',{...body,userId:userId(first)})).status,403);
+ await grant(first);
+ assert.equal((await change(first,'POST',{...body,userId:userId(first)})).status,200);
+ assert.equal((await config(first)).registered,true);
+ assert.equal((await config(other)).registered,false);
+ const enrolled=await fixture.service.earliest(userId(first));
+ now+=60000;
+ assert.equal((await change(first,'POST',{...body,userId:userId(first)})).status,200);
+ assert.equal(await fixture.service.earliest(userId(first)),enrolled);
+ await grant(other);
+ assert.equal((await change(other,'POST',{...body,userId:userId(first)})).status,401);
+ assert.equal((await config(first)).registered,true);
+ assert.equal((await change(other,'POST',{...body,userId:userId(other)})).status,200);
+ assert.equal((await config(first)).registered,false);
+ assert.equal((await config(other)).registered,true);
+ assert.equal((await change(other,'DELETE',{endpoint,userId:userId(other)})).status,200);
+ assert.equal((await config(other)).registered,false);
+});
+
+test('the service worker displays and opens only pushes for the signed-in account',async ()=>{
+ const handlers={},shown=[],opened=[];
+ let current='first',status=200;
+ const self={
+  addEventListener:(name,handler)=>{handlers[name]=handler;},
+  registration:{showNotification:async (title,options)=>shown.push({title,options})},
+  clients:{matchAll:async()=>[],openWindow:async url=>opened.push(url)}
+ };
+ const source=await readFile(new URL('../public/sw.js',import.meta.url),'utf8');
+ runInNewContext(source,{self,location:{origin:'https://orbita.example'},URL,AbortSignal,fetch:async(url,options)=>{
+  assert.equal(url,'/api/me');assert.equal(options.cache,'no-store');
+  return {ok:status===200,json:async()=>({user:current?{id:current}:null})};
+ }});
+ async function event(name,payload){
+  let done;
+  handlers[name]({...payload,waitUntil:work=>{done=work;}});
+  await done;
+ }
+ const push={data:{json:()=>({userId:'first',title:'Личное обновление',url:'/app.html?idea=fixture'})}};
+ await event('push',push);
+ assert.equal(shown.length,1);
+ const click={notification:{close(){},data:shown[0].options.data}};
+ await event('notificationclick',click);
+ assert.deepEqual(opened,['https://orbita.example/app.html?idea=fixture']);
+ current='other';
+ await event('push',push);
+ await event('notificationclick',click);
+ status=401;current=null;
+ await event('push',push);
+ assert.equal(shown.length,1);
+ assert.equal(opened.length,1);
 });

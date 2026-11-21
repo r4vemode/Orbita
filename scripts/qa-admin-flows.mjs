@@ -35,8 +35,8 @@ export async function runAdminFlows({session,browser,record}){
       const owner=session.accounts.find(account=>account.role==='admin');await page.goto(session.base+'/account.html');
       await page.locator('[name=email]').fill(owner.email);
       try{await page.locator('[name=password]').fill(owner.password);}catch{throw Error('Не удалось ввести учебный пароль редакции.');}
-      await page.locator('#submit').click();await page.waitForURL('**/security.html?verify=1');
-      await page.goto(session.base+'/admin.html');await page.waitForSelector('#adminMain:not([hidden])');await page.waitForFunction(()=>document.querySelectorAll('#ideaList [data-id]').length>0);
+      await page.locator('#submit').click();await page.waitForURL('**/admin.html');
+      await page.waitForSelector('#adminMain:not([hidden])');await page.waitForFunction(()=>document.querySelectorAll('#ideaList [data-id]').length>0);
       idea=await quick('QAEDITOR');initial=structuredClone(idea.meta.initial);
       assert.equal(idea.d.state,'announced');assert.equal(idea.d.entry,null);assert.equal(await page.locator('#deleteIdea').isVisible(),false);assert.match(await page.locator('#selectedIdea').innerText(),/Уровни ещё не заданы/);
       other=await quick('QADRAFT','ШОРТ');

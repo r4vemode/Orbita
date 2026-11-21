@@ -80,9 +80,9 @@
     $('emailVerification').hidden = user.emailVerified === true || paymentConfig.simulation===true;
     if($('recurringConsentLabel'))$('recurringConsentLabel').hidden=!paymentConfig.recurringTermsVersion;
     $('checkoutProviderNote').textContent=paymentConfig.simulation===true?'Будет создан локальный тестовый заказ. Данные карты не нужны; результат задаётся в разделе «Платежи» редакции.':'Оплата на защищённой странице CloudPayments. Реквизиты карты вводятся у платёжного провайдера.';
-    $('verificationDescription').textContent = config.mailEnabled === true ? 'Для оплаты нужен подтверждённый адрес. Откройте настройки безопасности, чтобы отправить письмо или повторить отправку.' : 'Отправка писем пока не подключена. Подтверждение email и оплата станут доступны после настройки почтовой службы.';
+    $('verificationDescription').textContent = config.mailEnabled === true ? 'Для оплаты нужен подтверждённый адрес. Откройте настройки безопасности, чтобы отправить письмо или повторить отправку.' : 'Подтверждение email временно недоступно. За помощью можно обратиться в поддержку.';
     $('paymentAvailability').hidden = enabled();
-    if (!enabled()) $('paymentAvailability').textContent = 'Онлайн-оплата пока недоступна. Продажи откроются после подготовки сервиса; нажатие кнопки не активирует подписку.';
+    if (!enabled()) $('paymentAvailability').textContent = 'Онлайн-оплата сейчас недоступна. По вопросам подписки обратитесь в поддержку.';
     else if(paymentConfig.simulation===true){$('paymentAvailability').hidden=false;$('paymentAvailability').textContent='Локальный симулятор: деньги не списываются. Результат тестового заказа задаётся администратором в разделе «Платежи». Подтверждение почты здесь не требуется.';}
     else if (paymentConfig.testMode === true) { $('paymentAvailability').hidden = false; $('paymentAvailability').textContent = 'Включён тестовый режим CloudPayments. Проверяйте режим оплаты перед вводом реквизитов.'; }
   }

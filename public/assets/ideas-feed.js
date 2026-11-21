@@ -12,7 +12,7 @@
   const OPEN = ['announced', 'waiting', 'active'];
   const STATES = { announced: ['Объявлена', 'Уровни скоро'], waiting: ['Ждёт входа', 'Цена ещё не дошла до входа'], active: ['В сделке', 'Вход выполнен, ждём цель или стоп'], closed: ['Закрыта', ''], cancelled: ['Отменена', 'Вход не состоялся'] };
   const params = new URLSearchParams(location.search);
-  let tier = params.get('tab') === 'exclusive' ? 'exclusive' : 'pro', quick = 'open', feed = null, user = null, stats = null, timer = null;
+  let tier = params.get('tab') === 'exclusive' ? 'exclusive' : 'pro', quick = null, feed = null, user = null, stats = null, timer = null;
   const expanded = new Set();
   const tierOf = r => r.tier || (r.d?.strategy === 'Orbita Exclusive' ? 'exclusive' : 'pro');
   const rr = d => ok(d.entry) && ok(d.stop) && ok(d.target) ? Math.abs(d.target - d.entry) / Math.abs(d.entry - d.stop) : null;
@@ -70,6 +70,10 @@
   function detail(r, targets) {
     const d = r.d, t = tierOf(r);
     const facts = [['Стратегия', `<span class="o-tag ${t}">${t === 'exclusive' ? 'EXCLUSIVE' : 'PRO'}</span> ${esc(d.strategy)}`], ['Горизонт', esc(d.horizon || '—')], ['Цели', targets.map(num).join(' → ') || '—'], ['Единица', esc(d.unit || '—')]];
+    if (r.localMarketHistory) {
+      facts.push(['Выход', `${num(r.meta?.exit)} · ${hhmm(r.meta?.closedAt)} МСК`]);
+      if (d.chartUrl?.startsWith('https://iss.moex.com/iss/')) facts.push(['Источник', `<a href="${esc(d.chartUrl)}" target="_blank" rel="noopener noreferrer">Свечи MOEX ISS</a>`]);
+    }
     return `<div class="irow-detail" id="ix-${esc(r.id)}">
       <div class="ix-text">${d.summary ? `<p>${esc(d.summary)}</p>` : ''}${d.entryRule ? `<p><b>Условие входа:</b> ${esc(d.entryRule)}</p>` : ''}${d.cancelRule ? `<p><b>Отмена и выход:</b> ${esc(d.cancelRule)}</p>` : ''}
         <dl class="ix-facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
@@ -85,9 +89,9 @@
     box.hidden = false;
   }
   const quickMatch = (r, q) => q === 'open' ? OPEN.includes(r.d.state) && !r.erroneous : q === 'active' ? r.d.state === 'active' && !r.erroneous : q === 'waiting' ? ['waiting', 'announced'].includes(r.d.state) && !r.erroneous : !OPEN.includes(r.d.state) || r.erroneous;
-  function filtered(rows) {
+  function filtered(rows, view) {
     const q = $('fTicker').value.trim().toUpperCase(), dir = $('fDir').value, strategy = $('fStrategy').value, from = $('fFrom').value;
-    return rows.filter(r => quickMatch(r, quick) && (!q || String(r.d.ticker).toUpperCase().includes(q) || String(r.d.name || '').toUpperCase().includes(q)) && (!dir || r.d.dir === dir) && (!strategy || r.d.strategy === strategy) && (!from || dayKey(r.meta?.publishedAt) >= from));
+    return rows.filter(r => quickMatch(r, view) && (!q || String(r.d.ticker).toUpperCase().includes(q) || String(r.d.name || '').toUpperCase().includes(q)) && (!dir || r.d.dir === dir) && (!strategy || r.d.strategy === strategy) && (!from || dayKey(r.meta?.publishedAt) >= from));
   }
   function renderStats() {
     const box = $('feedStats'), s = stats?.[tier];
@@ -96,8 +100,11 @@
     box.innerHTML = `<div><span class="o-small">Закрыто идей ${tier === 'exclusive' ? 'EXCLUSIVE' : 'PRO'}</span><b>${s.closed}</b></div><div><span class="o-small">Закрыты в плюсе</span><b>${s.winRate.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}%</b></div><div><span class="o-small">Средний результат</span><b class="${s.avgPct >= 0 ? 'up' : 'down'}">${pct(s.avgPct)}</b></div><div><span class="o-small">Средний итог в рисках</span><b>${s.avgR === null ? '—' : (s.avgR > 0 ? '+' : '') + s.avgR.toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + 'R'}</b></div><p class="o-small">По всем закрытым идеям с ценой выхода, без комиссий. Прошлые результаты не гарантируют будущих. <a href="/results.html">Все идеи с уровнями →</a></p>`;
   }
   function render() {
+    const localPro = Boolean(user && feed?.localMarketHistory && tier === 'pro');
+    const view = quick ?? (localPro ? 'history' : 'open');
     for (const tab of document.querySelectorAll('.o-tab')) { const on = tab.dataset.tier === tier; tab.setAttribute('aria-selected', String(on)); tab.tabIndex = on ? 0 : -1; }
-    for (const b of document.querySelectorAll('[data-quick]')) b.setAttribute('aria-pressed', String(b.dataset.quick === quick));
+    for (const b of document.querySelectorAll('[data-quick]')) b.setAttribute('aria-pressed', String(b.dataset.quick === view));
+    $('feedLocalHistory').hidden = !localPro || view !== 'history';
     $('feedPanel').setAttribute('aria-labelledby', 'tab-' + tier);
     $('feedSkeleton').hidden = true; $('feedLocked').hidden = true; $('feedEmpty').hidden = true; $('feedList').innerHTML = '';
     renderStats();
@@ -111,9 +118,9 @@
     const strategies = [...new Set(all.map(r => r.d.strategy))].sort(), select = $('fStrategy'), current = select.value;
     select.innerHTML = '<option value="">Все</option>' + strategies.map(s => `<option${s === current ? ' selected' : ''}>${esc(s)}</option>`).join('');
     $('feedFilters').hidden = false; $('feedQuick').hidden = false;
-    const rows = filtered(all).sort((a, b) => String(b.meta?.publishedAt || '').localeCompare(String(a.meta?.publishedAt || '')));
+    const rows = filtered(all, view).sort((a, b) => String(b.meta?.publishedAt || '').localeCompare(String(a.meta?.publishedAt || '')));
     $('feedEmpty').hidden = rows.length > 0;
-    if (!rows.length) $('feedEmpty').textContent = quick === 'open' && !all.length ? 'Новых идей пока нет. Мы пришлём уведомление, когда автор опубликует идею — настройте его в разделе «Уведомления».' : 'Нет идей по выбранным условиям.';
+    if (!rows.length) $('feedEmpty').textContent = view === 'open' && !all.length ? 'Новых идей пока нет. Мы пришлём уведомление, когда автор опубликует идею — настройте его в разделе «Уведомления».' : 'Нет идей по выбранным условиям.';
     const groups = new Map(); for (const r of rows) { const k = dayKey(r.meta?.publishedAt); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
     $('feedList').innerHTML = [...groups].map(([k, list]) => `<section class="iday"><h2 class="iday-head">${k ? dayLabel(k) : 'Без даты'} <span class="o-small">${list.length}</span></h2><div class="iday-head-cols" aria-hidden="true"><span>Время</span><span>Инструмент</span><span></span><span>Вход</span><span>Стоп</span><span>Цель</span><span>R/R</span><span>Статус</span><span>Итог</span><span></span></div>${list.map(row).join('')}</section>`).join('');
   }

@@ -15,7 +15,7 @@ export async function runClientFlows({session,browser,record}){
   async function login(page,role){
     const account=fixtureAccounts[role];await page.goto(base+'/account.html?mode=login');
     await page.locator('[name=email]').fill(account.email);await page.locator('[name=password]').fill(account.password);await page.locator('#submit').click();
-    await page.waitForURL(url=>url.pathname===(role==='admin'?'/security.html':'/strategies.html'));await page.goto(base+'/security.html');await page.waitForSelector('#securitySettings:not([hidden])');
+    await page.waitForURL(url=>url.pathname===(role==='admin'?'/admin.html':'/strategies.html'));await page.goto(base+'/security.html');await page.waitForSelector('#securitySettings:not([hidden])');
     assert.match(await page.locator('#accountEmail').innerText(),new RegExp(account.email.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
     assert.match(await page.locator('#mailConfiguration').innerText(),/не настроен|не подключ|пока не/i);
   }

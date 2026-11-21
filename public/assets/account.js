@@ -11,8 +11,13 @@
   const plan = normalizePlan(parameters.get('plan')) || inheritedPlan;
   function resetConsents(){form.elements.acceptTerms.checked=false;form.elements.acceptPrivacy.checked=false;}
   function render() {
+    const telegram = challenge?.method === 'telegram';
     $('title').textContent = challenge ? 'Подтвердите вход.' : register ? 'Ваша новая орбита.' : 'С возвращением.';
-    $('subtitle').textContent = challenge ? 'Введите код приложения-аутентификатора или один из сохранённых резервных кодов.' : register ? plan ? `Вы выбрали ${plan === 'exclusive' ? 'Orbita Exclusive — 4 999' : 'Orbita Pro — 2 999'} ₽ за 30 дней. Сначала создайте аккаунт и подтвердите email.` : 'Создайте аккаунт и подтвердите email. Доступ к сервисам открывается по подписке.' : 'Войдите в аккаунт, чтобы проверить подписку и открыть кабинет.';
+    $('subtitle').textContent = challenge ? telegram ? 'Введите шестизначный код из личного чата с ботом ORBITA.' : 'Введите код приложения-аутентификатора или один из сохранённых резервных кодов.' : register ? plan ? `Вы выбрали ${plan === 'exclusive' ? 'Orbita Exclusive — 4 999' : 'Orbita Pro — 2 999'} ₽ за 30 дней. Сначала создайте аккаунт и подтвердите email.` : 'Создайте аккаунт и подтвердите email. Доступ к сервисам открывается по подписке.' : 'Войдите в аккаунт, чтобы проверить подписку и открыть кабинет.';
+    $('mfaCodeLabel').textContent = telegram ? 'Код из Telegram' : 'Код приложения или резервный код';
+    $('mfaCodeHelp').textContent = telegram ? 'Код действует 5 минут. Введите его только на этой странице.' : 'Откройте приложение-аутентификатор. Резервный код можно использовать один раз.';
+    form.elements.code.placeholder = telegram ? '6 цифр' : '6 цифр или резервный код';
+    form.elements.code.inputMode = telegram ? 'numeric' : 'text';
     submit.textContent = challenge ? 'Подтвердить вход ↗' : register ? 'Создать аккаунт ↗' : 'Войти ↗';
     switcher.textContent = register ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Зарегистрироваться';
     $('credentials').hidden = !!challenge; $('mfaChallenge').hidden = !challenge; $('cancelMfa').hidden = !challenge; switcher.hidden = !!challenge;
@@ -24,7 +29,7 @@
     message.textContent = '';
     if (!challenge) { const url = new URL(location.href); url.searchParams.set('mode', register ? 'register' : 'login'); history.replaceState(null, '', url.pathname + url.search); }
   }
-  function go(user) {
+  function go(user, mailConfigured) {
     if (!user) throw Error('Сервер не подтвердил вход. Попробуйте ещё раз.');
     if (plan) A.rememberPlan(user.id, plan);
     const chosenPlan = plan || A.preferredPlan(user.id);
@@ -32,7 +37,7 @@
     // A new client lands in Strategies right after registration; email
     // confirmation is requested there and again before payment.
     if (register && !parameters.get('next')) { location.assign('/strategies.html?welcome=1' + (chosenPlan ? '&plan=' + chosenPlan : '')); return; }
-    if (!user.emailVerified && user.access?.isAdmin) { location.assign('/security.html?verify=1'); return; }
+    if (!user.emailVerified && user.access?.isAdmin && mailConfigured !== false) { location.assign('/security.html?verify=1'); return; }
     const next = parameters.get('next');
     // Restore the protected page the user originally opened; the server still
     // re-checks the plan and sends an unpaid visitor to the plan page.
@@ -57,7 +62,7 @@
     event.preventDefault(); if (submitting) return; submitting = true; submit.disabled = switcher.disabled = $('cancelMfa').disabled = true; message.textContent = '';
     try {
       if (location.protocol === 'file:') throw Error('Регистрация работает через сервер. Запустите npm start и откройте адрес из терминала.');
-      if (challenge) { const data = await A.request('/api/security/mfa/login', { method: 'POST', body: JSON.stringify({ challenge, code: form.elements.code.value.trim() }) }); form.elements.code.value = ''; go(data.user); return; }
+      if (challenge) { const data = await A.request('/api/security/mfa/login', { method: 'POST', body: JSON.stringify({ challenge: challenge.token, code: form.elements.code.value.trim() }) }); form.elements.code.value = ''; go(data.user, data.mailConfigured); return; }
       if (register) { message.textContent = 'Загружаем условия регистрации…'; if (configurationError) configurationPromise = loadConfiguration(); await configurationPromise; if (configurationError) throw configurationError; message.textContent = ''; }
       if(register&&(!form.elements.acceptTerms.checked||!form.elements.acceptPrivacy.checked))throw Error('Ознакомьтесь с документами и подтвердите оба согласия.');
       const body = { email: form.elements.email.value.trim(), password: form.elements.password.value };
@@ -66,9 +71,9 @@
       form.elements.password.value = '';
       if (data.mfaRequired) {
         if (typeof data.challenge !== 'string' || !data.challenge) throw Error('Не удалось начать проверку входа. Введите пароль ещё раз.');
-        challenge = data.challenge; render(); form.elements.code.focus(); return;
+        challenge = {token:data.challenge,method:data.mfaMethod}; render(); form.elements.code.focus(); return;
       }
-      go(data.user);
+      go(data.user, data.mailConfigured);
     } catch (error) {
       if(register&&error.code==='LEGAL_VERSION_CHANGED'){
         resetConsents();configurationPromise=loadConfiguration();await configurationPromise;

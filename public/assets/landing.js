@@ -36,7 +36,7 @@ const canvas=document.getElementById('heroArt'),ctx=canvas.getContext('2d'),moti
  const states={announced:'Сигнал объявлен',waiting:'Ожидает входа',active:'Активна'};
  fetch('/api/public/showcase',{cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject()).then(({showcase:s})=>{
   box.replaceChildren();
-  if(!s){box.append(el('p','showcase-muted','Сейчас нет открытой идеи для публичного примера. Загляните позже — или посмотрите учебный сценарий ниже.'));return;}
+  if(!s){box.append(el('p','showcase-muted','Сейчас открытых идей для публичного просмотра нет.'));return;}
   const long=s.dir!=='ШОРТ',head=el('div','showcase-head');
   head.append(el('strong','showcase-ticker',s.ticker),el('span','showcase-tag '+(long?'long':'short'),long?'LONG':'SHORT'),el('span','showcase-tag pro','PRO'));
   const facts=el('dl','showcase-facts');

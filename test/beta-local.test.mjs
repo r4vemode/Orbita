@@ -7,9 +7,12 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createServer} from 'node:net';
 import {localBetaEnvironment,startLocalBeta} from '../scripts/beta-local.mjs';
+import {createIdeas} from '../lib/ideas.mjs';
+import {createAccounts} from '../lib/accounts.mjs';
 
 const project=fileURLToPath(new URL('../',import.meta.url));
 const script=path.join(project,'scripts/beta-local.mjs');
+const marketFixturePath=path.join(project,'fixtures','local-market-history.json');
 async function login(session,role){
   const account=session.accounts.find(value=>value.role===role),response=await fetch(session.base+'/api/login',{method:'POST',headers:{Origin:session.base,'Content-Type':'application/json'},body:JSON.stringify({email:account.email,password:account.password})});
   assert.equal(response.status,200);return {user:(await response.json()).user,cookie:response.headers.get('set-cookie')?.split(';')[0]};
@@ -29,7 +32,8 @@ test('local beta isolates provider settings, owns temporary data and exposes fou
     const admin=await login(session,'admin'),pro=await login(session,'pro'),exclusive=await login(session,'exclusive'),free=await login(session,'free');
     assert.equal(admin.user.role,'admin');assert.deepEqual(pro.user.access.activePlans,['pro']);assert.deepEqual(exclusive.user.access.activePlans,['exclusive']);assert.equal(free.user.access.hasSubscription,false);
     assert.equal((await get(session,'/api/admin/ideas',admin.cookie)).status,200);assert.equal((await get(session,'/api/admin/ideas',pro.cookie)).status,403);assert.equal((await get(session,'/api/ideas',free.cookie)).status,403);assert.equal((await get(session,'/api/ideas')).status,401);
-    const proIdeas=(await get(session,'/api/ideas',pro.cookie)).data.records,exclusiveIdeas=(await get(session,'/api/ideas',exclusive.cookie)).data.records;
+    const proFeed=(await get(session,'/api/ideas',pro.cookie)).data,proIdeas=proFeed.records,exclusiveIdeas=(await get(session,'/api/ideas',exclusive.cookie)).data.records;
+    assert.equal(proFeed.localMarketHistory,false);
     assert.ok(proIdeas.length>0&&proIdeas.every(record=>record.demo===true&&record.d.strategy!=='Orbita Exclusive'));assert.ok(exclusiveIdeas.length>proIdeas.length&&exclusiveIdeas.every(record=>record.demo===true)&&exclusiveIdeas.some(record=>record.d.strategy==='Orbita Exclusive'),'EXCLUSIVE includes PRO');
     const config=(await get(session,'/api/public-config')).data;assert.equal(config.paymentsAvailable,false);assert.equal(config.mailEnabled,false);assert.equal(config.telegramEnabled,false);
     const radar=(await get(session,'/api/radar?importance=0&limit=50',pro.cookie)).data;assert.ok(radar.events.length>=15);assert.ok(radar.events.every(event=>event.isDemo&&!Object.hasOwn(event,'rawText')));assert.equal((await get(session,'/api/radar',free.cookie)).status,403);assert.equal((await get(session,'/api/radar',exclusive.cookie)).status,200,'EXCLUSIVE includes PRO Radar');
@@ -78,4 +82,121 @@ test('interactive local fixture can bypass nonexistent test email delivery witho
   for(const role of ['admin','pro','exclusive','free'])assert.equal((await login(session,role)).user.emailVerified,true);
   const config=(await get(session,'/api/public-config')).data;assert.equal(config.paymentsAvailable,false);assert.equal(config.mailEnabled,false);assert.equal(config.telegramEnabled,false);
  }finally{await session.close();}
+});
+
+test('local MOEX history preserves source prices and remains separate from public results',async()=>{
+ const session=await startLocalBeta({marketHistory:true});
+ try{
+  const fixture=JSON.parse(await readFile(marketFixturePath,'utf8'));
+  const local=await get(session,'/api/local/market-history');
+  assert.equal(local.status,200);
+  const rows=local.data.results;
+  assert.equal(rows.length,fixture.trades.length);
+  assert.ok(rows.length>=500);
+  assert.equal(local.data.requestedFrom,'2026-03-01');
+  assert.equal(local.data.asOfDate,'2026-11-21');
+  assert.deepEqual(local.data.latestQuotes,fixture.latestQuotes);
+  assert.ok(fixture.latestQuotes.length>=4);
+  for(const quote of fixture.latestQuotes){
+   assert.ok(Number.isFinite(quote.price)&&quote.price>0);
+   assert.ok(quote.at.startsWith(fixture.asOfDate+'T'));
+   const source=new URL(quote.sourceUrl);
+   assert.equal(source.origin,'https://iss.moex.com');
+   assert.ok(source.pathname.endsWith('/'+quote.ticker+'/candles.json'));
+   assert.equal(source.searchParams.get('from'),fixture.asOfDate);
+   assert.equal(source.searchParams.get('till'),fixture.asOfDate);
+  }
+  assert.ok(rows.some(row=>row.pct>0)&&rows.some(row=>row.pct<0));
+  assert.ok(rows.some(row=>row.market==='stocks')&&rows.some(row=>row.market==='futures'));
+  const byId=new Map(rows.map(row=>[row.id,row]));
+  const days=new Map();
+  for(const trade of fixture.trades){
+   const first=trade.bars[0], last=trade.bars.at(-1), date=first[0].slice(0,10);
+   const row=byId.get('demo-moex-'+date.replaceAll('-','')+'-'+trade.ticker);
+   assert.equal(row.state,'closed');
+   assert.equal(row.tier,'pro');
+   assert.equal(row.initial.entry,first[2]);
+   assert.equal(row.exit,last[3]);
+   assert.equal(row.enteredAt,new Date(first[0]).toISOString());
+   assert.equal(row.closedAt,new Date(last[1]).toISOString());
+   assert.ok(Math.abs(row.pct)>=1&&Math.abs(row.pct)<=5);
+   const source=new URL(row.sourceUrl);
+   assert.equal(source.origin,'https://iss.moex.com');
+   assert.equal(source.searchParams.get('from'),date);
+   assert.equal(source.searchParams.get('till'),date);
+   days.set(date,(days.get(date)||0)+1);
+  }
+  const dates=[...days.keys()].sort();
+  assert.ok(dates[0].startsWith('2026-03'));
+  assert.equal(local.data.fromDate,dates[0]);
+  assert.equal(local.data.throughDate,dates.at(-1));
+  const average=rows.length/days.size;
+  assert.ok(average>=2&&average<=3);
+  assert.ok([...days.values()].every(n=>[1,2,3,7,10].includes(n)));
+  assert.ok([...days.values()].includes(7)&&[...days.values()].includes(10));
+  assert.deepEqual((await get(session,'/api/public/results')).data.results,[]);
+  assert.equal((await get(session,'/api/public/stats')).data.stats.pro.closed,0);
+  const {cookie}=await login(session,'pro');
+  const pro=await get(session,'/api/ideas',cookie);
+  assert.equal(pro.data.localMarketHistory,true);
+  assert.equal(pro.data.records.length,rows.length);
+  assert.ok(pro.data.records.every(record=>record.localMarketHistory&&record.demo&&record.d.state==='closed'));
+  const exclusive=await login(session,'exclusive');
+  const exclusiveFeed=(await get(session,'/api/ideas',exclusive.cookie)).data;
+  assert.equal(exclusiveFeed.records.length,rows.length);
+  assert.ok(exclusiveFeed.records.every(record=>record.d.strategy!=='Orbita Exclusive'));
+  const id=rows[0].id;
+  assert.equal((await get(session,'/api/ideas/'+id,cookie)).data.record.id,id);
+  const admin=await login(session,'admin');
+  assert.deepEqual((await get(session,'/api/admin/ideas',admin.cookie)).data.records,[]);
+  await assert.rejects(lstat(path.join(session.directory,'ideas.json')),{code:'ENOENT'});
+  const normal=await createIdeas(session.directory);
+  assert.deepEqual((await normal.list(admin.user)).records,[]);
+  await assert.rejects(normal.get(id,admin.user),{status:404});
+ }finally{await session.close();}
+});
+
+test('ordinary npm start exposes local history to an existing administrator without writing it to the ideas store',async t=>{
+ const directory=await mkdtemp(path.join(tmpdir(),'orbita-start-history-'));
+ t.after(()=>rm(directory,{recursive:true,force:true}));
+ const account={role:'admin',email:'owner@example.test',password:'Local-owner-password-2026'};
+ const accounts=await createAccounts(directory);
+ const owner=await accounts.createAdmin(account.email,account.password);
+ const ideas=await createIdeas(directory);
+ const draft=(await ideas.create({id:owner.id,role:'admin'},{mode:'draft',d:{ticker:'KEEP'}})).record;
+ const store=path.join(directory,'ideas.json'),before=await readFile(store,'utf8');
+ const {scripts}=JSON.parse(await readFile(path.join(project,'package.json'),'utf8'));
+ const fixture=JSON.parse(await readFile(marketFixturePath,'utf8'));
+ const args=scripts.start.split(' ').slice(1);
+ for(const production of [false,true]){
+  const env={...localBetaEnvironment(directory),...(production?{NODE_ENV:'production'}:{})};
+  const child=spawn(process.execPath,args,{cwd:project,env,stdio:['ignore','pipe','ignore']});
+  const done=new Promise(resolve=>child.once('exit',resolve));
+  try{
+   const base=await new Promise((resolve,reject)=>{
+    let output='';
+    const timer=setTimeout(()=>reject(Error('npm start did not become ready.')),12000);
+    child.stdout.on('data',chunk=>{
+     output+=chunk;
+     const match=output.match(/ORBITA: (http:\/\/127\.0\.0\.1:\d+)/);
+     if(match){clearTimeout(timer);resolve(match[1]);}
+    });
+    child.once('exit',code=>{clearTimeout(timer);reject(Error('npm start exited with code '+code));});
+   });
+   const session={base,accounts:[account]},loginResult=await login(session,'admin'),cookie=loginResult.cookie;
+   assert.equal(loginResult.user.id,owner.id);
+   const feed=(await get(session,'/api/ideas',cookie)).data;
+   assert.equal(feed.localMarketHistory,!production);
+   assert.equal(feed.records.filter(record=>record.localMarketHistory).length,production?0:fixture.trades.length);
+   assert.deepEqual((await get(session,'/api/admin/ideas',cookie)).data.records.map(record=>record.id),[draft.id]);
+   assert.equal((await get(session,'/api/local/market-history')).status,production?404:200);
+   assert.deepEqual((await get(session,'/api/public/results')).data.results,[]);
+   const forwarded=await fetch(base+'/api/ideas',{headers:{Cookie:cookie,'X-Forwarded-Host':'public.example.test'}});
+   assert.equal((await forwarded.json()).localMarketHistory,false);
+   assert.equal(await readFile(store,'utf8'),before);
+  }finally{
+   if(child.exitCode===null)child.kill('SIGTERM');
+   await done;
+  }
+ }
 });

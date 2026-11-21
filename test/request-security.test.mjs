@@ -79,7 +79,10 @@ test('real server throttles mutation flood and ignores forged forwarded IPs whil
   for(const path of ['/.env','/%2eenv','/.git/config','/.security-key','/assets/.env'])assert.equal((await fetch(base+path)).status,403,path);
 });
 
-test('public HTTPS configuration adds HSTS and refuses disabling administrator MFA',async t=>{
-  const base=await start(t,{secure:true,mfa:'true'}),res=await fetch(base+'/healthz');assert.equal(res.status,200);assert.equal(res.headers.get('strict-transport-security'),'max-age=31536000');
-  await assert.rejects(start(t,{secure:true,mfa:'false'}),/startup rejected/);
+test('public HTTPS preserves HSTS with either administrator MFA requirement',async t=>{
+  for(const mfa of ['true','false']){
+    const base=await start(t,{secure:true,mfa}),res=await fetch(base+'/healthz');
+    assert.equal(res.status,200);assert.equal(res.headers.get('strict-transport-security'),'max-age=31536000');
+  }
+  await assert.rejects(start(t,{secure:true,mfa:'invalid'}),/startup rejected/);
 });

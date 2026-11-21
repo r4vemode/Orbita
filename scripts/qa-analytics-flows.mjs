@@ -24,9 +24,36 @@ export async function runAnalyticsFlows({session,browser,record,outputDir}){
    for(const width of [390,1440]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));const name='backtest-admin-'+width+'.png';await page.screenshot({path:path.join(outputDir,name),fullPage:true});screenshots.push(name);}
   });
   await record('Калькулятор разделяет учебные идеи, показывает издержки и статистику',async()=>{
-   const calc=await client.newPage();calc.on('pageerror',e=>errors.push(e.message));await calc.goto(session.base+'/calculator.html');await calc.waitForFunction(()=>document.getElementById('tradeCount').textContent!=='—');assert.equal(await calc.locator('#dataMode').inputValue(),'published');assert.equal(await calc.locator('#tradeCount').innerText(),'0');assert.match(await calc.locator('#resultMessage').innerText(),/демонстрационных идей исключено/);
-   await calc.selectOption('#dataMode','demo');if(await calc.locator('#showHistory').isVisible())await calc.locator('#showHistory').click();await calc.waitForFunction(()=>Number(document.getElementById('tradeCount').textContent)>0);assert.match(await calc.locator('#resultMessage').innerText(),/демонстрационные сделки/);assert.notEqual(await calc.locator('#winRate').innerText(),'—');const before=await calc.locator('#profit').innerText();await calc.fill('#slippage','1');await calc.locator('#calcForm button[type=submit]').click();await calc.waitForFunction(value=>document.getElementById('profit').textContent!==value,before);
+   const calc=await client.newPage();calc.on('pageerror',e=>errors.push(e.message));await calc.goto(session.base+'/calculator.html');await calc.waitForFunction(()=>document.getElementById('tradeCount').textContent!=='—');assert.equal(await calc.locator('#dataMode').inputValue(),'published');assert.equal(await calc.locator('#tradeCount').innerText(),'0');assert.match(await calc.locator('#resultMessage').innerText(),/Нет исполненных сделок/);
+   await calc.selectOption('#dataMode','demo');if(await calc.locator('#showHistory').isVisible())await calc.locator('#showHistory').click();await calc.waitForFunction(()=>Number(document.getElementById('tradeCount').textContent)>0);assert.match(await calc.locator('#resultMessage').innerText(),/учебным примерам/);assert.notEqual(await calc.locator('#winRate').innerText(),'—');const before=await calc.locator('#profit').innerText();await calc.fill('#slippage','1');await calc.locator('#calcForm button[type=submit]').click();await calc.waitForFunction(value=>document.getElementById('profit').textContent!==value,before);
    await calc.setViewportSize({width:390,height:1000});assert.ok(await calc.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));const name='calculator-metrics-390.png';await calc.screenshot({path:path.join(outputDir,name),fullPage:true});screenshots.push(name);assert.deepEqual(errors,[]);
+  });
+  await record('Журнал идей фильтрует закрытия по дате МСК и тарифу в таблице и CSV',async()=>{
+   const guest=await context(),journal=await guest.newPage();
+   journal.on('pageerror',e=>errors.push(e.message));
+   const levels={entry:100,stop:95,target:110};
+   const row=(ticker,closedAt,tier,pct)=>({ticker,tier,closedAt,publishedAt:'2026-07-30T09:00:00Z',dir:'ЛОНГ',strategy:'Импульс',state:'closed',outcome:pct>0?'Закрыто по цели':'Закрыто по стопу',pct,r:pct/5,initial:levels,final:levels,exit:100+pct});
+   const results=[
+    row('EXONLY','2026-08-04T13:00:00Z','exclusive',3),
+    row('LOSING','2026-08-03T12:00:00Z','pro',-5),
+    row('MIDNIGHT','2026-07-31T21:00:00Z','pro',10),
+    row('JULY','2026-07-31T20:59:59Z','pro',6)
+   ];
+   await journal.route('**/api/public/results',route=>route.fulfill({json:{open:0,results}}));
+   await journal.goto(session.base+'/results.html?from=2026-08-01&tier=pro');
+   await journal.waitForSelector('#resultsTable:not([hidden])');
+   assert.deepEqual(await journal.locator('#resultsRows b').allTextContents(),['LOSING','MIDNIGHT']);
+   assert.equal(await journal.locator('[data-tier=pro]').getAttribute('aria-selected'),'true');
+   const downloaded=journal.waitForEvent('download');await journal.locator('#resultsCsv').click();
+   const csv=await readFile(await (await downloaded).path(),'utf8');
+   assert.match(csv,/LOSING/);assert.match(csv,/MIDNIGHT/);assert.doesNotMatch(csv,/EXONLY|JULY/);
+   await journal.locator('#resultsFrom').fill('2026-08-05');
+   assert.equal(await journal.locator('#resultsEmpty').isVisible(),true);
+   assert.equal(await journal.locator('#resultsCsv').isDisabled(),true);
+   assert.match(journal.url(),/from=2026-08-05/);
+   await journal.setViewportSize({width:320,height:800});
+   assert.ok(await journal.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+   assert.deepEqual(errors,[]);
   });
  }finally{for(const ctx of contexts)await ctx.close();}
  return {screenshots};

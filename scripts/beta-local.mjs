@@ -26,7 +26,7 @@ async function request(base,route,body,cookie,signal){
   }finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}
 }
 
-export async function startLocalBeta({environment=process.env,signal,payments=false,port=0,verifyFixtureEmails=false}={}){
+export async function startLocalBeta({environment=process.env,signal,payments=false,port=0,verifyFixtureEmails=false,marketHistory=false}={}){
   if(Number(process.versions.node.split('.')[0])<22)throw Error('Для локальной беты нужен Node.js 22 или новее.');
   signal?.throwIfAborted();
   if(!Number.isInteger(port)||port<0||port>65535)throw Error('Порт должен быть целым числом от 0 до 65535.');
@@ -55,7 +55,7 @@ export async function startLocalBeta({environment=process.env,signal,payments=fa
   const abort=()=>{if(prepared)void close().catch(()=>{});else child?.kill('SIGTERM');};signal?.addEventListener('abort',abort,{once:true});
   try{
     signal?.throwIfAborted();
-    child=spawn(process.execPath,['server.mjs'],{cwd:project,env:{...localBetaEnvironment(directory,environment),PORT:String(port),...(payments?{ORBITA_PAYMENTS_MODE:'simulation'}:{})},stdio:['ignore','pipe','pipe']});
+    child=spawn(process.execPath,['server.mjs'],{cwd:project,env:{...localBetaEnvironment(directory,environment),PORT:String(port),...(payments?{ORBITA_PAYMENTS_MODE:'simulation'}:{}),...(marketHistory?{ORBITA_LOCAL_MARKET_HISTORY:'true'}:{})},stdio:['ignore','pipe','pipe']});
     child.once('exit',(code,exitSignal)=>{childExited=true;resolveExit({code,signal:exitSignal});});
     child.once('error',()=>{childExited=true;resolveExit({code:null,signal:'spawn-error'});});
     const base=await new Promise((resolve,reject)=>{
@@ -86,7 +86,8 @@ export async function startLocalBeta({environment=process.env,signal,payments=fa
       await request(base,'/api/admin/subscriptions',{userId:member.user.id,plan,expiresAt:new Date(Date.now()+30*86400000).toISOString(),reason:'Учебный доступ в отдельной временной базе локальной беты'},owner.cookie,signal);
     }
     signal?.throwIfAborted();
-    const ideas=await createIdeas(directory);await ideas.importDemo({id:owner.user.id,role:'admin'});
+    const ideas=await createIdeas(directory);
+    if(!marketHistory)await ideas.importDemo({id:owner.user.id,role:'admin'});
     const radar=await createRadar(directory,{accounts,ideas,env:{...localBetaEnvironment(directory,environment),...(payments?{ORBITA_PAYMENTS_MODE:'simulation'}:{})}});
     try{await radar.seedDemo();}finally{await radar.close();}
     signal?.throwIfAborted();
@@ -96,22 +97,28 @@ export async function startLocalBeta({environment=process.env,signal,payments=fa
 }
 
 export async function runLocalBeta(args=process.argv.slice(2)){
-  if(args.includes('--help')){console.log('Usage: npm run beta:local -- [--payments] [--port=3000]\nОтдельная временная учебная база, четыре тестовых аккаунта, без реальных писем и платежей. Ctrl+C завершает процесс и удаляет только её данные.');return;}
+  if(args.includes('--help')){console.log('Usage: npm run beta:local -- [--payments] [--history] [--port=3000]\nОтдельная временная учебная база с четырьмя ролями. --history добавляет сценарии по свечам MOEX ISS. Ctrl+C останавливает приложение и очищает временную базу.');return;}
   const portArgs=args.filter(value=>value.startsWith('--port='));
-  if(args.some(value=>value!=='--payments'&&!/^--port=\d{1,5}$/.test(value))||portArgs.length>1||args.filter(value=>value==='--payments').length>1||Number(portArgs[0]?.slice(7)||0)>65535){console.error('Допустимы --payments и --port=0..65535. Используйте --help.');process.exitCode=2;return;}
+  if(args.some(value=>!['--payments','--history'].includes(value)&&!/^--port=\d{1,5}$/.test(value))||portArgs.length>1||new Set(args).size!==args.length||Number(portArgs[0]?.slice(7)||0)>65535){console.error('Допустимы --payments, --history и --port=0..65535. Используйте --help.');process.exitCode=2;return;}
   const port=Number(portArgs[0]?.slice(7)||0);
   const controller=new AbortController(),stop=()=>controller.abort();process.once('SIGINT',stop);process.once('SIGTERM',stop);
   let session;
   try{
-    session=await startLocalBeta({signal:controller.signal,payments:args.includes('--payments'),port,verifyFixtureEmails:true});
+    const marketHistory=args.includes('--history');
+    session=await startLocalBeta({signal:controller.signal,payments:args.includes('--payments'),port,verifyFixtureEmails:true,marketHistory});
     console.log('ORBITA · ЛОКАЛЬНАЯ УЧЕБНАЯ БЕТА');
-    console.log('Адрес: '+session.base+'/account.html');
-    console.log('Данные вымышленные. Реальные аккаунты проекта не используются. Почта, Telegram и реальные платежи отключены.');
+    const loginPage=marketHistory?'/account.html?next=%2Fstrategies.html':'/account.html';
+    console.log('Адрес: '+session.base+loginPage);
+    console.log(marketHistory?'Аккаунты и сценарии учебные. Цены в локальном журнале взяты из MOEX ISS. Почта, Telegram и платежи отключены.':'Данные вымышленные. Реальные аккаунты проекта не используются. Почта, Telegram и реальные платежи отключены.');
     if(args.includes('--payments'))console.log('Включён локальный симулятор оплаты без обращения к CloudPayments.');
     console.log('ТЕСТОВЫЕ АККАУНТЫ (пароль создан заново для этого запуска):');
     for(const account of session.accounts)console.log(`${account.label}: ${account.email} | ${account.password}`);
     console.log('После входа откройте редакцию: '+session.base+'/admin.html');
     console.log('Или кабинет клиента: '+session.base+'/app.html');
+    if(marketHistory){
+      console.log('Стратегии → Дейтрейдинг → История: '+session.base+'/strategies.html');
+      console.log('Сводка и свечи Мосбиржи: '+session.base+'/results.html?local=1');
+    }
     console.log('Radar с учебными событиями (Pro или редакция): '+session.base+'/radar.html');
     console.log('Email вымышленных аккаунтов отмечен подтверждённым только в этой временной базе: реальные письма не отправлялись.');
     console.log('Для одновременной проверки ролей используйте разные браузеры или отдельное приватное окно.');

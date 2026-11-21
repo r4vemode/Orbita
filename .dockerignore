@@ -53,3 +53,6 @@
 **/legal.json
 **/news.json
 **/radar.json
+**/markets.json
+**/push.json
+fixtures/local-market-history.json

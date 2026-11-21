@@ -57,7 +57,7 @@ test('a stale browser consent refreshes pinned document links and requires fresh
   const source=await readFile(new URL('../public/assets/account.js',import.meta.url),'utf8');
   const field=value=>({value,checked:true,disabled:false,required:false,focus(){}}),elements={email:field('browser-consent@example.test'),password:field('browser-consent-password'),code:field(''),acceptTerms:field(''),acceptPrivacy:field('')};
   const form={elements},nodes={accountForm:form,credentials:{querySelectorAll:()=>[elements.email,elements.password]},consents:{querySelectorAll:()=>[elements.acceptTerms,elements.acceptPrivacy]},termsLink:{href:''},privacyLink:{href:''}};
-  for(const id of ['message','submit','switch','title','subtitle','mfaChallenge','cancelMfa'])nodes[id]={disabled:false,textContent:'',hidden:false};
+  for(const id of ['message','submit','switch','title','subtitle','mfaChallenge','mfaCodeLabel','mfaCodeHelp','cancelMfa'])nodes[id]={disabled:false,textContent:'',hidden:false};
   let active=versionOne,registrations=0,configurations=0;const bodies=[],navigations=[],location={origin:'https://orbita.example',protocol:'https:',href:'https://orbita.example/account.html?mode=register&plan=exclusive',search:'?mode=register&plan=exclusive',assign:value=>navigations.push(value)};
   const A={safeNext:()=>'/subscriptions.html',rememberPlan(){},preferredPlan:()=>null,request:async(path,options)=>{
     if(path==='/api/public-config'){configurations++;return {legalVersion:active};}

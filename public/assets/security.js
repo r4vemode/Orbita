@@ -76,7 +76,7 @@
     $('mailConfiguration').textContent = mailReady ? '' : 'Отправка писем или публичный адрес сайта пока не настроены. Письмо подтверждения сейчас отправить нельзя.';
     $('resendVerification').hidden = !!user.emailVerified; $('passwordReset').hidden = !mailReady; $('passwordResetNote').hidden = !!mailReady;
  $('resendVerification').disabled = !mailReady;
-    $('mfaBadge').textContent = security.mfaEnabled ? 'Защита включена' : 'Защита не подключена'; $('mfaBadge').classList.toggle('verified', !!security.mfaEnabled);
+    $('mfaBadge').textContent = security.telegramLoginEnabled ? 'Вход подтверждается в Telegram' : security.mfaEnabled ? 'Защита включена' : 'Защита не подключена'; $('mfaBadge').classList.toggle('verified', Boolean(security.mfaEnabled || security.telegramLoginEnabled));
     $('mfaSetupForm').hidden = !!security.mfaEnabled || !!setup; $('mfaSetupPanel').hidden = !!security.mfaEnabled || !setup;
     $('mfaEnabledSettings').hidden = !security.mfaEnabled; $('mfaDisableDetails').hidden = !!security.mfaRequiredForAdmin; $('mfaRequiredNotice').hidden = !security.mfaRequiredForAdmin;
     $('enrollmentNotice').hidden = !security.adminEnrollmentRequired;

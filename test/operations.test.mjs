@@ -22,6 +22,11 @@ test('storage probe validates known stores and removes its canary',async t=>{
   const corrupt=await checkStorage({directory,publicDir});assert.equal(corrupt.ok,false);assert.equal(corrupt.code,'DATA_INVALID');assert.equal(corrupt.store,'ideas.json');
   await writeFile(path.join(directory,'ideas.json'),JSON.stringify({version:1,revision:0,records:[]}));
   assert.equal((await checkStorage({directory,publicDir})).ok,true);
+  for(const name of ['markets.json','push.json']){
+    const file=path.join(directory,name);await writeFile(file,'{}');
+    const result=await checkStorage({directory,publicDir});assert.equal(result.code,'DATA_INVALID');assert.equal(result.store,name);
+    await rm(file);
+  }
   if(process.platform!=='win32'){await chmod(directory,0o755);assert.equal((await checkStorage({directory,publicDir,requirePrivate:true})).code,'DATA_DIR_PERMISSIONS');await chmod(directory,0o700);}
 });
 
@@ -35,6 +40,12 @@ test('production preflight reports missing groups without exposing values',async
   };
   const ready=inspectConfiguration(env,{production:true,directory,publicDir,nodeVersion:'24.19.0'});
   assert.equal(ready.ok,true);assert.equal(ready.checks.find(check=>check.name==='TELEGRAM').status,'warn');assert.ok(!JSON.stringify(ready).includes(secret));
+  assert.equal(ready.checks.find(check=>check.name==='MARKETS_CONFIGURATION').reason,'markets_license_unconfirmed');
+  const optionalMfa=inspectConfiguration({...env,ORBITA_REQUIRE_ADMIN_MFA:'false'},{production:true,directory,publicDir,nodeVersion:'24.19.0'});
+  assert.equal(optionalMfa.ok,true);
+  assert.equal(optionalMfa.checks.find(check=>check.name==='ORBITA_REQUIRE_ADMIN_MFA').reason,'admin_mfa_optional');
+  const invalidNewModules=inspectConfiguration({...env,MARKETS_MODE:'invalid',ORBITA_PUSH_SUBJECT:'invalid'},{production:true,directory,publicDir,nodeVersion:'24.19.0'});
+  for(const name of ['MARKETS_CONFIGURATION','PUSH_CONFIGURATION'])assert.equal(invalidNewModules.checks.find(check=>check.name===name).status,'fail');
   const partial=inspectConfiguration({CLOUDPAYMENTS_PUBLIC_ID:'only-half'},{production:false,directory,publicDir,nodeVersion:'24.19.0'});
   assert.equal(partial.ok,false);assert.equal(partial.checks.find(check=>check.name==='CLOUDPAYMENTS').reason,'partial_configuration');
   const invalidPositions=inspectConfiguration({...env,MOEX_POSITIONS_MODE:'invalid',MOEX_API_KEY:'private-value-not-for-diagnostics'},{production:true,directory,publicDir,nodeVersion:'24.19.0'});

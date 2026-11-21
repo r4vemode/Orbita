@@ -7,14 +7,14 @@ const source=await readFile(new URL('../public/assets/account.js',import.meta.ur
 const accessSource=await readFile(new URL('../public/assets/access.js',import.meta.url),'utf8');
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
-function harness({search='',configuration=Promise.resolve({legalVersion:'CURRENT-LEGAL'}),user={id:'fixture-user',emailVerified:false,access:{hasSubscription:false}}}={}){
+function harness({search='',configuration=Promise.resolve({legalVersion:'CURRENT-LEGAL'}),user={id:'fixture-user',emailVerified:false,access:{hasSubscription:false}},mailConfigured,respond}={}){
   const field=value=>({value,disabled:false,required:false,checked:true,focus(){}}),elements={email:field('fixture@example.test'),password:field('fixture-test-password'),code:field(''),acceptTerms:field(''),acceptPrivacy:field('')};
   const form={elements},nodes={accountForm:form,credentials:{querySelectorAll:()=>[elements.email,elements.password]},consents:{querySelectorAll:()=>[elements.acceptTerms,elements.acceptPrivacy]}};
-  for(const id of ['message','submit','switch','title','subtitle','mfaChallenge','cancelMfa'])nodes[id]={disabled:id==='submit',textContent:'',hidden:false};
+  for(const id of ['message','submit','switch','title','subtitle','mfaChallenge','mfaCodeLabel','mfaCodeHelp','cancelMfa'])nodes[id]={disabled:id==='submit',textContent:'',hidden:false};
   const location={origin:'https://orbita.example',protocol:'https:',href:'https://orbita.example/account.html'+search,search,assign(value){navigations.push(value);}},navigations=[],calls=[];
   const context=vm.createContext({window:{addEventListener(){}},document:{getElementById:id=>nodes[id]},location,history:{replaceState(){}},URL,URLSearchParams,localStorage:{getItem:()=>null,setItem(){}}});
   vm.runInContext(accessSource,context);
-  const A=context.window.OrbitaAccess;A.request=async(path,options)=>{calls.push({path,body:options?.body?JSON.parse(options.body):null});if(path==='/api/public-config')return typeof configuration==='function'?configuration():configuration;return {user};};context.OrbitaAccess=A;
+  const A=context.window.OrbitaAccess;A.request=async(path,options)=>{const body=options?.body?JSON.parse(options.body):null;calls.push({path,body});if(path==='/api/public-config')return typeof configuration==='function'?configuration():configuration;return respond?respond(path,body):{user,mailConfigured};};context.OrbitaAccess=A;
   const completion=vm.runInContext(source,context);
   let prevented=false;const submit=()=>form.onsubmit({preventDefault(){prevented=true;}});
   return {nodes,elements,calls,navigations,completion,submit,get prevented(){return prevented;}};
@@ -88,4 +88,29 @@ test('dashboard landing preserves administrator MFA enrollment and verification 
   ]){
     const page=harness({user});await page.completion;await page.submit();assert.equal(page.navigations[0],expected);
   }
+});
+
+test('an administrator goes directly to the editor if account mail is unavailable',async()=>{
+  const user={id:'fixture-admin',emailVerified:false,access:{isAdmin:true,hasSubscription:true}};
+  for(const [mailConfigured,expected] of [[false,'/admin.html'],[true,'/security.html?verify=1']]){
+    const page=harness({user,mailConfigured});await page.completion;await page.submit();
+    assert.equal(page.navigations[0],expected);
+  }
+});
+
+test('Telegram login shows the code field and submits the code only with the opaque challenge',async()=>{
+  const user={id:'fixture-admin',emailVerified:false,access:{isAdmin:true,hasSubscription:true}},challenge='a'.repeat(64);
+  const page=harness({respond(path,body){
+    if(path==='/api/login')return {mfaRequired:true,mfaMethod:'telegram',challenge};
+    assert.equal(path,'/api/security/mfa/login');
+    assert.deepEqual(body,{challenge,code:'012345'});
+    return {user,mailConfigured:false};
+  }});
+  await page.completion;await page.submit();
+  assert.equal(page.nodes.mfaCodeLabel.textContent,'Код из Telegram');
+  assert.equal(page.elements.code.inputMode,'numeric');
+  assert.equal(page.elements.password.value,'');
+  assert.equal(page.navigations.length,0);
+  page.elements.code.value='012345';await page.submit();
+  assert.deepEqual(page.navigations,['/admin.html']);
 });
