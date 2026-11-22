@@ -31,7 +31,45 @@
     }
     out[n - 1] = 0; return out;
   }
+  const candleTime = new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit',
+    hour: '2-digit', minute: '2-digit'
+  });
+  function historical(record, { compact, width, height }) {
+    const { d, meta } = record;
+    const candles = Array.isArray(d.candles) ? d.candles : [];
+    if (!candles.length) return '<p class="idea-chart idea-chart-empty">Исторические свечи недоступны.</p>';
+    const levels = [
+      ['entry', 'Вход', d.entry], ['exit', 'Выход', meta?.exit],
+      ['stop', 'Стоп', d.stop], ['target', 'Цель', d.target]
+    ].filter(([, , price]) => ok(price));
+    const prices = [...candles.flatMap(candle => [candle.low, candle.high]), ...levels.map(([, , price]) => price)];
+    const min = Math.min(...prices), max = Math.max(...prices), padding = (max - min) * .08 || min * .01;
+    const left = 12, right = width - 12, top = 14, bottom = height - (compact ? 10 : 32);
+    const step = (right - left) / candles.length, bodyWidth = Math.min(18, step * .62);
+    const x = i => left + (i + .5) * step;
+    const y = price => top + (max + padding - price) / (max - min + 2 * padding) * (bottom - top);
+    const guides = levels.map(([kind, label, price]) => `
+      <line class="ic-level ic-${kind}" x1="${left}" x2="${right}" y1="${y(price)}" y2="${y(price)}"><title>${label} ${num(price)}</title></line>`).join('');
+    const ohlc = candles.map((candle, i) => {
+      const cx = x(i), bodyTop = Math.min(y(candle.open), y(candle.close));
+      const stamp = candleTime.format(new Date(candle.at));
+      return `<g class="ic-candle ${candle.close >= candle.open ? 'up' : 'down'}">
+        <title>${esc(stamp)} МСК · открытие ${num(candle.open)} · максимум ${num(candle.high)} · минимум ${num(candle.low)} · закрытие ${num(candle.close)}</title>
+        <line x1="${cx}" x2="${cx}" y1="${y(candle.high)}" y2="${y(candle.low)}"/>
+        <rect x="${cx - bodyWidth / 2}" y="${bodyTop}" width="${bodyWidth}" height="${Math.max(1, Math.abs(y(candle.open) - y(candle.close)))}"/>
+      </g>`;
+    }).join('');
+    const endpoints = levels.filter(([kind]) => kind === 'entry' || kind === 'exit').map(([kind, label, price]) =>
+      `<circle class="ic-point ic-${kind}" cx="${x(kind === 'entry' ? 0 : candles.length - 1)}" cy="${y(price)}" r="4"><title>${label} ${num(price)}</title></circle>`).join('');
+    const description = `Свечи ${d.ticker} в период сделки. ${levels.map(([, label, price]) => label + ' ' + num(price)).join(', ')}`;
+    const dates = compact ? '' : `<text class="ic-axis" x="${left}" y="${height - 10}">${esc(candleTime.format(new Date(candles[0].at)))}</text><text class="ic-axis" text-anchor="end" x="${right}" y="${height - 10}">${esc(candleTime.format(new Date(candles.at(-1).at)))}</text>`;
+    const legend = levels.map(([kind, label, price]) => `<span class="ic-${kind}">${label} <b>${num(price)}</b></span>`).join('');
+    return `<figure class="idea-chart historical"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(description)}">${guides}${ohlc}${endpoints}${dates}</svg>
+      ${compact ? '' : `<figcaption class="ic-legend">${legend}</figcaption>`}</figure>`;
+  }
   function svg(record, { compact = false, width = compact ? 320 : 640, height = compact ? 132 : 260 } = {}) {
+    if (record.demoHistory) return historical(record, { compact, width, height });
     if (window.OrbitaFormations && record.d) return `<figure class="idea-chart${compact ? ' compact' : ''}">${OrbitaFormations.svg(record, { compact, width, height: compact ? height : 300 })}</figure>`;
     const d = record.d || {}, targets = [d.target, ...(Array.isArray(d.targets) ? d.targets : [])].filter(ok);
     const levels = ok(d.entry) && ok(d.stop) && targets.length > 0, long = d.dir !== 'ШОРТ';

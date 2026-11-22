@@ -9,6 +9,7 @@ import {createServer} from 'node:net';
 import {localBetaEnvironment,startLocalBeta} from '../scripts/beta-local.mjs';
 import {createIdeas} from '../lib/ideas.mjs';
 import {createAccounts} from '../lib/accounts.mjs';
+import {importDemoHistory,loadDemoHistoryFixture,rollbackDemoHistory} from '../lib/demo-history.mjs';
 
 const project=fileURLToPath(new URL('../',import.meta.url));
 const script=path.join(project,'scripts/beta-local.mjs');
@@ -139,12 +140,31 @@ test('local MOEX history preserves source prices and remains separate from publi
   const {cookie}=await login(session,'pro');
   const pro=await get(session,'/api/ideas',cookie);
   assert.equal(pro.data.localMarketHistory,true);
-  assert.equal(pro.data.records.length,rows.length);
-  assert.ok(pro.data.records.every(record=>record.localMarketHistory&&record.demo&&record.d.state==='closed'));
+  assert.equal(pro.data.demoHistory,true);
+  assert.equal(pro.data.records.length,150);
+  assert.ok(pro.data.records.every(record=>record.demoHistory&&record.demo&&record.tier==='pro'&&record.d.state==='closed'));
   const exclusive=await login(session,'exclusive');
   const exclusiveFeed=(await get(session,'/api/ideas',exclusive.cookie)).data;
-  assert.equal(exclusiveFeed.records.length,rows.length);
-  assert.ok(exclusiveFeed.records.every(record=>record.d.strategy!=='Orbita Exclusive'));
+  assert.equal(exclusiveFeed.records.length,170);
+  const exclusiveRows=exclusiveFeed.records.filter(record=>record.tier==='exclusive');
+  assert.equal(exclusiveRows.length,20);
+  assert.ok(exclusiveRows.every(record=>record.d.candles.length>1&&Object.keys(record.d.analysis).length===6));
+  assert.equal((await get(session,'/api/ideas/'+exclusiveRows[0].id,cookie)).status,404);
+  assert.equal((await get(session,'/api/ideas/'+exclusiveRows[0].id,exclusive.cookie)).status,200);
+  assert.equal((await get(session,'/api/history/statistics?tier=exclusive&type=demo',cookie)).status,403);
+  assert.equal((await get(session,'/api/history/statistics?tier=pro&type=demo')).status,401);
+  for(const [tier,reader,closed,wins,losses] of [['pro',cookie,150,105,45],['exclusive',exclusive.cookie,20,14,6]]){
+   const stats=(await get(session,'/api/history/statistics?tier='+tier+'&type=demo',reader)).data;
+   assert.deepEqual([stats.closedTrades,stats.wins,stats.losses,stats.winRate],[closed,wins,losses,70]);
+   assert.ok(stats.totalReturnPercent>0&&stats.profitFactor>1&&stats.maxDrawdownPercent>0);
+   assert.ok(stats.averageWinPercent>0&&stats.averageLossPercent<0);
+   assert.equal(stats.capital.length,closed+1);
+   assert.equal(stats.monthly.length,9);
+   assert.equal(stats.monthly.reduce((n,month)=>n+month.closedTrades,0),closed);
+   assert.ok(Math.abs(stats.monthly.reduce((sum,month)=>sum+month.returnPercent,0)-stats.totalReturnPercent)<1e-8);
+   assert.equal((await get(session,'/api/history/statistics?tier='+tier+'&type=actual',reader)).data.closedTrades,0);
+  }
+  assert.equal((await get(session,'/api/history/statistics?tier=pro&type=demo&market=crypto',cookie)).data.closedTrades,50);
   const id=rows[0].id;
   assert.equal((await get(session,'/api/ideas/'+id,cookie)).data.record.id,id);
   const admin=await login(session,'admin');
@@ -166,7 +186,7 @@ test('ordinary npm start exposes local history to an existing administrator with
  const draft=(await ideas.create({id:owner.id,role:'admin'},{mode:'draft',d:{ticker:'KEEP'}})).record;
  const store=path.join(directory,'ideas.json'),before=await readFile(store,'utf8');
  const {scripts}=JSON.parse(await readFile(path.join(project,'package.json'),'utf8'));
- const fixture=JSON.parse(await readFile(marketFixturePath,'utf8'));
+ const fixture=await loadDemoHistoryFixture();
  const args=scripts.start.split(' ').slice(1);
  for(const production of [false,true]){
   const env={...localBetaEnvironment(directory),...(production?{NODE_ENV:'production'}:{})};
@@ -187,12 +207,22 @@ test('ordinary npm start exposes local history to an existing administrator with
    assert.equal(loginResult.user.id,owner.id);
    const feed=(await get(session,'/api/ideas',cookie)).data;
    assert.equal(feed.localMarketHistory,!production);
-   assert.equal(feed.records.filter(record=>record.localMarketHistory).length,production?0:fixture.trades.length);
+   assert.equal(feed.records.filter(record=>record.demoHistory).length,production?0:fixture.trades.length);
    assert.deepEqual((await get(session,'/api/admin/ideas',cookie)).data.records.map(record=>record.id),[draft.id]);
    assert.equal((await get(session,'/api/local/market-history')).status,production?404:200);
    assert.deepEqual((await get(session,'/api/public/results')).data.results,[]);
    const forwarded=await fetch(base+'/api/ideas',{headers:{Cookie:cookie,'X-Forwarded-Host':'public.example.test'}});
-   assert.equal((await forwarded.json()).localMarketHistory,false);
+   const proxied=await forwarded.json();
+   assert.equal(proxied.localMarketHistory,false);
+   assert.equal(proxied.demoHistory,false);
+   if(production){
+    await importDemoHistory(directory,fixture);
+    const seeded=(await get(session,'/api/ideas',cookie)).data;
+    assert.equal(seeded.records.filter(record=>record.demoHistory).length,170);
+    assert.equal((await get(session,'/api/public/results')).data.results.length,0);
+    await rollbackDemoHistory(directory);
+    assert.equal((await get(session,'/api/ideas',cookie)).data.demoHistory,false);
+   }
    assert.equal(await readFile(store,'utf8'),before);
   }finally{
    if(child.exitCode===null)child.kill('SIGTERM');

@@ -15,6 +15,7 @@
     "check:container": "node scripts/check-container.mjs",
     "beta:local": "node scripts/beta-local.mjs",
     "seed:radar": "node scripts/seed-radar.mjs",
+    "history:seed": "node scripts/manage-demo-history.mjs",
     "telegram:admin:webhook": "node scripts/setup-telegram-admin.mjs",
     "test": "node scripts/test.mjs",
     "backtest": "node scripts/backtest.mjs",
