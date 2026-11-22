@@ -36,7 +36,11 @@ export async function runAnalyticsFlows({session,browser,record,outputDir}){
    await journal.waitForSelector('#resultsRows tr');
    assert.equal(await journal.locator('#resultsRows tr').count(),170);
    assert.equal(await journal.locator('#resultsRows .results-source').count(),170);
-   assert.match(await journal.locator('#resultsSubtitle').innerText(),/отобраны задним числом/i);
+   assert.equal(await journal.locator('#resultsTitle').innerText(),'Результаты идей');
+   assert.equal(await journal.locator('#resultsSubtitle').innerText(),'Условные сделки по биржевым свечам с 01.03.2026 по 21.11.2026.');
+   assert.equal(await journal.locator('#resultsMethodText').isVisible(),false);
+   await journal.getByText('Методика',{exact:true}).click();
+   assert.match(await journal.locator('#resultsMethodText').innerText(),/отобраны после расчёта/);
    await journal.locator('[data-tier=pro]').click();
    assert.equal(await journal.locator('#resultsRows tr').count(),150);
    await journal.locator('[data-tier=exclusive]').click();

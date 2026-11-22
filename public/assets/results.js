@@ -25,7 +25,7 @@
   const requestedType = filters.get('type');
   const explicitType = requestedType === 'actual' ? 'actual' : ['scenarios', 'demo'].includes(requestedType) ? 'scenarios' : null;
   const endpoints = { actual: '/api/public/results', scenarios: '/api/public/history-scenarios', local: '/api/local/market-history' };
-  const published = { title: $('resultsTitle').textContent, subtitle: $('resultsSubtitle').textContent, method: $('resultsMethodText').innerHTML };
+  const published = { subtitle: $('resultsSubtitle').textContent, method: $('resultsMethodText').innerHTML };
   const markets = { stocks: 'Акции', futures: 'Фьючерсы', crypto: 'Криптовалюты' };
   let mode = local ? 'local' : explicitType || 'scenarios';
   let request = null, data = null, tier = !local && ['pro', 'exclusive'].includes(requestedTier) ? requestedTier : '';
@@ -44,12 +44,9 @@
     if (local) return;
     const scenarios = mode === 'scenarios';
     $('resultsTable').classList.toggle('results-scenarios', scenarios);
-    const title = scenarios ? 'Исторические сценарии' : published.title;
-    document.title = 'ORBITA — ' + title;
-    $('resultsTitle').textContent = title;
-    const span = data?.fromDate && data?.throughDate ? ` Период выборки с ${day(data.fromDate)} по ${day(data.throughDate)}.` : '';
-    $('resultsSubtitle').textContent = scenarios ? `Условные входы и выходы по биржевым свечам. Сценарии отобраны задним числом.${span}` : published.subtitle;
-    if (scenarios) $('resultsMethodText').textContent = 'Исторические сценарии подобраны ретроспективно по данным бирж. Процент рассчитывается по изменению цены входа и выхода, для SHORT знак обратный. Один R равен расстоянию от входа до стопа. Комиссии и проскальзывание не учитываются.';
+    const period = data?.fromDate && data?.throughDate ? ` с ${day(data.fromDate)} по ${day(data.throughDate)}` : '';
+    $('resultsSubtitle').textContent = scenarios ? `Условные сделки по биржевым свечам${period}.` : published.subtitle;
+    if (scenarios) $('resultsMethodText').textContent = 'Сценарии рассчитаны по историческим свечам и отобраны после расчёта. В полной выборке каждого тарифа 70% сценариев закрыты в плюс. Процент рассчитывается по изменению цены от входа до выхода, для SHORT знак обратный. Один R равен расстоянию от входа до стопа. Комиссии и проскальзывание не учитываются.';
     else $('resultsMethodText').innerHTML = published.method;
   }
   function renderLocalPrices() {
