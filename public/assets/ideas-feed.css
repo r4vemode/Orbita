@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&display=swap');
 body{margin:0;background:var(--o-bg);color:var(--o-ink)}
 .feed-filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.feed-filter-reset{align-self:flex-end}
 .feed-filters label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--o-faint);flex:0 1 160px}
 .feed-filters input,.feed-filters select{background:var(--o-surface);border:1px solid var(--o-line);color:var(--o-ink);border-radius:7px;padding:7px 9px;font:inherit;font-size:14px;color-scheme:dark}
 .feed-filters :focus-visible{outline:2px solid var(--o-focus);outline-offset:1px}

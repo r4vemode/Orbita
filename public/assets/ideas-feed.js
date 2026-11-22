@@ -295,6 +295,8 @@
     const r = feed?.records.find(x => x.id === box.dataset.id); if (r) box.querySelector('.sizer-out').innerHTML = sizerText(r, Number(capital), Number(risk));
   });
   $('feedFilters').addEventListener('input', render); $('feedFilters').addEventListener('submit', e => e.preventDefault());
+  $('resetFeedFilters').addEventListener('click', () => { $('feedFilters').reset(); render(); });
+  $('fFrom').addEventListener('change', render);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
   $('feedFiltersBox').open = matchMedia('(min-width: 768px)').matches;
   catalog(); load();

@@ -61,6 +61,15 @@ test('CLI interruption stops its child and removes only its owned fixture',async
   try{
     await new Promise((resolve,reject)=>{let settled=false;const timer=setTimeout(()=>{if(!settled){settled=true;reject(Error('Local beta CLI did not become ready.'));}},15000);child.stdout.on('data',chunk=>{output=(output+chunk).slice(-16000);if(!settled&&output.includes('Ctrl+C остановит')){settled=true;clearTimeout(timer);resolve();}});child.stderr.on('data',()=>{});child.once('exit',()=>{if(!settled){settled=true;clearTimeout(timer);reject(Error('Local beta CLI exited before readiness.'));}});});
     assert.ok(output.includes('ЛОКАЛЬНАЯ УЧЕБНАЯ БЕТА'));const names=(await readdir(tmpdir())).filter(name=>name.startsWith(`orbita-local-beta-${child.pid}-`));assert.equal(names.length,1);const root=path.join(tmpdir(),names[0]);
+    const address=new URL(output.match(/^Адрес: (\S+)$/m)[1]);
+    assert.equal(address.searchParams.get('next'),'/strategies.html?view=history&type=demo');
+    const [,email,password]=output.match(/^Клиент Exclusive: (\S+) \| (\S+)$/m);
+    const session={base:address.origin,accounts:[{role:'exclusive',email,password}]};
+    const {cookie}=await login(session,'exclusive');
+    const feed=(await get(session,'/api/ideas',cookie)).data;
+    assert.equal(feed.demoHistory,true);
+    assert.equal(feed.records.filter(record=>record.demoHistory&&record.tier==='pro').length,150);
+    assert.equal(feed.records.filter(record=>record.demoHistory&&record.tier==='exclusive').length,20);
     child.kill('SIGTERM');let timer;const result=await Promise.race([done,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Local beta CLI did not shut down.')),15000);})]).finally(()=>clearTimeout(timer));assert.equal(result.code,0);await assert.rejects(lstat(root),{code:'ENOENT'});
   }finally{if(child.exitCode===null&&child.signalCode===null){child.kill('SIGKILL');await done;}}
 });
