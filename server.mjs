@@ -45,6 +45,7 @@ if(!Number.isInteger(port)||port<0||port>65535)throw Error('PORT должен б
 const historySetting=process.env.ORBITA_LOCAL_MARKET_HISTORY;
 const localMarketHistory=(historySetting==='true'||(historySetting!=='false'&&process.argv.includes('--local-market-history')))
   &&process.env.NODE_ENV!=='production'&&!process.env.ORBITA_PUBLIC_ORIGIN&&['127.0.0.1','::1','localhost'].includes(host);
+const useBundledHistory=!process.argv.includes('--without-bundled-history');
 let accounts;
 const legal=await createLegal(directory,{templateDir:root,accounts:{identify:req=>accounts.identify(req)},authorizePublish:(req,credentials)=>accounts.authorizeSensitive(req,credentials)});
 accounts=await createAccounts(directory,{...(mfaSetting===undefined?{}:{requireAdminMfa:['true','1'].includes(mfaSetting)}),legalVersionProvider:async()=>(await legal.readPublic()).version,telegramLogin:createTelegramLoginSender()});
@@ -76,8 +77,8 @@ const adminAssets=new Set(['/assets/markets-admin.js','/assets/admin.js','/asset
 const removedAssets=new Set(['/assets/editor-seed.js']);
 function redirect(res,destination){res.writeHead(303,{Location:destination,'Cache-Control':'no-store','Vary':'Cookie'});res.end();}
 function probe(res,status,data,head=false){const body=JSON.stringify(data);res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Content-Length':Buffer.byteLength(body)});res.end(head?undefined:body);}
-async function demoTrades(useBundled){
- try{return await readDemoHistory(directory,{useBundled});}
+async function demoTrades(){
+ try{return await readDemoHistory(directory,{useBundled:useBundledHistory});}
  catch{throw error(503,'Исторические сценарии временно недоступны. Проверьте состояние хранилища.','DEMO_HISTORY_UNAVAILABLE');}
 }
 const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,requestTimeout:20000,keepAliveTimeout:5000,connectionsCheckingInterval:1000},async(req,res)=>{
@@ -133,14 +134,14 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
     const market=url.searchParams.get('market'),strategy=url.searchParams.get('strategy');
     if(!['pro','exclusive'].includes(tier)||!['demo','actual'].includes(type)||market&&!['stocks','futures','crypto'].includes(market)||strategy?.length>120)throw error(400,'Некорректные фильтры истории.');
     if(!canReadTier(user,tier))throw error(403,'История доступна по соответствующей подписке.');
-    const records=type==='demo'?{trades:await demoTrades(includeLocalMarketHistory)}:{published:(await ideas.results()).results};
+    const records=type==='demo'?{trades:await demoTrades()}:{published:(await ideas.results()).results};
     json(res,200,historyStatistics({tier,type,market,strategy,...records}));return;
    }
    if(url.pathname==='/api/ideas'&&req.method==='GET'){
     const feed=await ideas.list(user);
     let quotes={},specs={},trades=[],demoHistoryError;
     try{quotes=await markets.quotesFor(feed.records);specs=await markets.specsFor(feed.records);}catch{}
-    try{trades=await demoTrades(includeLocalMarketHistory);}catch(cause){demoHistoryError=cause.code;}
+    try{trades=await demoTrades();}catch(cause){demoHistoryError=cause.code;}
     const accessible=trades.filter(trade=>canReadTier(user,trade.tier)).map(projectDemoTrade);
     json(res,200,{...feed,records:[...feed.records,...accessible],quotes,specs,demoHistory:trades.length>0,demoHistoryError,localMarketHistory:includeLocalMarketHistory});return;
    }
@@ -148,7 +149,7 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
    if(single&&req.method==='GET'){
     if(single[1].startsWith('demo-history-')){
      requireMember(user);
-     const trade=(await demoTrades(includeLocalMarketHistory)).find(row=>row.id===single[1]);
+     const trade=(await demoTrades()).find(row=>row.id===single[1]);
      if(!trade||!canReadTier(user,trade.tier))throw error(404,'Идея недоступна.');
      json(res,200,{record:projectDemoTrade(trade)});return;
     }

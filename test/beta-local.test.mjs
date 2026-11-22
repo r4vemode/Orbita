@@ -176,7 +176,7 @@ test('local MOEX history preserves source prices and remains separate from publi
  }finally{await session.close();}
 });
 
-test('ordinary npm start exposes local history to an existing administrator without writing it to the ideas store',async t=>{
+test('ordinary npm start and production serve the bundled archive to an existing administrator without importing it',async t=>{
  const directory=await mkdtemp(path.join(tmpdir(),'orbita-start-history-'));
  t.after(()=>rm(directory,{recursive:true,force:true}));
  const account={role:'admin',email:'owner@example.test',password:'Local-owner-password-2026'};
@@ -190,7 +190,7 @@ test('ordinary npm start exposes local history to an existing administrator with
  const args=scripts.start.split(' ').slice(1);
  for(const production of [false,true]){
   const env={...localBetaEnvironment(directory),...(production?{NODE_ENV:'production'}:{})};
-  const child=spawn(process.execPath,args,{cwd:project,env,stdio:['ignore','pipe','ignore']});
+  const child=spawn(process.execPath,production?['server.mjs']:args,{cwd:project,env,stdio:['ignore','pipe','ignore']});
   const done=new Promise(resolve=>child.once('exit',resolve));
   try{
    const base=await new Promise((resolve,reject)=>{
@@ -207,14 +207,19 @@ test('ordinary npm start exposes local history to an existing administrator with
    assert.equal(loginResult.user.id,owner.id);
    const feed=(await get(session,'/api/ideas',cookie)).data;
    assert.equal(feed.localMarketHistory,!production);
-   assert.equal(feed.records.filter(record=>record.demoHistory).length,production?0:fixture.trades.length);
+   assert.equal(feed.records.filter(record=>record.demoHistory).length,fixture.trades.length);
+   assert.equal(feed.records.filter(record=>record.demoHistory&&record.tier==='pro').length,150);
+   assert.equal((await get(session,'/api/history/statistics?tier=pro&type=demo',cookie)).data.closedTrades,150);
+   const historical=feed.records.find(record=>record.demoHistory);
+   assert.equal((await get(session,'/api/ideas/'+historical.id,cookie)).data.record.id,historical.id);
+   await assert.rejects(lstat(path.join(directory,'demo-history.json')),{code:'ENOENT'});
    assert.deepEqual((await get(session,'/api/admin/ideas',cookie)).data.records.map(record=>record.id),[draft.id]);
    assert.equal((await get(session,'/api/local/market-history')).status,production?404:200);
    assert.deepEqual((await get(session,'/api/public/results')).data.results,[]);
    const forwarded=await fetch(base+'/api/ideas',{headers:{Cookie:cookie,'X-Forwarded-Host':'public.example.test'}});
    const proxied=await forwarded.json();
    assert.equal(proxied.localMarketHistory,false);
-   assert.equal(proxied.demoHistory,false);
+   assert.equal(proxied.demoHistory,true);
    if(production){
     await importDemoHistory(directory,fixture);
     const seeded=(await get(session,'/api/ideas',cookie)).data;

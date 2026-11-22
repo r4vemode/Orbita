@@ -20,8 +20,9 @@
   const OPEN = ['announced', 'waiting', 'active'];
   const STATES = { announced: ['Объявлена', 'Уровни скоро'], waiting: ['Ждёт входа', 'Цена ещё не дошла до входа'], active: ['В сделке', 'Вход выполнен, ждём цель или стоп'], closed: ['Закрыта', ''], cancelled: ['Отменена', 'Вход не состоялся'] };
   const params = new URLSearchParams(location.search);
-  let tier = params.get('tab') === 'exclusive' ? 'exclusive' : 'pro', quick = params.get('view') === 'history' ? 'history' : null;
   let historyType = ['actual', 'demo'].includes(params.get('type')) ? params.get('type') : null;
+  let tier = params.get('tab') === 'exclusive' ? 'exclusive' : 'pro';
+  let quick = historyType !== null || params.get('view') === 'history' ? 'history' : null;
   let feed = null, user = null, stats = null, timer = null, historyRequest = null, historyKey = null;
   const expanded = new Set();
   const tierOf = r => r.tier || (r.d?.strategy === 'Orbita Exclusive' ? 'exclusive' : 'pro');
@@ -200,9 +201,13 @@
     const all = user && feed ? feed.records.filter(r => r.published && !r.archived && tierOf(r) === tier) : [];
     const hasDemoHistory = Boolean(user && feed?.demoHistory);
     const legacyLocal = Boolean(user && !hasDemoHistory && feed?.localMarketHistory && all.some(r => r.localMarketHistory));
-    const preferDemo = hasDemoHistory && all.some(r => r.demoHistory) && !all.some(r => !r.demo && !r.isDemo && quickMatch(r, 'history'));
-    const view = quick ?? (legacyLocal || preferDemo ? 'history' : 'open');
-    const activeHistoryType = hasDemoHistory ? historyType || (preferDemo ? 'demo' : 'actual') : 'actual';
+    const actual = all.filter(r => !r.demo && !r.isDemo && !r.demoHistory && quickMatch(r, 'history'));
+    const demo = all.filter(r => r.demoHistory && quickMatch(r, 'history'));
+    const activeHistoryType = hasDemoHistory ? historyType ?? (demo.length ? 'demo' : 'actual') : 'actual';
+    const historyRows = !hasDemoHistory ? all : activeHistoryType === 'demo' ? demo : actual;
+    const openRows = all.filter(r => !r.demoHistory);
+    const hasOpen = openRows.some(r => quickMatch(r, 'open'));
+    const view = quick ?? (hasOpen ? 'open' : 'history');
     for (const tab of document.querySelectorAll('.o-tab')) { const on = tab.dataset.tier === tier; tab.setAttribute('aria-selected', String(on)); tab.tabIndex = on ? 0 : -1; }
     for (const b of document.querySelectorAll('[data-quick]')) b.setAttribute('aria-pressed', String(b.dataset.quick === view));
     $('feedLocalHistory').hidden = !legacyLocal || view !== 'history';
@@ -216,12 +221,14 @@
     const hideTools = () => { $('feedFilters').hidden = true; $('feedQuick').hidden = true; renderHistoryStats(null); };
     if (!user) { hideTools(); locked('guest'); return; }
     if (!feed) { hideTools(); locked('none'); return; }
-    for (const t of ['pro', 'exclusive']) document.querySelector(`[data-count="${t}"]`).textContent = feed.locked?.includes(t) ? '🔒' : String(feed.records.filter(r => r.published && !r.archived && tierOf(r) === t && OPEN.includes(r.d.state) && !r.erroneous).length);
+    for (const t of ['pro', 'exclusive']) {
+      const count = feed.records.filter(r => r.published && !r.archived && !r.demoHistory && tierOf(r) === t && quickMatch(r, 'open')).length;
+      document.querySelector(`[data-count="${t}"]`).textContent = feed.locked?.includes(t) ? '🔒' : `Открытых ${count}`;
+    }
     if (feed.locked?.includes(tier)) { hideTools(); locked(tier === 'pro' ? 'none' : 'upgrade'); return; }
-    const actual = all.filter(r => !r.demo && !r.isDemo && !r.demoHistory);
-    const historyRows = !hasDemoHistory ? all : activeHistoryType === 'demo' ? all.filter(r => r.demoHistory) : actual;
-    const openRows = all.filter(r => !r.demoHistory);
     const sourceRows = view === 'history' ? historyRows : openRows;
+    $('actualHistoryCount').textContent = actual.length;
+    $('demoHistoryCount').textContent = demo.length;
     for (const q of ['open', 'active', 'waiting', 'history']) {
       const scope = q === 'history' ? historyRows : openRows;
       document.querySelector(`[data-qc="${q}"]`).textContent = scope.filter(r => quickMatch(r, q)).length;

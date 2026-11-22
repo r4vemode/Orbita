@@ -79,7 +79,10 @@ async function main(){
     const long=status(await admin('/api/admin/ideas',full('MVPFULL')),201,'Не опубликован полный сценарий.').data.record;
     const exclusive=status(await admin('/api/admin/ideas',full('MVPEXCL','Orbita Exclusive')),201,'Не опубликован сценарий Exclusive.').data.record;
     let visible=status(await request(server,'/api/ideas',{cookie:client.cookie}),200,'Не открылись идеи Pro.').data.records;
-    assert.equal(visible.length,2);assert.ok(!visible.some(record=>record.id===exclusive.id));
+    assert.equal(visible.filter(record=>!record.demoHistory).length,2);
+    const proArchive=visible.filter(record=>record.demoHistory);
+    assert.equal(proArchive.length,150);assert.ok(proArchive.every(record=>record.tier==='pro'&&record.d.state==='closed'));
+    assert.ok(!visible.some(record=>record.id===exclusive.id));
     status(await request(server,'/api/ideas/'+exclusive.id,{cookie:client.cookie}),404,'Pro открыл Exclusive.');
     stage='настройки и материалы';
     status(await request(server,'/api/admin/settings',{cookie:client.cookie}),403,'Клиент получил настройки продукта.');
@@ -100,7 +103,9 @@ async function main(){
     mark('Общие настройки, пустые партнёрские ссылки, черновик и публикация статьи Exclusive');
     stage='подписки и история';
     status(await admin('/api/admin/subscriptions',{userId:client.data.user.id,plan:'pro',expiresAt:null,reason:'Проверка независимого тарифа'}),200,'Не отозван Pro.');
-    visible=(await request(server,'/api/ideas',{cookie:client.cookie})).data.records;assert.deepEqual(new Set(visible.map(record=>record.id)),new Set([quick.id,long.id,exclusive.id]),'Exclusive includes PRO strategies');
+    visible=(await request(server,'/api/ideas',{cookie:client.cookie})).data.records;
+    assert.deepEqual(new Set(visible.filter(record=>!record.demoHistory).map(record=>record.id)),new Set([quick.id,long.id,exclusive.id]),'Exclusive includes PRO strategies');
+    assert.equal(visible.filter(record=>record.demoHistory&&record.tier==='exclusive').length,20);
     status(await grant('pro'),200,'Не восстановлен Pro.');
     const event=(id,body)=>admin('/api/admin/ideas/'+id+'/events',body);
     status(await event(quick.id,{action:'levels',d:{entry:100,stop:95,target:110,entryRule:'Учебное подтверждение.',cancelRule:'Учебный выход.'}}),200,'Не добавлены уровни.');
@@ -120,7 +125,7 @@ async function main(){
     assert.deepEqual((await request(server,'/api/positions',{cookie:other.cookie})).data.positions,[]);mark('Личная сделка, отслеживание и изоляция аккаунтов');
 
     stage='локальная нагрузка';const samples=[],total=40,workers=4;let next=0,failures=0;
-    await Promise.all(Array.from({length:workers},async()=>{while(next++<total){const begin=performance.now();try{const response=await request(server,'/api/ideas',{cookie:client.cookie});if(response.status!==200||response.data.records.length!==3)failures++;}catch{failures++;}samples.push(performance.now()-begin);}}));
+    await Promise.all(Array.from({length:workers},async()=>{while(next++<total){const begin=performance.now();try{const response=await request(server,'/api/ideas',{cookie:client.cookie});if(response.status!==200||response.data.records.length!==173)failures++;}catch{failures++;}samples.push(performance.now()-begin);}}));
     if(failures)throw Error('Локальная нагрузочная репетиция обнаружила ошибки.');samples.sort((a,b)=>a-b);const percentile=fraction=>Math.round(samples[Math.min(samples.length-1,Math.ceil(samples.length*fraction)-1)]);
     mark(`Локальная нагрузка: ${total} запросов, ${workers} параллельно, ошибок 0, p50 ${percentile(.5)} мс, p95 ${percentile(.95)} мс`);
 

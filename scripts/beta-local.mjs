@@ -55,7 +55,8 @@ export async function startLocalBeta({environment=process.env,signal,payments=fa
   const abort=()=>{if(prepared)void close().catch(()=>{});else child?.kill('SIGTERM');};signal?.addEventListener('abort',abort,{once:true});
   try{
     signal?.throwIfAborted();
-    child=spawn(process.execPath,['server.mjs'],{cwd:project,env:{...localBetaEnvironment(directory,environment),PORT:String(port),...(payments?{ORBITA_PAYMENTS_MODE:'simulation'}:{}),...(marketHistory?{ORBITA_LOCAL_MARKET_HISTORY:'true'}:{})},stdio:['ignore','pipe','pipe']});
+    const serverArgs=marketHistory?['server.mjs']:['server.mjs','--without-bundled-history'];
+    child=spawn(process.execPath,serverArgs,{cwd:project,env:{...localBetaEnvironment(directory,environment),PORT:String(port),...(payments?{ORBITA_PAYMENTS_MODE:'simulation'}:{}),...(marketHistory?{ORBITA_LOCAL_MARKET_HISTORY:'true'}:{})},stdio:['ignore','pipe','pipe']});
     child.once('exit',(code,exitSignal)=>{childExited=true;resolveExit({code,signal:exitSignal});});
     child.once('error',()=>{childExited=true;resolveExit({code:null,signal:'spawn-error'});});
     const base=await new Promise((resolve,reject)=>{

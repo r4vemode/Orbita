@@ -97,8 +97,16 @@ test('server enforces subscriptions and administrator permissions on direct and 
     });
 
     await t.test('PRO cannot read EXCLUSIVE; EXCLUSIVE includes PRO ideas and lesson access',async()=>{
-      const proRows=await request(base,'/api/ideas',{cookie:pro.cookie});assert.equal(proRows.status,200);assert.deepEqual(proRows.data.records.map(r=>r.id),[proId]);
-      const exclusiveRows=await request(base,'/api/ideas',{cookie:exclusive.cookie});assert.equal(exclusiveRows.status,200);assert.deepEqual(exclusiveRows.data.records.map(r=>r.id).sort(),[proId,exclusiveId].sort(),'EXCLUSIVE includes PRO');assert.deepEqual(exclusiveRows.data.locked,[]);
+      const proRows=await request(base,'/api/ideas',{cookie:pro.cookie});assert.equal(proRows.status,200);
+      assert.deepEqual(proRows.data.records.filter(r=>!r.demoHistory).map(r=>r.id),[proId]);
+      const proArchive=proRows.data.records.filter(r=>r.demoHistory);
+      assert.equal(proArchive.length,150);
+      assert.ok(proArchive.every(r=>r.tier==='pro'&&r.d.state==='closed'));
+      const exclusiveRows=await request(base,'/api/ideas',{cookie:exclusive.cookie});assert.equal(exclusiveRows.status,200);
+      assert.deepEqual(exclusiveRows.data.records.filter(r=>!r.demoHistory).map(r=>r.id).sort(),[proId,exclusiveId].sort(),'EXCLUSIVE includes PRO');
+      const exclusiveArchive=exclusiveRows.data.records.filter(r=>r.demoHistory&&r.tier==='exclusive');
+      assert.equal(exclusiveArchive.length,20);assert.deepEqual(exclusiveRows.data.locked,[]);
+      assert.equal((await request(base,'/api/ideas/'+exclusiveArchive[0].id,{cookie:pro.cookie})).status,404);
       assert.equal((await request(base,'/api/ideas/'+exclusiveId,{cookie:pro.cookie})).status,404);
       assert.equal((await request(base,'/api/ideas/'+proId,{cookie:exclusive.cookie})).status,200);
       assert.equal((await request(base,'/api/ideas/'+exclusiveId,{cookie:exclusive.cookie})).status,200);
