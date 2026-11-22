@@ -195,7 +195,7 @@
     const box = $('feedStats'), s = stats?.[tier];
     if (!s || !s.closed) { box.hidden = true; return; }
     box.hidden = false;
-    box.innerHTML = `<div><span class="o-small">Закрыто идей ${tier === 'exclusive' ? 'EXCLUSIVE' : 'PRO'}</span><b>${s.closed}</b></div><div><span class="o-small">Закрыты в плюсе</span><b>${s.winRate.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}%</b></div><div><span class="o-small">Средний результат</span><b class="${s.avgPct >= 0 ? 'up' : 'down'}">${pct(s.avgPct)}</b></div><div><span class="o-small">Средний итог в рисках</span><b>${s.avgR === null ? '—' : (s.avgR > 0 ? '+' : '') + s.avgR.toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + 'R'}</b></div><p class="o-small">По всем закрытым идеям с ценой выхода, без комиссий. Прошлые результаты не гарантируют будущих. <a href="/results.html">Все идеи с уровнями →</a></p>`;
+    box.innerHTML = `<div><span class="o-small">Закрыто идей ${tier === 'exclusive' ? 'EXCLUSIVE' : 'PRO'}</span><b>${s.closed}</b></div><div><span class="o-small">Закрыты в плюсе</span><b>${s.winRate.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}%</b></div><div><span class="o-small">Средний результат</span><b class="${s.avgPct >= 0 ? 'up' : 'down'}">${pct(s.avgPct)}</b></div><div><span class="o-small">Средний итог в рисках</span><b>${s.avgR === null ? '—' : (s.avgR > 0 ? '+' : '') + s.avgR.toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + 'R'}</b></div><p class="o-small">По всем закрытым идеям с ценой выхода, без комиссий. Прошлые результаты не гарантируют будущих. <a href="/results.html?type=actual">Все идеи с уровнями →</a></p>`;
   }
   function render() {
     const all = user && feed ? feed.records.filter(r => r.published && !r.archived && tierOf(r) === tier) : [];

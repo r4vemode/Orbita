@@ -4,8 +4,8 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {createAccounts} from './lib/accounts.mjs';
 import {createIdeas} from './lib/ideas.mjs';
-import {readDemoHistory} from './lib/demo-history.mjs';
-import {historyStatistics,projectDemoTrade} from './lib/trade-history.mjs';
+import {readBundledDemoHistory,readDemoHistory} from './lib/demo-history.mjs';
+import {historyStatistics,projectDemoTrade,publicHistoryScenarios} from './lib/trade-history.mjs';
 import {createNews} from './lib/news.mjs';
 import {createReferrals} from './lib/referrals.mjs';
 import {RECURRING_TERMS_VERSION} from './lib/payment-recurring.mjs';
@@ -77,8 +77,11 @@ const adminAssets=new Set(['/assets/markets-admin.js','/assets/admin.js','/asset
 const removedAssets=new Set(['/assets/editor-seed.js']);
 function redirect(res,destination){res.writeHead(303,{Location:destination,'Cache-Control':'no-store','Vary':'Cookie'});res.end();}
 function probe(res,status,data,head=false){const body=JSON.stringify(data);res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Content-Length':Buffer.byteLength(body)});res.end(head?undefined:body);}
-async function demoTrades(){
- try{return await readDemoHistory(directory,{useBundled:useBundledHistory});}
+async function demoTrades({publicArchive=false}={}){
+ try{
+  if(publicArchive)return useBundledHistory?await readBundledDemoHistory():[];
+  return await readDemoHistory(directory,{useBundled:useBundledHistory});
+ }
  catch{throw error(503,'Исторические сценарии временно недоступны. Проверьте состояние хранилища.','DEMO_HISTORY_UNAVAILABLE');}
 }
 const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,requestTimeout:20000,keepAliveTimeout:5000,connectionsCheckingInterval:1000},async(req,res)=>{
@@ -125,6 +128,7 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
    if(url.pathname==='/api/admin/readiness'){requireAdmin(user);if(req.method!=='GET')throw error(405,'Метод не поддерживается.');const settings=await productSettings.readPublic();json(res,200,await readiness.adminReport({supportEmail:settings.supportEmail}));return;}
    if(url.pathname==='/api/admin/metrics'){requireAdmin(user);if(req.method!=='GET')throw error(405,'Метод не поддерживается.');let billing;try{billing=JSON.parse(await readFile(path.join(directory,'billing.json'),'utf8'));}catch(cause){if(cause.code!=='ENOENT')throw cause;}json(res,200,{metrics:buildMvpMetrics({accounts:await accounts.readDatabase(),billing}),checkedAt:new Date().toISOString()});return;}
    if(url.pathname==='/api/public/results'&&req.method==='GET'){json(res,200,await ideas.results());return;}
+   if(url.pathname==='/api/public/history-scenarios'&&req.method==='GET'){json(res,200,publicHistoryScenarios(await demoTrades({publicArchive:true})));return;}
    if(includeLocalMarketHistory&&url.pathname==='/api/local/market-history'&&req.method==='GET'){json(res,200,await ideas.results({localMarketHistory:true}));return;}
    if(url.pathname==='/api/public/stats'&&req.method==='GET'){json(res,200,{stats:await ideas.stats(),checkedAt:new Date().toISOString()});return;}
    if(url.pathname==='/api/public/showcase'&&req.method==='GET'){json(res,200,{showcase:await buildShowcase({ideas,markets})});return;}

@@ -45,7 +45,7 @@ export async function runUiAcceptance(args=process.argv.slice(2)){
     for(const [name,run]of [['Аккаунт',runAuthFlows],['Редакция',runAdminFlows],['Редакция — параллельные действия',runAdminRaceFlows],['Безопасность — смена аккаунта',runSecurityRaceFlows],['Редакция — приватность',runAdminPrivacyFlows],['Кабинеты клиентов',runClientFlows],['Открытые кабинеты — смена доступа',runMemberSessionFlows],['Документы и реквизиты',runLegalFlows],['Radar',runRadarFlows],['Редакция Radar',runRadarAdminFlows],['Уведомления идей',runIdeaAlertFlows],['Рынки и позиции участников',runMarketsFlows],['Поддержка',runSupportFlows],['Моя Орбита',runDashboardFlows],['Telegram редакции',runTelegramAdminFlows],['Аналитика и OHLC',runAnalyticsFlows],['Оплаты и партнёры',runBillingReferralFlows],['Адаптивность',runLayoutFlows]]){
       controller.signal.throwIfAborted();let session;const suite={name,status:'running',checks:0};report.suites.push(suite);
       try{
-        session=await startLocalBeta({signal:controller.signal,payments:run===runBillingReferralFlows});
+        session=await startLocalBeta({signal:controller.signal,payments:run===runBillingReferralFlows,bundledHistory:run===runAnalyticsFlows});
         const record=async(title,work)=>{
           controller.signal.throwIfAborted();const started=Date.now();
           try{const value=await work();report.checks.push({suite:name,title,status:'passed',durationMs:Date.now()-started});suite.checks++;console.log('✓ '+title);return value;}

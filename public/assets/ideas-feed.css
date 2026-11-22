@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&display=swap');
 body{margin:0;background:var(--o-bg);color:var(--o-ink)}
+.feed>.o-tabs{flex-wrap:wrap}
 .feed-filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
 .feed-filter-reset{align-self:flex-end}
 .feed-filters label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--o-faint);flex:0 1 160px}

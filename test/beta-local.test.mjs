@@ -157,6 +157,13 @@ test('local MOEX history preserves source prices and remains separate from publi
   assert.equal(exclusiveFeed.records.length,170);
   const exclusiveRows=exclusiveFeed.records.filter(record=>record.tier==='exclusive');
   assert.equal(exclusiveRows.length,20);
+  assert.equal(pro.data.records.filter(record=>record.d.market==='stocks').length,108);
+  assert.equal(exclusiveRows.filter(record=>record.d.market==='stocks').length,18);
+  assert.ok(pro.data.records.filter(record=>record.d.market==='stocks'&&record.d.dir==='ШОРТ').length>=40);
+  assert.ok(exclusiveRows.every(record=>{
+   const pct=(record.meta.exit/record.d.entry-1)*(record.d.dir==='ШОРТ'?-100:100);
+   return pct>=12&&pct<=16||pct>=-7&&pct<0;
+  }));
   assert.ok(exclusiveRows.every(record=>record.d.candles.length>1&&Object.keys(record.d.analysis).length===6));
   assert.equal((await get(session,'/api/ideas/'+exclusiveRows[0].id,cookie)).status,404);
   assert.equal((await get(session,'/api/ideas/'+exclusiveRows[0].id,exclusive.cookie)).status,200);
@@ -165,6 +172,7 @@ test('local MOEX history preserves source prices and remains separate from publi
   for(const [tier,reader,closed,wins,losses] of [['pro',cookie,150,105,45],['exclusive',exclusive.cookie,20,14,6]]){
    const stats=(await get(session,'/api/history/statistics?tier='+tier+'&type=demo',reader)).data;
    assert.deepEqual([stats.closedTrades,stats.wins,stats.losses,stats.winRate],[closed,wins,losses,70]);
+   assert.equal(stats.totalReturnPercent.toFixed(2),tier==='exclusive'?'15.00':'11.00');
    assert.ok(stats.totalReturnPercent>0&&stats.profitFactor>1&&stats.maxDrawdownPercent>0);
    assert.ok(stats.averageWinPercent>0&&stats.averageLossPercent<0);
    assert.equal(stats.capital.length,closed+1);
@@ -173,7 +181,11 @@ test('local MOEX history preserves source prices and remains separate from publi
    assert.ok(Math.abs(stats.monthly.reduce((sum,month)=>sum+month.returnPercent,0)-stats.totalReturnPercent)<1e-8);
    assert.equal((await get(session,'/api/history/statistics?tier='+tier+'&type=actual',reader)).data.closedTrades,0);
   }
-  assert.equal((await get(session,'/api/history/statistics?tier=pro&type=demo&market=crypto',cookie)).data.closedTrades,50);
+  for(const market of ['stocks','futures','crypto']){
+   const count=pro.data.records.filter(record=>record.d.market===market).length;
+   assert.ok(count>0);
+   assert.equal((await get(session,'/api/history/statistics?tier=pro&type=demo&market='+market,cookie)).data.closedTrades,count);
+  }
   const id=rows[0].id;
   assert.equal((await get(session,'/api/ideas/'+id,cookie)).data.record.id,id);
   const admin=await login(session,'admin');
@@ -225,14 +237,38 @@ test('ordinary npm start and production serve the bundled archive to an existing
    assert.deepEqual((await get(session,'/api/admin/ideas',cookie)).data.records.map(record=>record.id),[draft.id]);
    assert.equal((await get(session,'/api/local/market-history')).status,production?404:200);
    assert.deepEqual((await get(session,'/api/public/results')).data.results,[]);
+   const archive=await get(session,'/api/public/history-scenarios');
+   assert.equal(archive.status,200);
+   assert.equal(archive.data.type,'scenarios');
+   assert.equal(archive.data.open,0);
+   assert.equal(archive.data.results.length,170);
+   assert.match(archive.data.fromDate,/^2026-03-/);
+   assert.match(archive.data.throughDate,/^2026-11-/);
+   const sourceById=new Map(fixture.trades.map(trade=>[trade.id,trade]));
+   for(const [index,row] of archive.data.results.entries()){
+    const source=sourceById.get(row.id);
+    assert.equal(row.state,'closed');
+    assert.equal(row.publishedAt,null);
+    assert.equal(row.enteredAt,source.openedAt);
+    assert.equal(row.closedAt,source.closedAt);
+    assert.equal(row.sourceUrl,source.sourceUrl);
+    assert.equal(row.exit,source.exit);
+    assert.deepEqual(row.initial,{entry:source.entry,stop:source.stop,target:source.target});
+    assert.ok(Math.abs(row.pct-(source.exit/source.entry-1)*(source.direction==='SHORT'?-100:100))<1e-10);
+    assert.ok(!index||archive.data.results[index-1].closedAt>=row.closedAt);
+    for(const field of ['analysis','candles','comment','meta','closeReason'])assert.ok(!Object.hasOwn(row,field));
+   }
    const forwarded=await fetch(base+'/api/ideas',{headers:{Cookie:cookie,'X-Forwarded-Host':'public.example.test'}});
    const proxied=await forwarded.json();
    assert.equal(proxied.localMarketHistory,false);
    assert.equal(proxied.demoHistory,true);
    if(production){
-    await importDemoHistory(directory,fixture);
+    const privateTrade={...fixture.trades[0],name:'Private instrument label'};
+    await importDemoHistory(directory,{version:1,trades:[privateTrade,...fixture.trades.slice(1)]});
     const seeded=(await get(session,'/api/ideas',cookie)).data;
     assert.equal(seeded.records.filter(record=>record.demoHistory).length,170);
+    assert.equal(seeded.records.find(record=>record.id===privateTrade.id).d.name,privateTrade.name);
+    assert.deepEqual((await get(session,'/api/public/history-scenarios')).data.results,archive.data.results);
     assert.equal((await get(session,'/api/public/results')).data.results.length,0);
     await rollbackDemoHistory(directory);
     assert.equal((await get(session,'/api/ideas',cookie)).data.demoHistory,false);
