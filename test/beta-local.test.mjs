@@ -37,6 +37,7 @@ test('local beta isolates provider settings, owns temporary data and exposes fou
     assert.equal(proFeed.localMarketHistory,false);
     assert.ok(proIdeas.length>0&&proIdeas.every(record=>record.demo===true&&record.d.strategy!=='Orbita Exclusive'));assert.ok(exclusiveIdeas.length>proIdeas.length&&exclusiveIdeas.every(record=>record.demo===true)&&exclusiveIdeas.some(record=>record.d.strategy==='Orbita Exclusive'),'EXCLUSIVE includes PRO');
     const config=(await get(session,'/api/public-config')).data;assert.equal(config.paymentsAvailable,false);assert.equal(config.mailEnabled,false);assert.equal(config.telegramEnabled,false);
+    assert.equal(config.plans.pro.price,1999);assert.equal(config.plans.exclusive.price,4999);
     const radar=(await get(session,'/api/radar?importance=0&limit=50',pro.cookie)).data;assert.ok(radar.events.length>=15);assert.ok(radar.events.every(event=>event.isDemo&&!Object.hasOwn(event,'rawText')));assert.equal((await get(session,'/api/radar',free.cookie)).status,403);assert.equal((await get(session,'/api/radar',exclusive.cookie)).status,200,'EXCLUSIVE includes PRO Radar');
     const settings=(await get(session,'/api/product-settings')).data;assert.equal(settings.supportEmail,'');assert.ok(settings.partnerOffers.every(offer=>offer.url===''));
     assert.equal(await readFile(path.join(operatorData,'accounts.json'),'utf8'),'OPERATOR DATA MUST REMAIN UNTOUCHED');assert.equal(await readFile(path.join(operatorBackups,'keep.txt'),'utf8'),'PRESERVE');
@@ -57,7 +58,7 @@ test('cancelling preparation waits for its child and removes the incomplete fixt
 });
 
 test('CLI interruption stops its child and removes only its owned fixture',async()=>{
-  const child=spawn(process.execPath,[script],{cwd:project,env:{PATH:process.env.PATH},stdio:['ignore','pipe','pipe']});let output='';const done=new Promise(resolve=>child.once('exit',(code,signal)=>resolve({code,signal})));
+  const child=spawn(process.execPath,[script],{cwd:project,env:{PATH:process.env.PATH,TMPDIR:tmpdir()},stdio:['ignore','pipe','pipe']});let output='';const done=new Promise(resolve=>child.once('exit',(code,signal)=>resolve({code,signal})));
   try{
     await new Promise((resolve,reject)=>{let settled=false;const timer=setTimeout(()=>{if(!settled){settled=true;reject(Error('Local beta CLI did not become ready.'));}},15000);child.stdout.on('data',chunk=>{output=(output+chunk).slice(-16000);if(!settled&&output.includes('Ctrl+C остановит')){settled=true;clearTimeout(timer);resolve();}});child.stderr.on('data',()=>{});child.once('exit',()=>{if(!settled){settled=true;clearTimeout(timer);reject(Error('Local beta CLI exited before readiness.'));}});});
     assert.ok(output.includes('ЛОКАЛЬНАЯ УЧЕБНАЯ БЕТА'));const names=(await readdir(tmpdir())).filter(name=>name.startsWith(`orbita-local-beta-${child.pid}-`));assert.equal(names.length,1);const root=path.join(tmpdir(),names[0]);

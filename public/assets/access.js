@@ -1,5 +1,5 @@
 (() => {
-  const plans={pro:{name:'Orbita Pro',price:2999},exclusive:{name:'Orbita Exclusive',price:4999}};
+  const plans={pro:{name:'Orbita Pro',price:1999},exclusive:{name:'Orbita Exclusive',price:4999}};
   let user=null;
   const validPlan=value=>['pro','exclusive'].includes(value);
   function preferredPlan(userId){if(typeof userId!=='string'||!userId)return null;try{const value=localStorage.getItem('orbita.selected-plan.v1.'+userId);return validPlan(value)?value:null;}catch{return null;}}

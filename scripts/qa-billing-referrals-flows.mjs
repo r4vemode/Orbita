@@ -30,7 +30,8 @@ export async function runBillingReferralFlows({session,browser,record,outputDir}
   });
   await check('Партнёрская ссылка: регистрация привязывается один раз, платный доступ не выдаётся',async()=>{
    client=await context();clientPage=await page(client);await clientPage.goto(base+ref.link);await clientPage.goto(base+ref.link);
-   const legalVersion=(await request(client,'/api/public-config')).legalVersion;
+   const {legalVersion,plans}=await request(client,'/api/public-config');
+   assert.equal(plans.pro.price,1999);assert.equal(plans.exclusive.price,4999);
    customer=(await request(client,'/api/register',{method:'POST',data:{email:'billing-ui-client@example.test',password:'temporary-billing-ui-2026',acceptTerms:true,acceptPrivacy:true,legalVersion}})).user;
    assert.equal(customer.access.hasSubscription,false);assert.equal((await partners())[0].visits,1);assert.equal((await partners())[0].registrations,1);
    await request(client,'/api/ideas',{status:403});
@@ -39,29 +40,29 @@ export async function runBillingReferralFlows({session,browser,record,outputDir}
    await clientPage.goto(base+'/subscriptions.html?plan=pro');await clientPage.locator('#createCheckout:not([disabled])').waitFor();
    assert.equal(await clientPage.locator('#recurringConsent').isChecked(),false);assert.match(await clientPage.locator('#createCheckout').innerText(),/тестовый/);
    await clientPage.check('#recurringConsent');await clientPage.locator('#createCheckout').click();await clientPage.waitForFunction(()=>document.getElementById('paymentOrderTitle').textContent==='Тестовый заказ создан');
-   assert.equal(await clientPage.locator('#continuePayment').isHidden(),true);order=(await payments()).orders.find(item=>item.userId===customer.id);assert.equal(order.simulation,true);
+   assert.equal(await clientPage.locator('#continuePayment').isHidden(),true);order=(await payments()).orders.find(item=>item.userId===customer.id);assert.equal(order.simulation,true);assert.equal(order.amount,1999);
    await request(client,'/api/admin/payments/simulate',{method:'POST',data:{action:'pay',orderId:order.id,requestId:'forbidden-ui-test'},status:403});
   });
   await check('Симулятор: подтверждённая оплата даёт только купленный тариф и первую комиссию',async()=>{
    await adminPage.goto(base+'/payments-admin.html');await adminPage.getByRole('button',{name:'Успешная оплата',exact:true}).click();await adminPage.getByRole('button',{name:'Повторное списание',exact:true}).waitFor();
    const state=await payments();order=state.orders.find(item=>item.id===order.id);agreement=state.subscriptions.find(item=>item.id===order.agreementId);
-   assert.equal(order.status,'paid');assert.equal(agreement.status,'active');assert.deepEqual((await request(client,'/api/me')).user.access.activePlans,['pro']);assert.equal((await partners())[0].balance.totalMinor,44985);
+   assert.equal(order.status,'paid');assert.equal(agreement.status,'active');assert.deepEqual((await request(client,'/api/me')).user.access.activePlans,['pro']);assert.equal((await partners())[0].balance.totalMinor,29985);
    await clientPage.reload();await clientPage.locator('#billingAgreements button').waitFor();assert.match(await clientPage.locator('#billingOrders').innerText(),/симуляция/);
   });
   await check('Повторная оплата и отключение: комиссия меняется, оплаченный срок сохраняется',async()=>{
    await adminPage.getByRole('button',{name:'Повторное списание',exact:true}).click();await adminPage.waitForFunction(()=>document.querySelectorAll('#paymentAdminOrders .billing-row').length===2);
-   assert.equal((await partners())[0].balance.totalMinor,74975);const before=(await request(client,'/api/me')).user.subscriptions.find(item=>item.plan==='pro').expiresAt;
+   assert.equal((await partners())[0].balance.totalMinor,49975);const before=(await request(client,'/api/me')).user.subscriptions.find(item=>item.plan==='pro').expiresAt;
    await clientPage.locator('#refreshBilling').click();await clientPage.locator('#billingAgreements button').click();await clientPage.waitForFunction(()=>document.getElementById('billingAgreements').textContent.includes('Будущие списания отключены'));
    assert.equal((await request(client,'/api/me')).user.subscriptions.find(item=>item.plan==='pro').expiresAt,before);assert.equal((await payments()).subscriptions[0].status,'cancelled');
   });
   await check('Партнёрский кабинет: только своя статистика без email привлечённых клиентов',async()=>{
    partner=await context('pro');partnerPage=await page(partner);await partnerPage.goto(base+'/partner.html');await partnerPage.locator('.referral-card').waitFor();
-   const own=await request(partner,'/api/referrals/me');assert.equal(own.partners[0].balance.totalMinor,74975);assert.ok(!JSON.stringify(own).includes(customer.email));assert.ok(!(await partnerPage.content()).includes(customer.email));
+   const own=await request(partner,'/api/referrals/me');assert.equal(own.partners[0].balance.totalMinor,49975);assert.ok(!JSON.stringify(own).includes(customer.email));assert.ok(!(await partnerPage.content()).includes(customer.email));
    assert.equal((await request(client,'/api/referrals/me')).partners.length,0);
   });
   await check('Партнёрские выплаты: резерв и отмена работают в интерфейсе без перевода денег',async()=>{
    await adminPage.goto(base+'/partners-admin.html');await adminPage.getByRole('button',{name:'Зарезервировать выплату',exact:true}).click();await adminPage.waitForFunction(()=>document.getElementById('referralList').textContent.includes('Отменить резерв'));
-   assert.equal((await partners())[0].balance.reservedMinor,74975);await adminPage.getByText('История выплат',{exact:true}).click();await adminPage.getByRole('button',{name:'Отменить резерв',exact:true}).click();
+   assert.equal((await partners())[0].balance.reservedMinor,49975);await adminPage.getByText('История выплат',{exact:true}).click();await adminPage.getByRole('button',{name:'Отменить резерв',exact:true}).click();
    await adminPage.waitForFunction(()=>document.getElementById('referralList').textContent.includes('Резерв отменён'));assert.equal((await partners())[0].balance.reservedMinor,0);
   });
   await check('Новые кабинеты: адаптивность 320/390/768/1440 и отсутствие ошибок JavaScript',async()=>{

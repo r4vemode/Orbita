@@ -15,6 +15,7 @@
 !scripts/
 !scripts/preflight.mjs
 !scripts/manage-access.mjs
+!scripts/manage-demo-history.mjs
 !scripts/backup.mjs
 !scripts/setup-telegram-admin.mjs
 !scripts/backtest.mjs

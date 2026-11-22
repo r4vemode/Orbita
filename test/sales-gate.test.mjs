@@ -14,7 +14,7 @@ async function fixture({gate,testMode=false}={}){
   const member=await f.register('sales-gate@example.test');await f.verify(member);
   const checkout=(legalVersion=version,requestId=randomUUID(),extra={})=>f.request('/api/payments/checkout',{method:'POST',cookie:member.cookie,body:{plan:'pro',requestId,...(legalVersion===null?{}:{legalVersion}),...extra}});
   const callback=(kind,order,fields={})=>{
-    const values={InvoiceId:order.id,AccountId:member.data.user.id,Amount:2999,Currency:'RUB',TestMode:testMode?1:0,TransactionId:'80101',Status:kind==='check'?'Created':'Completed',...fields},raw=JSON.stringify(values);
+    const values={InvoiceId:order.id,AccountId:member.data.user.id,Amount:order.amount,Currency:'RUB',TestMode:testMode?1:0,TransactionId:'80101',Status:kind==='check'?'Created':'Completed',...fields},raw=JSON.stringify(values);
     return f.request('/api/payments/cloudpayments/'+kind,{method:'POST',body:raw,headers:{Origin:'','Content-HMAC':createHmac('sha256',secret).update(raw).digest('base64')}});
   };
   return {...f,calls,member,checkout,callback};

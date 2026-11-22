@@ -40,11 +40,12 @@ test('admin refund authenticates freshly, reserves the remainder, confirms provi
   const first=await f.request('/api/admin/payments/refunds',{method:'POST',cookie:f.admin.cookie,body:input});assert.equal(first.status,200);assert.equal(first.data.refund.status,'completed');
   const again=await f.request('/api/admin/payments/refunds',{method:'POST',cookie:f.admin.cookie,body:input});assert.equal(again.status,200);assert.equal(again.data.refund.id,first.data.refund.id);
   assert.equal(f.calls.filter(item=>item.method==='payments/refund').length,1);
-  await assert.rejects(f.service.refunds.request(f.admin.data.user,{...input,amountMinor:99999}),cause=>cause.status===409);
-  await assert.rejects(f.service.refunds.request(f.admin.data.user,{...input,requestId:randomUUID(),amountMinor:200000}),cause=>cause.status===409);
-  const snapshot=(await f.request('/api/admin/payments/orders',{cookie:f.admin.cookie})).data;assert.equal(snapshot.orders[0].remainingRefundMinor,199900);
+  const remainingRefundMinor=order.amount*100-input.amountMinor;
+  await assert.rejects(f.service.refunds.request(f.admin.data.user,{...input,amountMinor:50000}),cause=>cause.status===409);
+  await assert.rejects(f.service.refunds.request(f.admin.data.user,{...input,requestId:randomUUID(),amountMinor:remainingRefundMinor+1}),cause=>cause.status===409);
+  const snapshot=(await f.request('/api/admin/payments/orders',{cookie:f.admin.cookie})).data;assert.equal(snapshot.orders[0].remainingRefundMinor,remainingRefundMinor);
   assert.equal((await f.accounts.getUser(f.member.data.user.id)).subscriptions.length,1);
-  assert.equal((await f.refund(order,{amountMinor:199900})).status,200);assert.equal((await f.accounts.getUser(f.member.data.user.id)).subscriptions.length,0);
+  assert.equal((await f.refund(order,{amountMinor:remainingRefundMinor})).status,200);assert.equal((await f.accounts.getUser(f.member.data.user.id)).subscriptions.length,0);
   const disk=await readFile(join(f.directory,'billing.json'),'utf8');assert.doesNotMatch(disk,/test-password-long|only-a-test-secret/);
   assert.equal((await f.request('/api/payments/history',{cookie:f.member.cookie})).data.orders[0].status,'refunded');
  }finally{await f.close();}

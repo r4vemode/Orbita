@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 const source = await readFile(new URL('../public/assets/subscriptions.js', import.meta.url), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 const key = 'orbita.checkout.v1.test-user';
-const makeOrder = (plan, status = 'pending', id = 'order-' + randomUUID()) => ({ id, plan, status, amount: plan === 'pro' ? 2999 : 4999, currency: 'RUB', checkoutUrl: 'https://orders.cloudpayments.ru/orders/' + id });
+const makeOrder = (plan, status = 'pending', id = 'order-' + randomUUID()) => ({ id, plan, status, amount: plan === 'pro' ? 1999 : 4999, currency: 'RUB', checkoutUrl: 'https://orders.cloudpayments.ru/orders/' + id });
 
 async function page({ storage = new Map(), search = '?plan=pro', checkout, orders = new Map(), preferred = null, verified = true, legalVersion,checkoutEnabled=true,orderRequest } = {}) {
   const nodes = new Map(), listeners = {}, calls = [], remembered = [], navigation = [];
@@ -17,7 +17,7 @@ async function page({ storage = new Map(), search = '?plan=pro', checkout, order
   const buttons = ['pro', 'exclusive'].map(plan => Object.assign(node(plan + ':[data-select]'), { dataset: { select: plan } }));
   const user = { id: 'test-user', email: 'test@example.test', emailVerified: verified, subscriptions: [], access: { hasSubscription: false } };
   const A = {
-    plans: { pro: { name: 'Orbita Pro', price: 2999 }, exclusive: { name: 'Orbita Exclusive', price: 4999 } },
+    plans: { pro: { name: 'Orbita Pro', price: 1999 }, exclusive: { name: 'Orbita Exclusive', price: 4999 } },
     current: async () => user, preferredPlan: () => preferred, rememberPlan: (...args) => remembered.push(args),
     request: async (url, options = {}) => {
       if (url === '/api/public-config') return { paymentsAvailable: true, mailEnabled: true,legalVersion:typeof legalVersion==='function'?legalVersion():legalVersion };

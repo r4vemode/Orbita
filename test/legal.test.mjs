@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,readFile,writeFile,rm,copyFile,lstat,symlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
+import {createHash} from 'node:crypto';
 import {createLegal,defaultLegalProfile,legalReadiness,validateLegalDatabase} from '../lib/legal.mjs';
 import {LEGAL_VERSION} from '../lib/access.mjs';
 import {error} from '../lib/http.mjs';
+import {checkLegalPublication} from '../lib/operations.mjs';
 import {serviceFixture} from './service-fixture.mjs';
 
 const admin={id:'legal-editor',role:'admin'},member={id:'member',role:'member',subscriptions:[]};
@@ -15,7 +17,8 @@ const inn12=prefix=>{const first=prefix+checkDigit(prefix,[7,2,4,10,3,5,9,4,6,8]
 const ogrn=(prefix,divisor)=>prefix+String(BigInt(prefix)%BigInt(divisor)%10n);
 const fixtureProfile=(extra={})=>({...defaultLegalProfile(),ownerKind:'self-employed',ownerName:'Учебный исполнитель',inn:inn12('9900000000'),address:'Учебный адрес для изолированной проверки',supportEmail:'support@example.test',privacyEmail:'privacy@example.test',hostingDetails:'Учебный поставщик, учебная страна и адрес; не настоящее размещение.',processorsDetails:'Учебная проверка: внешние обработчики не подключены, сообщения не отправляются.',...extra});
 const rejected=(promise,status)=>assert.rejects(promise,cause=>cause.status===status);
-const baseline=JSON.parse(await readFile(new URL('../fixtures/legal-baseline.json',import.meta.url),'utf8'));
+const baseline=JSON.parse(await readFile(new URL('../fixtures/legal-baseline-2026-11-22.json',import.meta.url),'utf8'));
+const legacyBaseline=JSON.parse(await readFile(new URL('../fixtures/legal-baseline.json',import.meta.url),'utf8'));
 async function fixture(t){const directory=await mkdtemp(path.join(tmpdir(),'orbita-legal-'));t.after(()=>rm(directory,{recursive:true,force:true}));return {directory,legal:await createLegal(directory)};}
 
 test('recurring terms require a new published offer; editing a template never upgrades accepted conditions',async t=>{
@@ -45,6 +48,35 @@ test('legal public defaults and the exact original consent document never disclo
     assert.ok(!(await legal.renderPage(document)).includes('PRIVATE DRAFT OWNER'));
   }
   await rejected(legal.readAdmin(null),401);await rejected(legal.readAdmin(member),403);await rejected(legal.saveDraft(member,{revision:1,profile:{}}),403);await rejected(legal.previewPage(member,'offer'),403);
+});
+
+test('a price change keeps accepted documents and requires a new publication for sales',async t=>{
+  const {directory,legal}=await fixture(t),draft=await legal.saveDraft(admin,{revision:0,profile:fixtureProfile()});
+  const old=await legal.publish(admin,{revision:draft.revision}),file=path.join(directory,'legal.json');
+  const db=JSON.parse(await readFile(file,'utf8'));
+  const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  db.baseline={...legacyBaseline,checksum:digest([legacyBaseline.version,legacyBaseline.pages])};
+  const publication=db.versions[0];
+  publication.pages.offer=publication.pages.offer.replace(' data-plan-prices="1999:4999"','').replaceAll('1 999 ₽','2 999 ₽');
+  publication.checksum=digest([publication.version,publication.publishedAt,publication.publishedBy,publication.profile,publication.pages]);
+  const before=JSON.stringify(db);
+  await writeFile(file,before);
+
+  const restarted=await createLegal(directory);
+  assert.equal((await restarted.readPublic()).version,LEGAL_VERSION);
+  assert.equal((await restarted.readPublic()).published,false);
+  assert.match(await restarted.renderPage('offer'),/Pro — 1 999 ₽/);
+  assert.match(await restarted.renderPage('refunds'),/1 332,67 ₽/);
+  assert.equal(await restarted.renderPage('offer',{version:legacyBaseline.version}),legacyBaseline.pages.offer);
+  assert.equal(await restarted.renderPage('offer',{version:old.currentVersion}),publication.pages.offer);
+  assert.deepEqual(await checkLegalPublication(directory),{ok:false,reason:'legal_prices_outdated'});
+  assert.equal(await readFile(file,'utf8'),before);
+
+  const updated=await restarted.publish(admin,{revision:old.revision});
+  assert.equal((await restarted.readPublic()).version,updated.currentVersion);
+  assert.match(await restarted.renderPage('offer'),/Pro — 1 999 ₽/);
+  assert.deepEqual(await checkLegalPublication(directory),{ok:true,reason:'legal_published'});
+  assert.equal(await restarted.renderPage('offer',{version:old.currentVersion}),publication.pages.offer);
 });
 
 test('legal publication checks identifiers, contact formats and declared hosting before publishing',async t=>{

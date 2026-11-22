@@ -31,9 +31,13 @@ test('recurring requires explicit versioned consent and encrypts card tokens; du
   const user=await f.register('recurring@example.test');await f.verify(user);
   assert.equal((await f.checkout(user,{recurring:{accepted:false,termsVersion:RECURRING_TERMS_VERSION}})).status,400);
   const result=await f.checkout(user);assert.equal(result.status,200);const order=result.data.order;
+  assert.equal(order.amount,1999);
+  assert.equal(f.calls.find(item=>item.url.endsWith('/orders/create')).body.Amount,1999);
   assert.equal((await f.notify('pay',payment(order,user.data.user))).status,200);
   assert.equal((await f.notify('pay',payment(order,user.data.user))).status,200);
-  assert.equal(f.calls.filter(item=>item.url.endsWith('/subscriptions/create')).length,1);
+  const providerAgreements=f.calls.filter(item=>item.url.endsWith('/subscriptions/create'));
+  assert.equal(providerAgreements.length,1);
+  assert.equal(providerAgreements[0].body.Amount,1999);
   const list=await f.request('/api/payments/subscriptions',{cookie:user.cookie});assert.equal(list.data.subscriptions[0].status,'active');assert.equal(list.data.subscriptions[0].days,30);
   assert.ok(Date.parse(list.data.subscriptions[0].nextChargeAt)>Date.now());
   assert.doesNotMatch(await readFile(join(f.directory,'billing.json'),'utf8'),/sensitive-token-only-for-vault/);

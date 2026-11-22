@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {PLANS} from '../lib/access.mjs';
 import {createHook} from 'node:async_hooks';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
@@ -59,7 +60,7 @@ test('a stale browser consent refreshes pinned document links and requires fresh
   const form={elements},nodes={accountForm:form,credentials:{querySelectorAll:()=>[elements.email,elements.password]},consents:{querySelectorAll:()=>[elements.acceptTerms,elements.acceptPrivacy]},termsLink:{href:''},privacyLink:{href:''}};
   for(const id of ['message','submit','switch','title','subtitle','mfaChallenge','mfaCodeLabel','mfaCodeHelp','cancelMfa'])nodes[id]={disabled:false,textContent:'',hidden:false};
   let active=versionOne,registrations=0,configurations=0;const bodies=[],navigations=[],location={origin:'https://orbita.example',protocol:'https:',href:'https://orbita.example/account.html?mode=register&plan=exclusive',search:'?mode=register&plan=exclusive',assign:value=>navigations.push(value)};
-  const A={safeNext:()=>'/subscriptions.html',rememberPlan(){},preferredPlan:()=>null,request:async(path,options)=>{
+  const A={plans:PLANS,safeNext:()=>'/subscriptions.html',rememberPlan(){},preferredPlan:()=>null,request:async(path,options)=>{
     if(path==='/api/public-config'){configurations++;return {legalVersion:active};}
     assert.equal(path,'/api/register');registrations++;bodies.push(JSON.parse(options.body));
     if(registrations===1){active=versionTwo;throw Object.assign(Error('Updated terms'),{status:409,code:'LEGAL_VERSION_CHANGED'});}
