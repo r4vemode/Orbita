@@ -71,3 +71,14 @@ html.has-shell main h1{font-size:var(--o-h1)!important;line-height:1.15!importan
 html.has-shell main h1 em{font-style:normal;color:var(--o-muted)}html.has-shell main h1 br{display:none}html.has-shell main h1 em::before{content:' '}
 html.has-shell main h2{font-size:clamp(18px,1.6vw,24px)!important;line-height:1.25!important}
 html.has-shell main>section:first-child>.eyebrow:first-child,html.has-shell main>section:first-child>div>.eyebrow:first-child,html.has-shell main>section:first-child>.label:first-child{display:none}
+
+/* The editor uses the cabinet shell on pages with legacy navigation styles. */
+html.has-editor-shell .shell-nav{flex-wrap:nowrap;gap:12px}
+html.has-editor-shell .shell-secondary{padding-top:10px}
+.shell-group-title{padding:3px 10px 4px;color:var(--o-muted);font-size:11px}
+.shell-cabinet summary{padding:7px 10px;color:var(--o-muted);font-size:13px;cursor:pointer}
+.shell-cabinet .shell-link{display:block}
+.shell-cabinet summary:hover{color:var(--o-ink)}
+@media(max-width:1023px){
+ html.has-editor-shell main :target{scroll-margin-top:68px}
+}

@@ -30,5 +30,5 @@
   });
   $('reloadSettings').addEventListener('click',async()=>{if(busy||dirty&&!confirm('Загрузить сохранённые настройки? Несохранённые изменения формы будут потеряны.'))return;setBusy(true);try{await load();message('Загружены актуальные настройки.');}catch(error){message(error.message,true);}finally{setBusy(false);}});
   window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});
-  try{const user=await A.requireAdmin();if(!user)return;privateSession=window.OrbitaAdminSession.watch(user,{workspace:'settingsWorkspace',clear(){dirty=false;revision=0;$('settingsPreview').replaceChildren();}});await load();}catch(error){$('settingsStatus').textContent=error.message;$('settingsStatus').className='error';}
+  try{const user=await A.requireAdmin();if(!user)return;privateSession=window.OrbitaAdminSession.watch(user,{workspace:'settingsWorkspace',clear(){dirty=false;revision=0;$('settingsPreview').replaceChildren();}});await load();if(location.hash==='#partners')$('partners').scrollIntoView();}catch(error){$('settingsStatus').textContent=error.message;$('settingsStatus').className='error';}
 })();

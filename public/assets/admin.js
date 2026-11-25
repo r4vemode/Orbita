@@ -322,7 +322,10 @@
       const expiry = new Date(Date.now() + 30 * 86400000 + 3 * 3600000);
       $('subscriptionExpiry').value = expiry.toISOString().slice(0,16);
       await mutation(async()=>{const results = await Promise.allSettled([loadIdeas(new URLSearchParams(location.search).get('idea') || current),loadUsers()]);results.forEach(result => { if (result.status === 'rejected') message(result.reason.message,true); });});
-      const radarEvent=new URLSearchParams(location.search).get('radarEvent');if(radarEvent)await mutation(()=>openRadar(radarEvent));else $('quickTicker').focus();
+      const radarEvent = new URLSearchParams(location.search).get('radarEvent');
+      if (radarEvent) await mutation(() => openRadar(radarEvent));
+      else if (location.hash === '#subscriptionsPanel') $('subscriptionsPanel').scrollIntoView();
+      else $('quickTicker').focus();
     } catch (error) {
       $('authState').innerHTML = `<h1>Не удалось открыть редакцию.</h1><p>${escape(error.message)}</p><button type="button" id="retryAdmin">Повторить</button>`;
       $('retryAdmin').addEventListener('click',start);
