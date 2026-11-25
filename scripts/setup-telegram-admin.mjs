@@ -1,10 +1,11 @@
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {telegramAdminConfiguration} from '../lib/telegram-admin/config.mjs';
+import {telegramNotificationConfiguration,TELEGRAM_NOTIFICATION_WEBHOOK} from '../lib/notifications.mjs';
 
 const METHODS=new Set(['getMe','getWebhookInfo','setWebhook']);
 const failure=code=>Object.assign(Error(code),{code});
-const USAGE='npm run telegram:admin:webhook -- [--status|--set|--help]\nПо умолчанию показывает состояние webhook отдельного бота администратора. --set регистрирует webhook текущего HTTPS-сайта. Все секреты читаются только из TELEGRAM_ADMIN_* в окружении; аргументы с токенами не принимаются.';
+const USAGE='npm run telegram:admin:webhook -- [--notifications] [--status|--set|--help]\nПо умолчанию используется бот администратора. --notifications выбирает клиентского бота. --set регистрирует webhook текущего HTTPS-сайта. Секреты читаются из окружения.';
 
 async function request(config,method,payload,fetchImpl){
  if(!METHODS.has(method))throw failure('METHOD_INVALID');
@@ -21,19 +22,22 @@ async function request(config,method,payload,fetchImpl){
 
 /** Explicit operator command. Importing the module never contacts Telegram. */
 export async function configureTelegramAdminWebhook(args=process.argv.slice(2),{env=process.env,fetchImpl=fetch,log=console.log,errorLog=console.error}={}){
- if(args.length===1&&args[0]==='--help'){log(USAGE);return {exitCode:0};}
- if(args.length>1||args.length===1&&!['--set','--status'].includes(args[0])){errorLog(USAGE);return {exitCode:2};}
- const action=args[0]||'--status';
+ const notifications=args[0]==='--notifications';
+ const flags=notifications?args.slice(1):args;
+ if(flags.length===1&&flags[0]==='--help'){log(USAGE);return {exitCode:0};}
+ if(flags.length>1||flags.length===1&&!['--set','--status'].includes(flags[0])){errorLog(USAGE);return {exitCode:2};}
+ const action=flags[0]||'--status',botLabel=notifications?'уведомлений':'администратора';
  try{
-  let config;try{config=telegramAdminConfiguration(env);}catch{throw failure('CONFIGURATION_INVALID');}
-  if(!config.configured){if(action==='--set')throw failure('BOT_DISABLED');log('Бот администратора отключён. Внешние запросы не выполнялись.');return {exitCode:0,enabled:false};}
-  const expected=config.publicOrigin+'/api/telegram/webhook';
+  let config;try{config=notifications?telegramNotificationConfiguration({},env):telegramAdminConfiguration(env);}catch{throw failure('CONFIGURATION_INVALID');}
+  if(notifications&&config.botToken&&config.botToken===env.TELEGRAM_ADMIN_BOT_TOKEN)throw failure('CONFIGURATION_INVALID');
+  if(!config.configured){if(action==='--set')throw failure('BOT_DISABLED');log('Бот '+botLabel+' отключён. Внешние запросы не выполнялись.');return {exitCode:0,enabled:false};}
+  const expected=config.publicOrigin+(notifications?TELEGRAM_NOTIFICATION_WEBHOOK:'/api/telegram/webhook');
   if(action==='--set'){
    const bot=await request(config,'getMe',{},fetchImpl);
    if(bot?.is_bot!==true||typeof bot.username!=='string'||bot.username.toLowerCase()!==config.botUsername.toLowerCase())throw failure('BOT_USERNAME_MISMATCH');
-   const saved=await request(config,'setWebhook',{url:expected,secret_token:config.webhookSecret,allowed_updates:['message','callback_query'],max_connections:2,drop_pending_updates:false},fetchImpl);
+   const saved=await request(config,'setWebhook',{url:expected,secret_token:config.webhookSecret,allowed_updates:notifications?['message']:['message','callback_query'],max_connections:2,drop_pending_updates:false},fetchImpl);
    if(saved!==true)throw failure('WEBHOOK_NOT_CONFIRMED');
-   log('Webhook администратора зарегистрирован. Ожидающие команды Telegram сохранены.');
+   log('Webhook '+botLabel+' зарегистрирован. Ожидающие команды Telegram сохранены.');
   }
   const info=await request(config,'getWebhookInfo',{},fetchImpl);
   if(!info||typeof info.url!=='string'||!Number.isSafeInteger(info.pending_update_count)||info.pending_update_count<0)throw failure('PROVIDER_RESPONSE_INVALID');
