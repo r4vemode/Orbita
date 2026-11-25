@@ -13,6 +13,10 @@
   const percentage=value=>typeof value==='number'&&Number.isFinite(value)?(value>0?'+':'')+number(value)+'%':'Нет данных';
   const time=value=>Number.isFinite(Date.parse(value))?new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'}).format(new Date(value)):'—';
   const date=value=>Number.isFinite(Date.parse(value))?new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date(value))+' МСК':'Нет данных';
+  const calendarScopes=[...document.querySelectorAll('[data-radar-calendar-scope]')];
+  const calendarDate=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'short'});
+  const calendarDay=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',year:'numeric',month:'numeric',day:'numeric'});
+  let calendarScope='all',calendarRequest=null;
   function delay(from,to){const value=Date.parse(to)-Date.parse(from);return Number.isFinite(value)&&value>=0?number(value/1000)+' с':'Нет данных';}
   function safeSource(value){try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url:null;}catch{return null;}}
   function connection(text,live=false){$('radarConnection').textContent=text;$('radarConnection').classList.toggle('live',live);}
@@ -22,7 +26,7 @@
   function clearFeed(){events=[];cursor=null;revision=null;$('radarCards').replaceChildren();$('radarLoadMore').hidden=true;$('radarToast').hidden=true;toastEvent=null;}
   function closeDetail(){detailSequence++;detailController?.abort();detailController=null;detailEvent=null;if($('radarDetail').open)$('radarDetail').close();$('radarDetailContent').replaceChildren();$('radarDetailStatus').textContent='';const value=new URL(location.href);value.searchParams.delete('event');history.replaceState(null,'',value.pathname+value.search);if(lastFocus?.isConnected)lastFocus.focus();lastFocus=null;}
   function locked({guest=false,disabled=false,message}={}){
-    stopStream();clearFeed();feedSequence++;feedController?.abort();feedController=null;busy=false;subscriptions=[];browserNotifications=false;if(config)config={...config,access:{tier:'locked',realtime:false}};closeDetail();$('radarSkeleton').hidden=true;$('radarWorkspace').hidden=true;$('radarLocked').hidden=false;$('radarSubscribeLink').hidden=guest||disabled;$('radarLoginLink').hidden=!guest;connection(disabled?'Radar отключён':guest?'Войдите в аккаунт':'Нужна подписка');
+    stopStream();clearFeed();clearCalendar();setCalendarScope('all');feedSequence++;feedController?.abort();feedController=null;busy=false;subscriptions=[];browserNotifications=false;if(config)config={...config,access:{tier:'locked',realtime:false}};closeDetail();$('radarSkeleton').hidden=true;$('radarWorkspace').hidden=true;$('radarLocked').hidden=false;$('radarSubscribeLink').hidden=guest||disabled;$('radarLoginLink').hidden=!guest;connection(disabled?'Radar отключён':guest?'Войдите в аккаунт':'Нужна подписка');
     $('radarSubscribeLink').href='subscriptions.html?plan='+encodeURIComponent(requiredPlan())+'&next=%2Fradar.html';$('radarSubscribeLink').textContent='Выбрать '+requiredPlanName()+' ↗';
     $('radarLockedTitle').textContent=disabled?'Radar готовится к подключению':guest?'Войдите, чтобы открыть Radar':'Radar по подписке';$('radarLockedText').textContent=message||(disabled?'Раздел пока отключён. Вернитесь позже.':guest?'События и настройки доступны в вашем аккаунте.':'Для Radar нужна подписка '+requiredPlanName()+'. Доступ к другим стратегиям определяется отдельно.');
   }
@@ -32,6 +36,74 @@
     if(response.status===401){locked({guest:true});throw Object.assign(Error('Войдите в аккаунт.'),{status:401});}
     if(response.status===403){locked({message:data.error});throw Object.assign(Error(data.error||'Для Radar нужна подписка.'),{status:403});}
     if(!response.ok)throw Object.assign(Error(A?.supportMessage(data,'Не удалось выполнить запрос Radar.')||data.error||'Не удалось выполнить запрос.'),{status:response.status,code:data.code});return data;
+  }
+  function setCalendarScope(scope){
+    calendarScope=scope;
+    for(const button of calendarScopes)button.setAttribute('aria-pressed',String(button.dataset.radarCalendarScope===scope));
+  }
+  function calendarStatus(message){
+    const status=$('radarCalendarStatus');status.textContent=message;status.hidden=!message;
+  }
+  function clearCalendar(){
+    calendarRequest?.abort();calendarRequest=null;
+    for(const id of ['radarCalendarUpcoming','radarCalendarResults'])$(id).replaceChildren();
+    for(const id of ['radarCalendarUpcomingEmpty','radarCalendarResultsEmpty'])$(id).hidden=true;
+    $('radarCalendarLists').setAttribute('aria-busy','false');calendarStatus('');
+  }
+  function moscowDay(value){
+    const parts=Object.fromEntries(calendarDay.formatToParts(value).map(part=>[part.type,part.value]));
+    return Date.UTC(Number(parts.year),Number(parts.month)-1,Number(parts.day));
+  }
+  function calendarRow(event,showOutcome){
+    const row=node('li','radar-calendar-row'),identity=node('div','radar-calendar-identity');
+    identity.append(node('strong','',event.ticker||'Эмитент'),node('span','',types[event.eventType]||'Корпоративное событие'));
+    if(event.isDemo)identity.append(node('span','','Демонстрация'));
+    const body=node('div','radar-calendar-body'),headline=node('button','radar-calendar-event',event.headline||'Корпоративное событие');
+    headline.type='button';headline.addEventListener('click',()=>void openDetail(event.id,headline));body.append(identity,headline);
+    if(showOutcome){
+      body.append(node('p','radar-calendar-outcome',event.outcome.text));
+      const source=safeSource(event.outcome.source);
+      if(source){const link=node('a','radar-text-link','Источник итога ↗');link.href=source.href;link.target='_blank';link.rel='noopener noreferrer';body.append(link);}
+    }
+    row.append(body);
+    const outcomeAt=showOutcome&&event.outcome.publishedAt;
+    const at=Date.parse(outcomeAt||event.scheduledAt);
+    if(Number.isFinite(at)){
+      const stamp=node('time','radar-calendar-date',calendarDate.format(at));stamp.dateTime=new Date(at).toISOString();
+      if(showOutcome)stamp.title=outcomeAt?'Дата публикации итога':'Дата события';
+      else if(!event.scheduledAllDay)stamp.append(node('span','',time(stamp.dateTime)+' МСК'));
+      row.append(stamp);
+    }
+    return row;
+  }
+  function renderCalendar(events){
+    const now=Date.now(),firstDay=moscowDay(now),nextWeek=firstDay+7*86400000;
+    const upcoming=events.filter(event=>{
+      const at=Date.parse(event.scheduledAt);if(event.outcome?.text||!Number.isFinite(at))return false;
+      const day=moscowDay(at);return day>=firstDay&&day<nextWeek&&(event.scheduledAllDay||at>=now);
+    }).sort((a,b)=>Date.parse(a.scheduledAt)-Date.parse(b.scheduledAt));
+    const results=events.filter(event=>typeof event.outcome?.text==='string'&&event.outcome.text.trim())
+      .sort((a,b)=>Date.parse(b.outcome.publishedAt||b.scheduledAt||b.publishedAt)-Date.parse(a.outcome.publishedAt||a.scheduledAt||a.publishedAt));
+    $('radarCalendarUpcoming').replaceChildren(...upcoming.map(event=>calendarRow(event,false)));
+    $('radarCalendarResults').replaceChildren(...results.map(event=>calendarRow(event,true)));
+    const upcomingEmpty=$('radarCalendarUpcomingEmpty'),resultsEmpty=$('radarCalendarResultsEmpty');
+    upcomingEmpty.textContent=calendarScope==='mine'?'По вашим бумагам пока нет ближайших событий.':'Подтверждённых дат пока нет.';
+    resultsEmpty.textContent=calendarScope==='mine'?'По вашим бумагам пока нет опубликованных итогов.':'Пока нет опубликованных итогов.';
+    upcomingEmpty.hidden=upcoming.length>0;resultsEmpty.hidden=results.length>0;
+  }
+  async function loadCalendar(){
+    if(!config?.enabled||!full()||suspended)return;
+    calendarRequest?.abort();const request=new AbortController();calendarRequest=request;
+    $('radarCalendarLists').setAttribute('aria-busy','true');calendarStatus('Загружаем календарь…');
+    try{
+      const result=await api('/api/radar/calendar'+(calendarScope==='mine'?'?watchlist=mine':''),{signal:request.signal});
+      if(calendarRequest!==request||suspended||!full())return;
+      renderCalendar(Array.isArray(result.events)?result.events:[]);calendarStatus('');
+    }catch(cause){
+      if(calendarRequest===request&&cause.name!=='AbortError'&&![401,403].includes(cause.status))calendarStatus('Календарь недоступен. Нажмите «Обновить», чтобы повторить загрузку.');
+    }finally{
+      if(calendarRequest===request){calendarRequest=null;$('radarCalendarLists').setAttribute('aria-busy','false');}
+    }
   }
   function severity(value){return value>=9?'critical':value>=7?'high':value>=5?'medium':'low';}
   function score(value){return typeof value==='number'&&Number.isFinite(value)?new Intl.NumberFormat('ru-RU',{minimumFractionDigits:1,maximumFractionDigits:1}).format(value)+' / 10':'Оценка уточняется';}
@@ -61,7 +133,7 @@
     catch(cause){if(cause.name!=='AbortError'&&![401,403].includes(cause.status)&&sequence===feedSequence)showError(cause.message);}
     finally{if(sequence===feedSequence){busy=false;feedController=null;$('radarSkeleton').hidden=true;$('radarCards').setAttribute('aria-busy','false');$('refreshRadar').disabled=false;$('radarLoadMore').disabled=false;}}
   }
-  function scheduleRefresh(){if(refreshTimer)return;refreshTimer=setTimeout(()=>{refreshTimer=null;void loadFeed({live:true});},350);}
+  function scheduleRefresh(){if(refreshTimer)return;refreshTimer=setTimeout(()=>{refreshTimer=null;void loadFeed({live:true});void loadCalendar();},350);}
   function startStream(){
     stopStream();if(suspended||document.hidden||!config?.enabled||!full()||!config.access.realtime||!('EventSource'in window))return;
     const current=new EventSource('/api/radar/stream');stream=current;
@@ -69,7 +141,7 @@
     current.addEventListener('ready',receive);current.addEventListener('radar-update',receive);current.onopen=()=>{if(stream===current){streamFailures=0;connection('Обновляется автоматически',true);}};
     current.onerror=()=>{if(stream!==current)return;connection('Восстанавливаем связь');streamFailures++;void checkAccess();if(streamFailures>=5){stopStream();connection('Связь прервана · обновите ленту');}};
   }
-  async function checkAccess(){if(accessChecking||suspended||document.hidden)return;accessChecking=true;try{const account=await A.current();if(!account){locked({guest:true});return;}const changedAccount=user?.id!==account.id,previousTier=config?.access?.tier;user=account;const next=await api('/api/radar/config');config=next;if(!next.enabled){locked({disabled:true});return;}if(!['pro','free'].includes(next.access?.tier)){locked();return;}if(changedAccount||previousTier!==next.access.tier){stopStream();clearFeed();closeDetail();subscriptions=[];browserNotifications=false;applyConfig();if(full())await loadSubscriptions();await loadFeed();startStream();}else if(!full())stopStream();}catch(cause){if(![401,403].includes(cause.status))connection('Нет связи с сервером');}finally{accessChecking=false;}}
+  async function checkAccess(){if(accessChecking||suspended||document.hidden)return;accessChecking=true;try{const account=await A.current();if(!account){locked({guest:true});return;}const changedAccount=user?.id!==account.id,previousTier=config?.access?.tier;user=account;const next=await api('/api/radar/config');config=next;if(!next.enabled){locked({disabled:true});return;}if(!['pro','free'].includes(next.access?.tier)){locked();return;}if(changedAccount||previousTier!==next.access.tier){stopStream();clearFeed();closeDetail();clearCalendar();setCalendarScope('all');subscriptions=[];browserNotifications=false;applyConfig();if(full())await loadSubscriptions();await Promise.all([loadFeed(),loadCalendar()]);startStream();}else if(!full())stopStream();}catch(cause){if(![401,403].includes(cause.status))connection('Нет связи с сервером');}finally{accessChecking=false;}}
   function setCategory(value){category=categories.has(value)?value:'all';document.querySelectorAll('[data-category]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.category===category)));}
   function renderCompanies(){for(const id of ['radarCompany','subscriptionCompany']){const select=$(id),selected=select.value;select.replaceChildren(new Option('Все компании',''));for(const item of companies)if(item.active!==false)select.add(new Option(item.ticker+' · '+(item.shortName||item.name),item.id));if([...select.options].some(option=>option.value===selected))select.value=selected;}}
   function renderSubscriptions(){
@@ -77,8 +149,8 @@
     for(const value of active){const row=node('div','radar-subscription'),text=node('span','',(value.companyId?companyName(value.companyId):'Все компании')+' · '+(types[value.eventType]||'Все события')+' · от '+number(value.minimumImportance));const remove=node('button','','×');remove.type='button';remove.setAttribute('aria-label','Удалить правило '+(value.companyId?companyName(value.companyId):'для всех компаний'));remove.disabled=subscriptionBusy;remove.addEventListener('click',()=>removeSubscription(value.id));row.append(text,remove);holder.append(row);}if(detailEvent)updateFollowButton();
   }
   async function loadSubscriptions(){if(!full())return;const result=await api('/api/radar/subscriptions');subscriptions=Array.isArray(result.subscriptions)?result.subscriptions:[];renderSubscriptions();}
-  async function addSubscription(payload){if(subscriptionBusy)return;subscriptionBusy=true;$('saveRadarSubscription').disabled=true;renderSubscriptions();try{await api('/api/radar/subscriptions',{method:'POST',body:JSON.stringify(payload)});await loadSubscriptions();preferenceStatus(config.notificationsEnabled?'Правило сохранено. События будут отбираться по вашим настройкам.':'Правило сохранено. Доставка уведомлений пока отключена; компании остаются в отслеживании.');}catch(cause){if(![401,403].includes(cause.status))preferenceStatus(cause.message,true);throw cause;}finally{subscriptionBusy=false;$('saveRadarSubscription').disabled=false;renderSubscriptions();}}
-  async function removeSubscription(id){if(subscriptionBusy)return;subscriptionBusy=true;renderSubscriptions();try{await api('/api/radar/subscriptions/'+encodeURIComponent(id),{method:'DELETE'});await loadSubscriptions();preferenceStatus('Правило удалено.');}catch(cause){if(![401,403].includes(cause.status))preferenceStatus(cause.message,true);}finally{subscriptionBusy=false;renderSubscriptions();}}
+  async function addSubscription(payload){if(subscriptionBusy)return;subscriptionBusy=true;$('saveRadarSubscription').disabled=true;renderSubscriptions();try{await api('/api/radar/subscriptions',{method:'POST',body:JSON.stringify(payload)});await loadSubscriptions();if(calendarScope==='mine')void loadCalendar();preferenceStatus(config.notificationsEnabled?'Правило сохранено. События будут отбираться по вашим настройкам.':'Правило сохранено. Доставка уведомлений пока отключена; компании остаются в отслеживании.');}catch(cause){if(![401,403].includes(cause.status))preferenceStatus(cause.message,true);throw cause;}finally{subscriptionBusy=false;$('saveRadarSubscription').disabled=false;renderSubscriptions();}}
+  async function removeSubscription(id){if(subscriptionBusy)return;subscriptionBusy=true;renderSubscriptions();try{await api('/api/radar/subscriptions/'+encodeURIComponent(id),{method:'DELETE'});await loadSubscriptions();if(calendarScope==='mine')void loadCalendar();preferenceStatus('Правило удалено.');}catch(cause){if(![401,403].includes(cause.status))preferenceStatus(cause.message,true);}finally{subscriptionBusy=false;renderSubscriptions();}}
   function fact(grid,label,value){const item=node('div');item.append(node('dt','',label),node('dd','',value));grid.append(item);}
   function section(title){const item=node('section','radar-detail-section');item.append(node('h3','',title));return item;}
   function updateFollowButton(){const button=$('radarFollowCompany');if(!button||!detailEvent)return;button.textContent=isFollowed(detailEvent.companyId)?'Компания в отслеживании ✓':'Следить за компанией +';button.disabled=subscriptionBusy||isFollowed(detailEvent.companyId)||!detailEvent.companyId;button.setAttribute('aria-pressed',String(isFollowed(detailEvent.companyId)));}
@@ -106,23 +178,31 @@
   }
   function applyConfig(){
     $('radarLocked').hidden=true;$('radarWorkspace').hidden=false;const isFull=full();document.querySelectorAll('[data-radar-advanced]').forEach(value=>value.hidden=!isFull);$('radarPreferences').hidden=!isFull;document.querySelectorAll('[data-category]').forEach(button=>button.hidden=!isFull&&!['all','stocks','bonds'].includes(button.dataset.category));if(!isFull&&!['all','stocks','bonds'].includes(category))setCategory('all');
-    $('radarMode').hidden=false;if(config.mode==='mock')$('radarMode').textContent='Демонстрационная лента с вымышленными событиями и ценами.';else if(config.mode==='off')$('radarMode').textContent='Внешние источники отключены. Доступны сохранённые события.';else $('radarMode').textContent='Статусы источников контролирует редакция. Время обнаружения указано для каждого события; оно не гарантирует скорость следующих публикаций.';
+    $('radarCalendar').hidden=!isFull;
+    $('radarMode').hidden=false;if(config.mode==='mock')$('radarMode').textContent='Демонстрационная лента с вымышленными событиями и ценами.';else if(config.mode==='off')$('radarMode').textContent='Редакция публикует события по первоисточникам.';else $('radarMode').textContent='Статусы источников контролирует редакция. Время обнаружения указано для каждого события; оно не гарантирует скорость следующих публикаций.';
     if(!isFull){$('radarMode').textContent+=' Доступна сокращённая лента с задержкой '+number((config.freeDelaySeconds||0)/60)+' мин.';$('radarFeedCaption').textContent='Ограниченная лента с задержкой';}else $('radarFeedCaption').textContent='Значимые события · сначала новые';
     $('radarNotificationExplanation').textContent=config.notificationsEnabled?'Уведомления учитывают ваши правила и действующий доступ. Отслеживание компании сохраняется в вашем аккаунте.':'Доставка уведомлений сейчас недоступна. Отслеживание компаний и правила можно сохранить.';$('enableRadarBrowser').disabled=!config.notificationsEnabled||!('Notification'in window);if(!('Notification'in window))$('enableRadarBrowser').textContent='Браузерные уведомления недоступны';
   }
   async function bootstrap(){
-    suspended=false;$('refreshRadar').disabled=true;try{const nextUser=await A.current();if(!nextUser){locked({guest:true});return;}if(user&&nextUser.id!==user.id){clearFeed();closeDetail();subscriptions=[];browserNotifications=false;}user=nextUser;config=await api('/api/radar/config');if(!config.enabled){locked({disabled:true});return;}if(!['pro','free'].includes(config.access?.tier)){locked();return;}applyConfig();const companyData=await api('/api/radar/companies');companies=Array.isArray(companyData.companies)?companyData.companies:[];renderCompanies();const ticker=params.get('ticker');if(ticker){const company=companies.find(value=>value.ticker===ticker.toUpperCase());if(company)$('radarCompany').value=company.id;}
-      if(full())try{await loadSubscriptions();}catch(cause){if([401,403].includes(cause.status))return;preferenceStatus('Не удалось загрузить правила. Повторите открытие настроек.',true);}await loadFeed();startStream();if(params.get('event')&&full())await openDetail(params.get('event'));clearInterval(accessTimer);accessTimer=setInterval(()=>{void checkAccess();},20000);
+    suspended=false;$('refreshRadar').disabled=true;try{const nextUser=await A.current();if(!nextUser){locked({guest:true});return;}if(user&&nextUser.id!==user.id){clearFeed();closeDetail();clearCalendar();setCalendarScope('all');subscriptions=[];browserNotifications=false;}user=nextUser;config=await api('/api/radar/config');if(!config.enabled){locked({disabled:true});return;}if(!['pro','free'].includes(config.access?.tier)){locked();return;}if(!full())clearCalendar();applyConfig();const companyData=await api('/api/radar/companies');companies=Array.isArray(companyData.companies)?companyData.companies:[];renderCompanies();const ticker=params.get('ticker');if(ticker){const company=companies.find(value=>value.ticker===ticker.toUpperCase());if(company)$('radarCompany').value=company.id;}
+      if(full())try{await loadSubscriptions();}catch(cause){if([401,403].includes(cause.status))return;preferenceStatus('Не удалось загрузить правила. Повторите открытие настроек.',true);}await Promise.all([loadFeed(),loadCalendar()]);startStream();if(params.get('event')&&full())await openDetail(params.get('event'));clearInterval(accessTimer);accessTimer=setInterval(()=>{void checkAccess();},20000);
     }catch(cause){if(![401,403].includes(cause.status)){showError(cause.message);$('radarWorkspace').hidden=false;$('radarSkeleton').hidden=true;connection('Не удалось загрузить Radar');}}finally{$('refreshRadar').disabled=false;}
   }
   document.querySelectorAll('[data-category]').forEach(button=>button.addEventListener('click',()=>{setCategory(button.dataset.category);void loadFeed();}));
   $('radarFilters').addEventListener('submit',event=>{event.preventDefault();clearTimeout(filterTimer);void loadFeed();});$('radarSearch').addEventListener('input',()=>{clearTimeout(filterTimer);filterTimer=setTimeout(()=>{void loadFeed();},300);});for(const id of ['radarCompany','radarImpact','radarImportance','radarWatchlist'])$(id).addEventListener('change',()=>{void loadFeed();});
-  $('refreshRadar').addEventListener('click',async()=>{if(!config||!['pro','free'].includes(config.access?.tier)){await bootstrap();return;}await checkAccess();if(['pro','free'].includes(config?.access?.tier)){await loadFeed();if(!stream)startStream();}});$('retryRadar').addEventListener('click',()=>{if(!config||!companies.length)void bootstrap();else void loadFeed();});$('radarLoadMore').addEventListener('click',()=>{if(!busy&&cursor)void loadFeed({more:true});});
+  $('refreshRadar').addEventListener('click',async()=>{if(!config||!['pro','free'].includes(config.access?.tier)){await bootstrap();return;}await checkAccess();if(['pro','free'].includes(config?.access?.tier)){await Promise.all([loadFeed(),loadCalendar()]);if(!stream)startStream();}});$('retryRadar').addEventListener('click',()=>{if(!config||!companies.length)void bootstrap();else void loadFeed();});$('radarLoadMore').addEventListener('click',()=>{if(!busy&&cursor)void loadFeed({more:true});});
+  for(const button of calendarScopes)button.addEventListener('click',()=>{
+    const scope=button.dataset.radarCalendarScope;if(scope===calendarScope)return;
+    clearCalendar();setCalendarScope(scope);void loadCalendar();
+  });
+  $('radarCalendarPreferences').addEventListener('click',()=>{
+    const preferences=$('radarPreferences');preferences.open=true;preferences.querySelector('summary').focus();preferences.scrollIntoView({block:'start'});
+  });
   $('resetRadarFilters').addEventListener('click',()=>{$('radarFilters').reset();setCategory('all');void loadFeed();});
   $('radarSubscriptionForm').addEventListener('submit',event=>{event.preventDefault();void addSubscription({companyId:$('subscriptionCompany').value||null,eventType:$('subscriptionType').value||null,minimumImportance:Number($('subscriptionImportance').value),enabled:true}).catch(()=>{});});
   $('radarPreferences').addEventListener('toggle',()=>{if($('radarPreferences').open&&full())void loadSubscriptions().catch(cause=>{if(![401,403].includes(cause.status))preferenceStatus(cause.message,true);});});
   $('enableRadarBrowser').addEventListener('click',async()=>{if(!config?.notificationsEnabled||!full()||!('Notification'in window))return;if(!subscriptions.some(value=>value.enabled)){preferenceStatus('Сначала добавьте правило: компанию, тему или все значимые события.');return;}try{const result=await Notification.requestPermission();browserNotifications=result==='granted';$('enableRadarBrowser').textContent=browserNotifications?'Браузерные уведомления включены ✓':'Разрешение на уведомления не получено';preferenceStatus(browserNotifications?'Уведомления включены для этой открытой вкладки.':'Разрешение можно изменить в настройках браузера.');}catch{preferenceStatus('Не удалось включить браузерные уведомления. Проверьте разрешения сайта.',true);}});
   $('closeRadarDetail').addEventListener('click',closeDetail);$('radarDetail').addEventListener('cancel',event=>{event.preventDefault();closeDetail();});$('radarDetail').addEventListener('click',event=>{if(event.target===$('radarDetail')){const rect=event.target.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)closeDetail();}});
   $('openRadarToast').addEventListener('click',()=>{if(toastEvent)void openDetail(toastEvent.id,$('openRadarToast'));$('radarToast').hidden=true;});$('closeRadarToast').addEventListener('click',()=>{$('radarToast').hidden=true;});
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){stopStream();$('radarToast').hidden=true;}else if(!suspended)void bootstrap();});window.addEventListener('pagehide',()=>{suspended=true;stopStream();feedSequence++;detailSequence++;feedController?.abort();detailController?.abort();clearTimeout(refreshTimer);clearTimeout(filterTimer);clearTimeout(toastTimer);clearInterval(accessTimer);});window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();});setCategory(category);void bootstrap();
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){stopStream();clearCalendar();$('radarToast').hidden=true;}else if(!suspended)void bootstrap();});window.addEventListener('pagehide',()=>{suspended=true;stopStream();feedSequence++;detailSequence++;feedController?.abort();detailController?.abort();clearCalendar();clearTimeout(refreshTimer);clearTimeout(filterTimer);clearTimeout(toastTimer);clearInterval(accessTimer);});window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();});setCategory(category);void bootstrap();
 })();

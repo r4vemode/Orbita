@@ -32,7 +32,16 @@
             <label>Что произошло<textarea id="radarEventSummary" name="summary" rows="4" maxlength="3000" required placeholder="Кратко и по существу, без HTML-разметки"></textarea></label>
             <label>Почему это важно<textarea id="radarEventWhy" name="whyImportant" rows="3" maxlength="3000" placeholder="Объяснение возможного значения события"></textarea></label>
             <div class="form-grid"><label>Потенциальное влияние<select id="radarEventImpact" name="impact"><option value="POSITIVE">Положительное · Positive</option><option value="NEGATIVE">Отрицательное · Negative</option><option value="NEUTRAL" selected>Нейтральное · Neutral</option><option value="MIXED">Смешанное · Mixed</option></select></label><label>Важность · от 0 до 10<input id="radarEventImportance" name="importanceScore" type="number" min="0" max="10" step="0.1" value="6" required inputmode="decimal"></label></div>
-            <div id="radarManualSource"><label>Ссылка на первоисточник<input id="radarEventSource" name="source" type="url" maxlength="2000" required placeholder="https://…" autocomplete="off"></label><label>Время публикации первоисточника · МСК<input id="radarEventPublishedAt" name="publishedAt" type="datetime-local" required></label></div>
+            <div id="radarManualSource"><p class="muted">Официальная ссылка на сообщение эмитента. <a href="https://www.e-disclosure.ru/" target="_blank" rel="noopener noreferrer">Найти раскрытие ↗</a></p><label>Ссылка на первоисточник<input id="radarEventSource" name="source" type="url" maxlength="2000" required placeholder="https://…" autocomplete="off"></label><label>Время публикации первоисточника · МСК<input id="radarEventPublishedAt" name="publishedAt" type="datetime-local" required></label></div>
+            <details id="radarScheduleFields" class="content-preview">
+              <summary>Дата события и итог</summary>
+              <div class="form-grid">
+                <label>Дата события · МСК<input id="radarEventScheduledAt" name="scheduledAt" type="date"></label>
+                <label>Время · МСК, если известно<input id="radarEventScheduledTime" name="scheduledTime" type="time"></label>
+              </div>
+              <label>Что решили или опубликовали<textarea id="radarEventOutcome" name="outcomeText" rows="3" maxlength="1500" placeholder="Добавьте после события"></textarea></label>
+              <label>Ссылка на публикацию итога<input id="radarEventOutcomeSource" name="outcomeSource" type="url" maxlength="2000" placeholder="https://…" autocomplete="off"></label>
+            </details>
             <label id="radarIncorrectLabel" class="radar-checkbox" hidden><input id="radarAnalysisIncorrect" name="aiIncorrect" type="checkbox"><span>Исходный анализ неверен. Отметить для последующей проверки.</span></label>
           </fieldset>
           <p class="access-note">Оценка влияния не является рекомендацией купить или продать инструмент. Исправление сохраняется отдельно от исходного анализа.</p>

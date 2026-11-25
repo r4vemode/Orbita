@@ -71,6 +71,12 @@
   function select(event=null){
     selected=event?structuredClone(event):null;
     form.elements.companyId.value=event?.companyId||'';form.elements.eventType.value=Object.hasOwn(types,event?.eventType)?event.eventType:'OTHER';form.elements.headline.value=event?.headline||'';form.elements.summary.value=event?.summary||'';form.elements.whyImportant.value=event?.whyImportant||'';form.elements.impact.value=Object.hasOwn(impactNames,event?.impact)?event.impact:'NEUTRAL';form.elements.importanceScore.value=event?.importanceScore??6;form.elements.source.value='';form.elements.publishedAt.value=localMoscow(event?.publishedAt||Date.now());form.elements.aiIncorrect.checked=event?.aiIncorrect===true;
+    const [scheduledDate='',scheduledTime='']=(event?.scheduledAt?localMoscow(event.scheduledAt):'').split('T');
+    form.elements.scheduledAt.value=scheduledDate;
+    form.elements.scheduledTime.value=event?.scheduledAllDay?'':scheduledTime;
+    form.elements.outcomeText.value=event?.outcome?.text||'';
+    form.elements.outcomeSource.value=event?.outcome?.source||'';
+    $('radarScheduleFields').open=Boolean(event?.scheduledAt);
     $('radarManualSource').hidden=!!event;$('radarIncorrectLabel').hidden=!event;$('radarExistingActions').hidden=!event;$('hideRadarEvent').hidden=!event||event.status!=='published';
     $('saveRadarDraft').textContent=event?'Сохранить изменения':'Сохранить черновик';$('publishRadarEvent').hidden=event?.status==='published';
     $('radarEditorState').textContent=event?(statusNames[event.status]||event.status).toUpperCase()+(event.isDemo?' / ДЕМО':''):'РУЧНОЕ СОБЫТИЕ';$('radarEditorHeading').textContent=event?'Проверить и исправить':'Подготовить событие';
@@ -107,6 +113,21 @@
   async function save(action){
     if(busy||!ready||!form.reportValidity())return;
     const payload=readEditor();if(!payload.headline||!payload.summary){message('Заполните заголовок и краткое описание.',true);return;}
+    const schedule=form.elements.scheduledAt.value;
+    const scheduledTime=form.elements.scheduledTime.value;
+    const outcomeText=form.elements.outcomeText.value.trim();
+    const outcomeUrl=form.elements.outcomeSource.value.trim();
+    const scheduledAt=schedule?new Date(schedule+'T'+(scheduledTime||'00:00')+':00+03:00'):null;
+    if((scheduledTime&&!scheduledAt)||(scheduledAt&&!Number.isFinite(scheduledAt.getTime()))){message('Проверьте дату события.',true);return;}
+    if(outcomeText||outcomeUrl){
+      const source=safeSource(outcomeUrl);
+      if(!scheduledAt||!outcomeText||!source){message('Для итога укажите дату события, текст и HTTPS-ссылку.',true);return;}
+      payload.outcome={text:outcomeText,source};
+    }else if(selected?.outcome)payload.outcome=null;
+    if(scheduledAt||selected?.scheduledAt){
+      payload.scheduledAt=scheduledAt?.toISOString()||null;
+      payload.scheduledAllDay=Boolean(scheduledAt&&!scheduledTime);
+    }
     if(!selected){
       const source=safeSource(form.elements.source.value.trim());if(!source){message('Укажите HTTPS-ссылку на первоисточник без логина и пароля.',true);return;}
       const publishedAt=new Date(form.elements.publishedAt.value+':00+03:00');if(!Number.isFinite(publishedAt.getTime())){message('Проверьте время публикации первоисточника.',true);return;}

@@ -4,3 +4,34 @@
 @media(max-width:440px){.radar-heading h1{font-size:42px}.radar-heading-actions{gap:12px}.radar-heading-actions .radar-outline{font-size:11px;padding:10px 14px}.radar-connection{font-size:10px}.radar-filters{grid-template-columns:1fr}.radar-search-label,.radar-filter-submit{grid-column:auto}.radar-filters input,.radar-filters select,.radar-subscription-form select{font-size:16px}.radar-subscription-form{grid-template-columns:1fr}.radar-preferences summary{padding:17px;font-size:11px}.radar-preferences-body{padding:0 17px 20px}.radar-card{padding:22px 20px}.radar-card h2{font-size:19px}.radar-card-ticker{font-size:22px}.radar-card-summary{font-size:12px}.radar-dialog{padding:19px;width:calc(100vw - 20px);max-width:calc(100vw - 20px);border-radius:16px}.radar-dialog-top .eyebrow{font-size:8px;letter-spacing:1px}.radar-detail-identity{display:block;margin:22px 0}.radar-detail-identity h2{font-size:30px}.radar-detail-identity .radar-outline{margin-top:17px;max-width:none}.radar-detail-facts{gap:19px 13px}.radar-detail-reactions{grid-template-columns:repeat(2,minmax(0,1fr))}.radar-detail-headline{font-size:22px}.radar-empty{padding:30px 21px}.radar-empty h2{font-size:24px}}
 .radar-filters .radar-watchlist{grid-column:1/-1;display:flex;align-items:center;gap:10px;font-size:11px;color:#9db3d1;line-height:1.8}.radar-watchlist input{width:17px;min-height:17px;height:17px;margin:0;flex-shrink:0;accent-color:#b8d0f3}
 @media(prefers-reduced-motion:reduce){.radar-skeleton{animation:none}}
+
+.radar-calendar{margin:0 0 24px;padding:20px;border:1px solid var(--o-line);border-radius:var(--o-radius);background:var(--o-surface);color:var(--o-ink)}
+.radar-calendar-header,.radar-calendar-controls,.radar-calendar-switch,.radar-calendar-identity{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.radar-calendar-header{justify-content:space-between;gap:16px;margin-bottom:16px}
+.radar-calendar-header h2,.radar-calendar-lists h3{margin:0;color:var(--o-ink)}
+.radar-calendar-header p,.radar-calendar-status,.radar-calendar-empty{margin:4px 0 0;color:var(--o-muted);font-size:13px;line-height:1.5}
+.radar-calendar-switch{gap:4px}
+.radar-calendar-switch button,.radar-calendar-settings,.radar-calendar-event{font:inherit;line-height:1.4;cursor:pointer;text-transform:none;letter-spacing:normal}
+.radar-calendar-switch button{min-height:36px;padding:6px 10px;border:1px solid var(--o-line);border-radius:7px;background:transparent;color:var(--o-muted);font-size:13px}
+.radar-calendar-switch button[aria-pressed=true]{border-color:var(--o-pro);color:var(--o-ink)}
+.radar-calendar-settings{padding:6px 3px;border:0;background:transparent;color:var(--o-pro);font-size:13px}
+.radar-calendar-lists{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px 22px}
+.radar-calendar-lists h3{font-size:15px;margin-bottom:6px}
+.radar-calendar-lists>section{padding-left:20px;border-left:1px solid var(--o-line);min-width:0}
+.radar-calendar-list{list-style:none;padding:0;margin:0}
+.radar-calendar-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-top:1px solid var(--o-line);padding:9px 0;line-height:1.45;font-size:13px}
+.radar-calendar-body{min-width:0;overflow-wrap:anywhere}
+.radar-calendar-identity{gap:4px 8px;color:var(--o-muted);font-size:12px}
+.radar-calendar-identity strong{color:var(--o-ink)}
+.radar-calendar-event{display:inline-block;padding:2px 0;border:0;background:transparent;color:var(--o-ink);font-weight:600;text-align:left;overflow-wrap:anywhere;white-space:normal}
+.radar-calendar-event:hover,.radar-calendar-settings:hover{text-decoration:underline;text-underline-offset:3px}
+.radar-calendar-outcome{margin:4px 0;color:var(--o-muted)}
+.radar-calendar-date{flex-shrink:0;text-align:right;color:var(--o-muted);white-space:nowrap;font-size:12px}
+.radar-calendar-date span{display:block}
+html.has-shell #radarPreferences{scroll-margin-top:68px}
+@media(max-width:760px){
+  .radar-calendar{padding:14px}
+  .radar-calendar-lists{grid-template-columns:minmax(0,1fr)}
+  .radar-calendar-lists>section{padding:12px 0 0;border-left:0;border-top:1px solid var(--o-line)}
+  .radar-calendar-switch button,.radar-calendar-settings{min-height:44px}
+}
