@@ -4,10 +4,14 @@ import https from 'node:https';
 import {EventEmitter} from 'node:events';
 import {createProviderRegistry,createEndpointProvider,parseProviderResponse,safeHttpGet} from '../lib/radar/providers/index.mjs';
 import {publicIp,safeSourceUrl} from '../lib/radar/model.mjs';
-test('Radar provider registry isolates configuration and enables mocks or live adapters only explicitly',()=>{
+test('Radar provider registry isolates configuration and enables official feeds on a public production deployment',()=>{
  assert.equal(createProviderRegistry({env:{}}).some(provider=>provider.enabled),false);
+ const production={NODE_ENV:'production',ORBITA_PUBLIC_ORIGIN:'https://orbita.example.test'};
+ const official=['official-yandex','official-x5','official-polyus'];
+ assert.deepEqual(createProviderRegistry({env:production}).filter(provider=>provider.enabled).map(provider=>provider.id),official);
+ assert.equal(createProviderRegistry({env:{...production,RADAR_PROVIDER_MODE:'off'}}).some(provider=>provider.enabled),false);
  const mocks=createProviderRegistry({env:{RADAR_PROVIDER_MODE:'mock'}});assert.deepEqual(mocks.filter(provider=>provider.enabled).map(provider=>provider.id),['mock']);
- const live=createProviderRegistry({env:{RADAR_PROVIDER_MODE:'live',RADAR_EDISCLOSURE_ENABLED:'true',RADAR_EDISCLOSURE_ENDPOINT:'https://feed.moex.com/events'}});assert.deepEqual(live.filter(provider=>provider.enabled).map(provider=>provider.id),['edisclosure']);assert.equal(live.find(provider=>provider.id==='edisclosure').interval,5000);
+ const live=createProviderRegistry({env:{RADAR_PROVIDER_MODE:'live',RADAR_EDISCLOSURE_ENABLED:'true',RADAR_EDISCLOSURE_ENDPOINT:'https://feed.moex.com/events'}});assert.deepEqual(live.filter(provider=>provider.enabled).map(provider=>provider.id),[...official,'edisclosure']);assert.equal(live.find(provider=>provider.id==='edisclosure').interval,5000);
  assert.throws(()=>createProviderRegistry({env:{RADAR_PROVIDER_MODE:'all'}}));assert.throws(()=>createProviderRegistry({env:{RADAR_IR_ENABLED:'yes'}}));assert.throws(()=>createProviderRegistry({env:{RADAR_IR_INTERVAL:'10'}}));
 });
 test('Radar JSON adapter normalizes provider identity, bounds cursor and avoids returning configuration credentials',async()=>{
@@ -17,7 +21,7 @@ test('Radar JSON adapter normalizes provider identity, bounds cursor and avoids 
 });
 test('Radar official RSS/Atom normalization rejects entity expansion and malformed or oversized feeds',()=>{
  const rss='<?xml version="1.0"?><rss><channel><item><guid>1</guid><title><![CDATA[<b>Сбер</b>]]></title><link>https://www.moex.com/news/1</link><pubDate>Fri, 30 Oct 2026 10:00:00 GMT</pubDate><description><![CDATA[<p>Дивиденды</p>]]></description></item></channel></rss>';
- const result=parseProviderResponse({body:rss,contentType:'application/rss+xml'},{provider:'edisclosure',sourceType:'DISCLOSURE'});assert.equal(result.events[0].title,'Сбер');assert.equal(result.events[0].rawText,'Дивиденды');assert.equal(result.events[0].externalId,'1');
+ const result=parseProviderResponse({body:rss,contentType:'application/rss+xml'},{provider:'edisclosure',sourceType:'DISCLOSURE'});assert.equal(result.events[0].title,'Сбер');assert.equal(result.events[0].rawText,'Дивиденды');assert.equal(result.events[0].externalId,'1');assert.equal(result.events[0].publishedAt,'Fri, 30 Oct 2026 10:00:00 GMT');
  const atom='<feed><entry><id>a1</id><title>Отчёт</title><link href="https://www.moex.com/news/a1"/><updated>2026-10-30T10:00:00Z</updated><summary>Описание</summary></entry></feed>';assert.equal(parseProviderResponse({body:atom,contentType:'application/atom+xml'},{provider:'company-ir',sourceType:'IR'}).events[0].sourceUrl,'https://www.moex.com/news/a1');
  assert.throws(()=>parseProviderResponse({body:'<!DOCTYPE a [<!ENTITY x "boom">]><rss/>',contentType:'application/xml'},{provider:'nsd'}),{code:'RADAR_XML_ENTITY_REJECTED'});
  assert.throws(()=>parseProviderResponse({body:'{"events":[{}],"cursor":{}}',contentType:'application/json'},{provider:'nsd'}),{code:'RADAR_INVALID_CURSOR'});
@@ -40,4 +44,31 @@ test('Radar HTTP transport destroys redirect/error bodies, enforces response siz
  for(const scenario of scenarios){let request,response;const original=https.request;https.request=(url,options,callback)=>{request=new EventEmitter();request.destroyed=false;request.destroy=()=>{request.destroyed=true;};request.end=()=>{if(scenario.hang)return;queueMicrotask(()=>{response=new EventEmitter();response.statusCode=scenario.status;response.headers=scenario.headers||{};response.destroyed=false;response.destroy=()=>{response.destroyed=true;};callback(response);if(!response.destroyed){for(const chunk of scenario.chunks||[])response.emit('data',chunk);if(!response.destroyed)response.emit('end');}});};return request;};
   try{await assert.rejects(safeHttpGet('https://www.moex.com/feed',{timeoutMs:20}),{code:scenario.code});assert.equal(request.destroyed,true);if(response&&scenario.status!==200)assert.equal(response.destroyed,true);}finally{https.request=original;}
  }
+});
+
+test('built-in official feeds parse issuer dates, keep only recent material news and use stable links',async()=>{
+ const now=()=>Date.parse('2026-11-26T12:00:00Z');
+ const article=(title,link,date)=>'<item><title>'+title+'</title><link>'+link+'</link><pubDate>'+date+'</pubDate><description>Текст пресс-релиза</description></item>';
+ const recent='Wed, 25 Nov 2026 10:00:00 +0300',link='https://ir.yandex.ru/press-releases?year=2026&amp;id=25-11-2026';
+ const yandex={
+  contentType:'application/rss+xml',
+  body:'<rss><channel>'+article('Опубликованы финансовые результаты',link+'&amp;utm_source=rss',recent)+
+   article('Опубликованы финансовые результаты',link+'#article',recent)+
+   article('Яндекс обновил поисковое приложение',link+'-2',recent)+
+   article('Опубликованы финансовые результаты',link+'-3','Tue, 10 Nov 2026 15:00:00 +0300')+
+   article('Опубликованы финансовые результаты','https://ir.yandex.ru.example.org/press-releases',recent)+'</channel></rss>'
+ };
+ const x5={contentType:'application/json',body:JSON.stringify([{id:1,date_gmt:'2026-11-25T08:30:00',link:'https://www.x5.ru/ru/news/obligacii/',title:{rendered:'X5 разместила корпоративные облигации'},lang:'ru'}])};
+ const polyus={contentType:'text/html',body:'<article class="news-item"><h3 class="news-item__title"><a href="/ru/media/press-releases/dividendy/">Решение о дивидендах</a></h3><time class="news-item__time" datetime="2026-11-25">25 ноября 2026 г., 15:00</time></article>'};
+ const responses={'ir.yandex.ru':yandex,'www.x5.ru':x5,'polyus.com':polyus};
+ const registry=createProviderRegistry({env:{RADAR_PROVIDER_MODE:'live'},now,requestImpl:async url=>responses[new URL(url).hostname]});
+ const active=registry.filter(provider=>provider.enabled);
+ const batches=await Promise.all(active.map(provider=>provider.fetchEvents()));
+ assert.deepEqual(batches.map(batch=>batch.events.length),[1,1,1]);
+ const events=batches.flatMap(batch=>batch.events);
+ assert.deepEqual(events.map(event=>event.ticker),['YDEX','X5','PLZL']);
+ assert.deepEqual(events.map(event=>event.publishedAt),['2026-11-25T07:00:00.000Z','2026-11-25T08:30:00.000Z','2026-11-25T12:00:00.000Z']);
+ assert.ok(events.every(event=>!event.isDemo&&event.rawText===event.title));
+ assert.equal(events[0].sourceUrl,'https://ir.yandex.ru/press-releases?year=2026&id=25-11-2026');
+ assert.equal((await active[0].fetchEvents()).events[0].externalId,events[0].externalId);
 });
