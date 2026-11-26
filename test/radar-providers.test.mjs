@@ -3,11 +3,13 @@ import assert from 'node:assert/strict';
 import https from 'node:https';
 import {EventEmitter} from 'node:events';
 import {createProviderRegistry,createEndpointProvider,parseProviderResponse,safeHttpGet} from '../lib/radar/providers/index.mjs';
+import {createPipeline} from '../lib/radar/pipeline.mjs';
 import {publicIp,safeSourceUrl} from '../lib/radar/model.mjs';
 test('Radar provider registry isolates configuration and enables official feeds on a public production deployment',()=>{
  assert.equal(createProviderRegistry({env:{}}).some(provider=>provider.enabled),false);
  const production={NODE_ENV:'production',ORBITA_PUBLIC_ORIGIN:'https://orbita.example.test'};
- const official=['official-yandex','official-x5','official-polyus'];
+ const official=['official-yandex','official-x5','official-polyus','official-lukoil','official-novatek','official-scf',
+  'official-mmk','official-rusal','official-phosagro','official-seligdar','official-t-technologies','official-mts','official-vk','official-headhunter','official-rostelecom'];
  assert.deepEqual(createProviderRegistry({env:production}).filter(provider=>provider.enabled).map(provider=>provider.id),official);
  assert.equal(createProviderRegistry({env:{...production,RADAR_PROVIDER_MODE:'off'}}).some(provider=>provider.enabled),false);
  const mocks=createProviderRegistry({env:{RADAR_PROVIDER_MODE:'mock'}});assert.deepEqual(mocks.filter(provider=>provider.enabled).map(provider=>provider.id),['mock']);
@@ -62,7 +64,7 @@ test('built-in official feeds parse issuer dates, keep only recent material news
  const polyus={contentType:'text/html',body:'<article class="news-item"><h3 class="news-item__title"><a href="/ru/media/press-releases/dividendy/">Решение о дивидендах</a></h3><time class="news-item__time" datetime="2026-11-25">25 ноября 2026 г., 15:00</time></article>'};
  const responses={'ir.yandex.ru':yandex,'www.x5.ru':x5,'polyus.com':polyus};
  const registry=createProviderRegistry({env:{RADAR_PROVIDER_MODE:'live'},now,requestImpl:async url=>responses[new URL(url).hostname]});
- const active=registry.filter(provider=>provider.enabled);
+ const active=registry.filter(provider=>['official-yandex','official-x5','official-polyus'].includes(provider.id));
  const batches=await Promise.all(active.map(provider=>provider.fetchEvents()));
  assert.deepEqual(batches.map(batch=>batch.events.length),[1,1,1]);
  const events=batches.flatMap(batch=>batch.events);
@@ -71,4 +73,30 @@ test('built-in official feeds parse issuer dates, keep only recent material news
  assert.ok(events.every(event=>!event.isDemo&&event.rawText===event.title));
  assert.equal(events[0].sourceUrl,'https://ir.yandex.ru/press-releases?year=2026&id=25-11-2026');
  assert.equal((await active[0].fetchEvents()).events[0].externalId,events[0].externalId);
+});
+
+test('expanded official providers keep day precision, normalize results and bound individual issuer responses',async()=>{
+ const now=()=>Date.parse('2026-11-26T12:00:00Z');
+ const panel=(date,link,title)=>'<div data-test="panels-0" role="listitem"><p>'+date+'</p><a data-test="panel-link" href="'+link+'">Отчёт</a><div><p>'+title+'</p></div></div>';
+ const valid='https://cdn.tbank-online.com/static/documents/valid-press-release.pdf';
+ const title='Операционные результаты Т-Технологий за октябрь 2026 года';
+ const ttResponse=panel('24&nbsp;ноября 2026',valid,title)+panel('31 февраля 2026',valid,title)+panel('24 ноября 2026','https://cdn.tbank-online.com.example.org/static/documents/malicious.pdf',title);
+ const flotResponse='<article class="press-list__item"><div class="press-list__date">20 ноября 2026 г.</div><h5 class="press-list__title"><a href="/media/press_releases/item123.html">Итоги работы ПАО «Совкомфлот» за 9 месяцев 2026 года</a></h5></article>';
+ const providers=createProviderRegistry({env:{RADAR_PROVIDER_MODE:'live'},now,requestImpl:async (url,{maxResponseBytes})=>{
+  const isT=new URL(url).hostname==='t-technologies.ru';
+  assert.equal(maxResponseBytes,(isT?2:1)*1024*1024);
+  return {body:isT?ttResponse:flotResponse,contentType:'text/html'};
+ }});
+ const pipeline=createPipeline({now});
+ for(const [id,ticker,day] of [['official-t-technologies','T','2026-11-24'],['official-scf','FLOT','2026-11-20']]){
+  const {events}=await providers.find(provider=>provider.id===id).fetchEvents();
+  assert.equal(events.length,1);
+  const event=await pipeline.process(events[0]);
+  assert.equal(event.ticker,ticker);
+  assert.equal(event.status,'published');
+  assert.equal(event.eventType,'EARNINGS');
+  assert.equal(event.publicationDay,day);
+  assert.equal(event.sources[0].publicationDay,day);
+  assert.equal(Date.parse(event.publishedAt),Date.parse(day+'T00:00:00+03:00'));
+ }
 });

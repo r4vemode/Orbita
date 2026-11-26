@@ -8,6 +8,7 @@
   let state={events:[],companies:[],providers:[],revision:0,nextCursor:null},selected=null,dirty=false,busy=false,ready=false;
   let activeQuery=new URLSearchParams(),mergeCandidates=[];
   const date=value=>{const parsed=new Date(value);return value&&Number.isFinite(parsed.getTime())?new Intl.DateTimeFormat('ru-RU',{dateStyle:'short',timeStyle:'medium',timeZone:'Europe/Moscow'}).format(parsed)+' МСК':'—';};
+  const publicationDate=event=>event.publicationDay?new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'short',year:'numeric'}).format(new Date(event.publishedAt)):date(event.publishedAt);
   function node(tag,className,text){const result=document.createElement(tag);if(className)result.className=className;if(text!==undefined)result.textContent=String(text);return result;}
   function message(text,error=false){$('radarAdminMessage').textContent=text;$('radarAdminMessage').classList.toggle('error',error);}
   function markDirty(value=true){dirty=value;$('radarUnsaved').hidden=!dirty;}
@@ -54,7 +55,7 @@
     for(const event of state.events){
       const button=node('button','content-item radar-admin-item'+(selected?.id===event.id?' active':'')+(event.isDemo?' is-demo':''));button.type='button';button.dataset.radarEvent=event.id;button.setAttribute('aria-pressed',String(selected?.id===event.id));
       const top=node('div','radar-item-heading');top.append(node('strong','',(event.ticker||'Не сопоставлено')+' · '+(event.headline||'Без заголовка')),node('span','radar-item-score',Number.isFinite(event.importanceScore)?event.importanceScore.toFixed(1)+'/10':'—'));
-      button.append(top,node('span','radar-item-type',(types[event.eventType]||event.eventType||'Не определено')+' · '+(impactNames[event.impact]||'—')),node('small','',(statusNames[event.status]||event.status||'—')+(event.isDemo?' · ДЕМО':'')+' · '+date(event.publishedAt)));button.disabled=busy;button.addEventListener('click',()=>guard(()=>select(event)));root.append(button);
+      button.append(top,node('span','radar-item-type',(types[event.eventType]||event.eventType||'Не определено')+' · '+(impactNames[event.impact]||'—')),node('small','',(statusNames[event.status]||event.status||'—')+(event.isDemo?' · ДЕМО':'')+' · '+publicationDate(event)));button.disabled=busy;button.addEventListener('click',()=>guard(()=>select(event)));root.append(button);
     }
   }
   function renderSourceDetails(event){
@@ -80,7 +81,7 @@
     $('radarManualSource').hidden=!!event;$('radarIncorrectLabel').hidden=!event;$('radarExistingActions').hidden=!event;$('hideRadarEvent').hidden=!event||event.status!=='published';
     $('saveRadarDraft').textContent=event?'Сохранить изменения':'Сохранить черновик';$('publishRadarEvent').hidden=event?.status==='published';
     $('radarEditorState').textContent=event?(statusNames[event.status]||event.status).toUpperCase()+(event.isDemo?' / ДЕМО':''):'РУЧНОЕ СОБЫТИЕ';$('radarEditorHeading').textContent=event?'Проверить и исправить':'Подготовить событие';
-    $('radarEventMeta').textContent=event?'Источник опубликовал '+date(event.publishedAt)+' · Обнаружено '+date(event.detectedAt)+' · Обработано '+date(event.processedAt)+' · Версия '+event.revision:'';
+    $('radarEventMeta').textContent=event?'Источник опубликовал '+publicationDate(event)+' · Обнаружено '+date(event.detectedAt)+' · Обработано '+date(event.processedAt)+' · Версия '+event.revision:'';
     $('viewRadarEvent').href='radar.html'+(event?'?event='+encodeURIComponent(event.id):'');
     $('createRadarSignal').hidden=!event||event.isDemo||event.status!=='published'||event.assetType!=='stock';$('createRadarSignal').href='admin.html'+(event?'?radarEvent='+encodeURIComponent(event.id):'');
     $('radarConflict').hidden=true;markDirty(false);renderSourceDetails(event);renderList();syncBusy();
@@ -138,7 +139,7 @@
   function openMerge(){
     if(busy||!selected)return;if(dirty){message('Перед объединением сохраните или сбросьте правки текущего события.',true);return;}
     mergeCandidates=state.events.filter(event=>event.id!==selected.id&&event.status!=='duplicate'&&event.companyId===selected.companyId);const select=$('radarMergeTarget');select.replaceChildren(node('option','','Выберите другое событие той же компании'));select.firstChild.value='';
-    for(const event of mergeCandidates){const option=node('option','',(event.ticker||'—')+' · '+event.headline+' · '+date(event.publishedAt));option.value=event.id;select.append(option);}
+    for(const event of mergeCandidates){const option=node('option','',(event.ticker||'—')+' · '+event.headline+' · '+publicationDate(event));option.value=event.id;select.append(option);}
     $('radarMergeMessage').textContent=mergeCandidates.length?'':'В текущем списке нет другого события этой компании. Измените фильтры или загрузите следующую страницу.';$('radarMergeDialog').showModal();select.focus();
   }
   async function merge(){
