@@ -100,3 +100,26 @@ test('expanded official providers keep day precision, normalize results and boun
   assert.equal(Date.parse(event.publishedAt),Date.parse(day+'T00:00:00+03:00'));
  }
 });
+
+test('Rostelecom chooses the Moscow calendar year and imports published company articles',async()=>{
+ let clock=Date.parse('2026-12-31T20:59:00Z');
+ const urls=[];
+ const card=(day,month,category)=>'<div id="bx_8_15" class="item news_item"><a class="item_link" href="/ir/news_calendar/d123/"></a>'+
+  '<span class="item_date-day">'+day+'</span><span class="item_date-month">'+month+'</span>'+
+  '<div class="item_text">Финансовые результаты Ростелекома</div><a href="'+category+'">Категория</a></div>';
+ const [provider]=createProviderRegistry({
+  env:{RADAR_PROVIDER_MODE:'live'},
+  now:()=>clock,
+  requestImpl:async url=>{
+   urls.push(url);
+   const current=url.endsWith('/2026/');
+   return {contentType:'text/html',body:card(current?'31':'1',current?'Декабря':'Января','/press/news/')+card('1','Января','/ir/calendar/')};
+  }
+ }).filter(item=>item.id==='official-rostelecom');
+ const previous=await provider.fetchEvents();
+ assert.deepEqual(previous.events.map(row=>row.publicationDay),['2026-12-31']);
+ clock+=2*60*1000;
+ const current=await provider.fetchEvents();
+ assert.deepEqual(current.events.map(row=>row.publicationDay),['2027-01-01']);
+ assert.deepEqual(urls.map(url=>new URL(url).pathname),['/ir/news_calendar/2026/','/ir/news_calendar/2027/']);
+});
