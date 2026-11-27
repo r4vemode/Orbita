@@ -64,7 +64,7 @@ const content=await createContent(directory,{accounts}),productSettings=await cr
 const readiness=createReadiness({directory,publicDir:root});
 const webhooks=new Set([...payments.webhookPaths,...notifications.webhookPaths,...telegramAdmin.webhookPaths]);
 const requestSecurity=createRequestSecurity({trustedProxyIps:process.env.ORBITA_TRUSTED_PROXY_IPS||''});
-const types={'.html':'text/html','.webmanifest':'application/manifest+json','.json':'application/json','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon'};
+const types={'.html':'text/html','.webmanifest':'application/manifest+json','.json':'application/json','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon','.woff2':'font/woff2'};
 const memberPages=new Set(['/app.html','/calculator.html','/learn.html','/markets.html']);
 // Legacy addresses keep working after the sections were merged.
 const movedPages=new Map([['/participants.html','/markets.html'],['/market-demo.html','/markets.html']]);
@@ -185,7 +185,10 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
   if(!real.startsWith(root+path.sep)||real!==target)throw error(403,'Доступ запрещён.');
   if(!(await stat(real)).isFile())throw error(404,'Файл не найден.');
   const documentName={'/offer.html':'offer','/privacy.html':'privacy','/refunds.html':'refunds'}[canonical];
-  const bytes=documentName?Buffer.from(await legal.renderPage(documentName,{version:url.searchParams.get('version')||undefined})):await readFile(real);res.writeHead(200,{'Content-Type':(types[path.extname(real)]||'application/octet-stream')+'; charset=utf-8','Cache-Control':'no-store','Vary':'Cookie'});res.end(req.method==='HEAD'?undefined:bytes);
+  const bytes=documentName?Buffer.from(await legal.renderPage(documentName,{version:url.searchParams.get('version')||undefined})):await readFile(real);
+  const extension=path.extname(real),mime=types[extension]||'application/octet-stream';
+  res.writeHead(200,{'Content-Type':extension==='.woff2'?mime:mime+'; charset=utf-8','Cache-Control':'no-store','Vary':'Cookie'});
+  res.end(req.method==='HEAD'?undefined:bytes);
  }catch(e){if(!res.headersSent){if(e.status)json(res,e.status,{error:e.message,...(e.code?{code:e.code}:{})});else safeFailure(res,e,{scope:'server',route:requestRoute});}else res.end();}
 });
 server.maxHeadersCount=100;server.maxRequestsPerSocket=1000;
