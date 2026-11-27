@@ -1,4 +1,4 @@
-@import url('manrope.css');
+@import url('fonts/manrope/manrope.css');
 /* ORBITA design tokens shared by account pages and the App Shell. */
 [hidden]{display:none!important}
 .o-page,.o-page *,.orbita-shell,.orbita-shell *{box-sizing:border-box}

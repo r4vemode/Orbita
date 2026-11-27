@@ -1,4 +1,4 @@
-@import url('manrope.css');
+@import url('fonts/manrope/manrope.css');
 body{margin:0;background:var(--o-bg);color:var(--o-ink)}
 .markets-source{flex-basis:100%;margin:0}
 .markets-filters{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
