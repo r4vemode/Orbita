@@ -10,6 +10,9 @@ import {createNews} from './lib/news.mjs';
 import {createReferrals} from './lib/referrals.mjs';
 import {RECURRING_TERMS_VERSION} from './lib/payment-recurring.mjs';
 import {createPayments} from './lib/payments.mjs';
+import {createTelegramClientMenu,isTelegramClientAction} from './lib/telegram-client/menu.mjs';
+import {createTelegramContentWorkflow} from './lib/telegram-admin/content-workflow.mjs';
+import {telegramAdminConfiguration} from './lib/telegram-admin/config.mjs';
 import {createNotifications} from './lib/notifications.mjs';
 import {createBackup} from './lib/backups.mjs';
 import {createContent} from './lib/content.mjs';
@@ -49,7 +52,8 @@ const useBundledHistory=!process.argv.includes('--without-bundled-history');
 let accounts;
 const legal=await createLegal(directory,{templateDir:root,accounts:{identify:req=>accounts.identify(req)},authorizePublish:(req,credentials)=>accounts.authorizeSensitive(req,credentials)});
 accounts=await createAccounts(directory,{...(mfaSetting===undefined?{}:{requireAdminMfa:['true','1'].includes(mfaSetting)}),legalVersionProvider:async()=>(await legal.readPublic()).version,telegramLogin:createTelegramLoginSender()});
-const ideas=await createIdeas(directory,{localMarketHistory}),news=createNews(directory);
+const ideas=await createIdeas(directory,{localMarketHistory});
+const content=await createContent(directory,{accounts}),news=createNews(directory,{content});
 const payments=await createPayments(directory,{accounts,checkoutGate:createSalesGate({legal}),recurringGate:()=>legal.recurringReadiness(RECURRING_TERMS_VERSION)});
 const referrals=createReferrals({accounts,publicOrigin:process.env.ORBITA_PUBLIC_ORIGIN||'',simulation:(await payments.publicConfig()).simulation});
 const radar=await createRadar(directory,{accounts,ideas});
@@ -58,9 +62,12 @@ const markets=await createMarkets(directory,{accounts,ideas});
 const support=await createSupport(directory,{accounts});
 const dashboard=createDashboard({accounts,ideas,radar,support});
 const push=await createPush(directory,{accounts});
-const notifications=await createNotifications(directory,{accounts,ideas,radar,markets,push});
-const telegramAdmin=createTelegramAdmin({accounts,ideas,radar});
-const content=await createContent(directory,{accounts}),productSettings=await createProductSettings(directory,{accounts});
+const clientMenu={...createTelegramClientMenu({ideas,radar,content,publicOrigin:process.env.ORBITA_PUBLIC_ORIGIN}),isAction:isTelegramClientAction};
+const notifications=await createNotifications(directory,{accounts,ideas,radar,content,clientMenu,markets,push});
+const adminBot=telegramAdminConfiguration();
+const editorWorkflow=adminBot.configured?createTelegramContentWorkflow({content,publicOrigin:adminBot.publicOrigin}):null;
+const telegramAdmin=createTelegramAdmin({accounts,ideas,radar,notifications,editorWorkflow});
+const productSettings=await createProductSettings(directory,{accounts});
 const readiness=createReadiness({directory,publicDir:root});
 const webhooks=new Set([...payments.webhookPaths,...notifications.webhookPaths,...telegramAdmin.webhookPaths]);
 const requestSecurity=createRequestSecurity({trustedProxyIps:process.env.ORBITA_TRUSTED_PROXY_IPS||''});
@@ -159,7 +166,7 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
     }
     json(res,200,{record:await ideas.get(single[1],user,{includeLocalMarketHistory})});return;
    }
-   if(url.pathname==='/api/news'){requireMember(user);if(await news(req,res,url))return;}
+   if(url.pathname==='/api/news'){requireMember(user);if(await news(req,res,url,user))return;}
    if(url.pathname==='/api/admin/ideas'){
     requireAdmin(user);if(req.method==='GET'){json(res,200,await ideas.list(user));return;}if(req.method==='POST'){const payload=await readJson(req),current=await accounts.identify(req);requireAdmin(current);if(Object.hasOwn(payload,'radarDraftToken')){const {radarDraftToken,...input}=payload;json(res,201,await telegramAdmin.workflow.publish(current,input,{draftToken:radarDraftToken,req}));}else json(res,201,await ideas.create(current,payload));return;}
    }
@@ -206,6 +213,7 @@ server.listen(port,host,()=>{
  console.log(`ORBITA: ${address}`);
  if(localMarketHistory)console.log(`Дейтрейдинг → История (локальные сценарии): ${address}/strategies.html`);
  telegramAdmin.start();
+ schedule(()=>content.publishDue(),30000,'Публикации редакции');
  void radar.start().catch(()=>console.error('Radar: не удалось запустить получение источников; проверьте приватное хранилище и состояние адаптеров.'));
  void markets.start().catch(()=>console.error('Рынки: не удалось запустить обновление данных MOEX; см. диагностику в редакции.'));
  void participants.start().catch(()=>console.error('Позиции участников: получение данных временно недоступно; проверьте настройки и подключение источника.'));

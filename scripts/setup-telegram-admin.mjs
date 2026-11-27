@@ -35,7 +35,7 @@ export async function configureTelegramAdminWebhook(args=process.argv.slice(2),{
   if(action==='--set'){
    const bot=await request(config,'getMe',{},fetchImpl);
    if(bot?.is_bot!==true||typeof bot.username!=='string'||bot.username.toLowerCase()!==config.botUsername.toLowerCase())throw failure('BOT_USERNAME_MISMATCH');
-   const saved=await request(config,'setWebhook',{url:expected,secret_token:config.webhookSecret,allowed_updates:notifications?['message']:['message','callback_query'],max_connections:2,drop_pending_updates:false},fetchImpl);
+   const saved=await request(config,'setWebhook',{url:expected,secret_token:config.webhookSecret,allowed_updates:['message','callback_query'],max_connections:2,drop_pending_updates:false},fetchImpl);
    if(saved!==true)throw failure('WEBHOOK_NOT_CONFIRMED');
    log('Webhook '+botLabel+' зарегистрирован. Ожидающие команды Telegram сохранены.');
   }

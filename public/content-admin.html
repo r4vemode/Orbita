@@ -10,7 +10,7 @@
 <script src="/assets/shell.js?v=editor" data-orbita-shell="editor"></script>
   <section id="contentAuth" class="auth-state" role="status"><p>Проверяем доступ к материалам…</p></section>
   <main id="contentMain" hidden>
-    <div class="content-heading"><div><div class="eyebrow">ОБУЧЕНИЕ / АВТОРСКИЕ МАТЕРИАЛЫ</div><h1>Разобраться.<br><em>И рассказать.</em></h1><p>Готовьте уроки и статьи в черновиках. После публикации материал появится у подписчиков выбранного формата.</p></div><button id="newLesson" class="primary" type="button">＋ Новый материал</button></div>
+    <div class="content-heading"><div><h1>Материалы редакции</h1><p>Уроки, статьи и новости для сайта и Telegram.</p></div><button id="newLesson" class="primary" type="button">＋ Новый материал</button></div>
     <p id="contentMessage" class="message" role="status" aria-live="polite"></p>
     <section id="contentConflict" class="conflict" hidden aria-labelledby="conflictTitle"><h2 id="conflictTitle">Материалы изменились в другой вкладке</h2><p>Ваш текст остался в форме. Скопируйте нужные изменения, затем загрузите актуальную версию и повторите сохранение.</p><button id="loadLatest" type="button">Загрузить актуальную версию</button></section>
     <div class="content-workspace">
@@ -21,20 +21,28 @@
         <form id="contentForm">
           <fieldset id="contentFields">
             <label>Название<input id="lessonTitle" name="title" maxlength="120" required placeholder="О чём этот материал"></label>
-            <div class="form-grid"><label>Тема<input id="lessonCategory" name="category" maxlength="60" required placeholder="Например, управление риском"></label><label>Доступ<select id="lessonAccess" name="access"><option value="member">Базовое обучение · Pro и Exclusive</option><option value="exclusive">Только Orbita Exclusive</option></select></label></div>
+            <div class="form-grid"><label>Вид материала<select name="kind"><option value="lesson">Урок</option><option value="article">Статья</option><option value="news">Новость</option></select></label><label>Доступ<select id="lessonAccess" name="access"><option value="member">PRO и EXCLUSIVE</option><option value="exclusive">Только EXCLUSIVE</option><option value="public">Все читатели</option></select></label></div>
+            <label id="contentCategory">Тема<input id="lessonCategory" name="category" maxlength="60" required placeholder="Например, управление риском"></label>
+            <label id="contentTopic" hidden>Тема новости<select name="topic" disabled><option value="stocks">Акции</option><option value="crypto">Криптовалюты</option><option value="macro">Макро</option></select></label>
             <label>Короткое описание<textarea id="lessonIntro" name="intro" maxlength="500" rows="3" required placeholder="Что читатель узнает из материала"></textarea></label>
             <div class="sections-heading"><div><h3>Содержание</h3><p>От одного до двадцати разделов. Текст публикуется без HTML-разметки.</p></div><button id="addSection" type="button">＋ Раздел</button></div>
             <div id="lessonSections" class="lesson-sections"></div>
+            <div id="contentEditorialFields" hidden>
+              <label>Источники HTTPS, по одной ссылке в строке<textarea name="sources" rows="3" maxlength="16500"></textarea></label>
+              <label>Ссылка на вложение HTTPS<input type="url" name="attachment" maxlength="2048"></label>
+              <label>Тикеры через пробел или запятую<input name="tickers" maxlength="230" placeholder="SBER, LKOH"></label>
+              <label id="contentSchedule">Дата и время публикации по Москве<input type="datetime-local" name="schedule"></label>
+            </div>
           </fieldset>
           <p class="access-note" id="accessExplanation">Материал смогут читать все пользователи с действующей подпиской Pro или Exclusive.</p>
-          <div class="content-actions"><button id="saveDraft" type="submit" data-action="draft">Сохранить черновик</button><button id="publishLesson" class="primary" type="submit" data-action="publish">Опубликовать</button><button id="unpublishLesson" class="danger" type="button" hidden>Снять с публикации</button></div>
+          <div class="content-actions"><button id="saveDraft" type="submit" data-action="draft">Сохранить черновик</button><button id="scheduleLesson" type="submit" data-action="schedule" hidden>Запланировать</button><button id="publishLesson" class="primary" type="submit" data-action="publish">Опубликовать</button><button id="unpublishLesson" class="danger" type="button" hidden>Снять с публикации</button><a id="readPublication" hidden>Открыть на сайте ↗</a></div>
         </form>
         <details class="content-preview" open><summary>Предпросмотр материала</summary><article id="lessonPreview"></article></details>
       </section>
     </div>
   </main>
   <dialog id="discardDialog" aria-labelledby="discardTitle"><h2 id="discardTitle">В форме есть несохранённый текст</h2><p>Вернитесь к редактированию, чтобы сохранить материал, или продолжите без этих изменений.</p><div class="dialog-actions"><button id="keepEditing" class="primary" type="button">Вернуться к тексту</button><button id="discardChanges" type="button">Продолжить без сохранения</button></div></dialog>
-  <dialog id="unpublishDialog" aria-labelledby="unpublishTitle"><h2 id="unpublishTitle">Снять материал с публикации?</h2><p>Он останется в редакции как черновик и перестанет отображаться в обучении подписчиков. Изменения из текущей формы будут сохранены.</p><div class="dialog-actions"><button id="cancelUnpublish" type="button">Отмена</button><button id="confirmUnpublish" class="primary" type="button">Сохранить как черновик</button></div></dialog>
+  <dialog id="unpublishDialog" aria-labelledby="unpublishTitle"><h2 id="unpublishTitle">Снять материал с публикации?</h2><p>Материал останется в редакции как черновик с изменениями из формы.</p><div class="dialog-actions"><button id="cancelUnpublish" type="button">Отмена</button><button id="confirmUnpublish" class="primary" type="button">Сохранить как черновик</button></div></dialog>
   <script src="assets/access.js"></script><script src="assets/admin-session.js"></script><script src="assets/content-admin.js"></script>
 </body>
 </html>

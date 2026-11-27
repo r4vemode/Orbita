@@ -49,6 +49,39 @@ test('Radar delivery retries persistently and invalidated bindings cannot receiv
  f.add();await f.store.unlink(f.req());await f.workflow.pump();assert.equal(f.sent.length,1);await assert.rejects(f.workflow.alert(f.identity,'anything'),e=>e.status===403);
 });
 
+test('only opted-in editors receive draft review cards, with one version-bound publishing action',async t=>{
+ const f=await fixture(t);
+ const addDraft=fields=>f.add({status:'draft',importanceScore:3,audit:[{action:'queued-for-review'}],...fields,detectedAt:new Date(f.now+1).toISOString()});
+ addDraft();
+ await f.workflow.pump();
+ assert.equal(f.sent.length,0);
+ await f.enable();
+ const draft=addDraft();
+ let decisions=0;
+ f.radar.review=async(actor,eventId,{revision,status},authorize)=>{
+  assert.equal((await authorize()).id,actor.id);
+  assert.equal(eventId,draft.id);
+  assert.equal(revision,draft.revision);
+  assert.equal(status,'published');
+  draft.status=status;
+  draft.revision++;
+  decisions++;
+  return {event:structuredClone(draft)};
+ };
+ await f.workflow.pump();
+ assert.match(f.last().payload.text,/на проверку/);
+ assert.match(f.last().payload.text,new RegExp(draft.id));
+ assert.match(f.last().payload.text,/Источник · feed/);
+ const publish=f.button('Опубликовать');
+ await f.engine.process(publish);
+ await f.engine.process({...publish,update_id:publish.update_id+100});
+ assert.equal(decisions,1);
+ const unmatched=addDraft({companyId:null,ticker:'UNKNOWN'});
+ await f.workflow.pump();
+ assert.match(f.last().payload.text,new RegExp(unmatched.id));
+ assert.ok(f.last().payload.reply_markup.inline_keyboard.flat().every(button=>!button.text.includes('Опубликовать')));
+});
+
 test('Radar alert preserves manual draft and ignores an event without changing that draft',async t=>{
  const f=await fixture(t);await f.enable();f.add();await f.workflow.pump();const create=f.button('Создать сигнал'),ignore=f.button('Пропустить');await f.engine.process(f.message('GAZP 150 140 170'));const draft=await f.store.session(f.identity);await f.engine.process(create);assert.match(f.last().payload.text,/незавершённый ввод/);assert.equal((await f.store.session(f.identity)).nonce,draft.nonce);await f.engine.process(ignore);assert.equal((await f.store.session(f.identity)).nonce,draft.nonce);assert.equal((await f.store.radarRead()).ignored.length,1);
 });

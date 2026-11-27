@@ -53,7 +53,7 @@
     const lesson = lessons[index];
     if (!$('article').open) articleOrigin = document.activeElement?.closest('[data-lesson]')?.dataset.lesson || id;
     $('articleCategory').textContent = lesson.category + (lesson.access === 'exclusive' ? ' · EXCLUSIVE' : '') + ' / ' + String(index + 1).padStart(2, '0');
-    $('articleBody').innerHTML = `<h1 id="articleTitle">${esc(lesson.title)}</h1><p class="article-lead">${esc(lesson.intro)}</p>` + lesson.sections.map(s => `<section><h2>${esc(s.title)}</h2><p>${esc(s.text)}</p></section>`).join('') + (sources[id] ? `<p class="article-source"><a href="${sources[id][1]}" target="_blank" rel="noopener noreferrer">${sources[id][0]} ↗</a></p>` : '');
+    $('articleBody').innerHTML = `<h1 id="articleTitle">${esc(lesson.title)}</h1><p class="article-lead">${esc(lesson.intro)}</p>` + lesson.sections.map(s => `<section><h2>${esc(s.title)}</h2><p>${esc(s.text)}</p></section>`).join('') + (sources[id] ? `<p class="article-source"><a href="${sources[id][1]}" target="_blank" rel="noopener noreferrer">${sources[id][0]} ↗</a></p>` : '') + (lesson.kind === 'article' ? `<p class="article-source"><a href="/article.html?id=${encodeURIComponent(id)}">Открыть статью и источники ↗</a></p>` : '');
     $('markRead').textContent = read.has(id) ? '✓ Прочитано' : 'Отметить прочитанным';
     $('markRead').disabled = read.has(id);
     $('nextArticle').disabled = index === lessons.length - 1;

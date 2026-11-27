@@ -17,7 +17,8 @@ const inn12=prefix=>{const first=prefix+checkDigit(prefix,[7,2,4,10,3,5,9,4,6,8]
 const ogrn=(prefix,divisor)=>prefix+String(BigInt(prefix)%BigInt(divisor)%10n);
 const fixtureProfile=(extra={})=>({...defaultLegalProfile(),ownerKind:'self-employed',ownerName:'Учебный исполнитель',inn:inn12('9900000000'),address:'Учебный адрес для изолированной проверки',supportEmail:'support@example.test',privacyEmail:'privacy@example.test',hostingDetails:'Учебный поставщик, учебная страна и адрес; не настоящее размещение.',processorsDetails:'Учебная проверка: внешние обработчики не подключены, сообщения не отправляются.',...extra});
 const rejected=(promise,status)=>assert.rejects(promise,cause=>cause.status===status);
-const baseline=JSON.parse(await readFile(new URL('../fixtures/legal-baseline-2026-11-25-r2.json',import.meta.url),'utf8'));
+const baseline=JSON.parse(await readFile(new URL('../fixtures/legal-baseline-2026-11-27.json',import.meta.url),'utf8'));
+const previousPriceBaseline=JSON.parse(await readFile(new URL('../fixtures/legal-baseline-2026-11-25-r2.json',import.meta.url),'utf8'));
 const offerBaseline=JSON.parse(await readFile(new URL('../fixtures/legal-baseline-2026-11-25.json',import.meta.url),'utf8'));
 const previousBaseline=JSON.parse(await readFile(new URL('../fixtures/legal-baseline-2026-11-22.json',import.meta.url),'utf8'));
 const legacyBaseline=JSON.parse(await readFile(new URL('../fixtures/legal-baseline.json',import.meta.url),'utf8'));
@@ -59,7 +60,7 @@ test('a price change keeps accepted documents and requires a new publication for
   const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
   db.baseline={...legacyBaseline,checksum:digest([legacyBaseline.version,legacyBaseline.pages])};
   const publication=db.versions[0];
-  publication.pages.offer=publication.pages.offer.replace(' data-plan-prices="1999:4999"','').replaceAll('1 999 ₽','2 999 ₽');
+  publication.pages.offer=publication.pages.offer.replace('data-plan-prices="1990:4999"','data-plan-prices="1999:4999"').replaceAll('1 990 ₽','1 999 ₽');
   publication.checksum=digest([publication.version,publication.publishedAt,publication.publishedBy,publication.profile,publication.pages]);
   const before=JSON.stringify(db);
   await writeFile(file,before);
@@ -67,10 +68,10 @@ test('a price change keeps accepted documents and requires a new publication for
   const restarted=await createLegal(directory);
   assert.equal((await restarted.readPublic()).version,LEGAL_VERSION);
   assert.equal((await restarted.readPublic()).published,false);
-  assert.match(await restarted.renderPage('offer'),/Pro — 1 999 ₽/);
-  assert.match(await restarted.renderPage('refunds'),/1 332,67 ₽/);
+  assert.match(await restarted.renderPage('offer'),/Pro — 1 990 ₽/);
+  assert.match(await restarted.renderPage('refunds'),/1 326,67 ₽/);
   assert.equal(await restarted.renderPage('offer',{version:legacyBaseline.version}),legacyBaseline.pages.offer);
-  for(const archived of [previousBaseline,offerBaseline]){
+  for(const archived of [previousBaseline,offerBaseline,previousPriceBaseline]){
     for(const document of ['offer','privacy','refunds'])assert.equal(await restarted.renderPage(document,{version:archived.version}),archived.pages[document]);
     const savedBaseline={...archived,checksum:digest([archived.version,archived.pages])};
     assert.equal(validateLegalDatabase({...db,baseline:savedBaseline}),true);
@@ -82,7 +83,7 @@ test('a price change keeps accepted documents and requires a new publication for
 
   const updated=await restarted.publish(admin,{revision:old.revision});
   assert.equal((await restarted.readPublic()).version,updated.currentVersion);
-  assert.match(await restarted.renderPage('offer'),/Pro — 1 999 ₽/);
+  assert.match(await restarted.renderPage('offer'),/Pro — 1 990 ₽/);
   assert.deepEqual(await checkLegalPublication(directory),{ok:true,reason:'legal_published'});
   assert.equal(await restarted.renderPage('offer',{version:old.currentVersion}),publication.pages.offer);
 });

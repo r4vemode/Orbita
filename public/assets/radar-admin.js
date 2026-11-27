@@ -7,6 +7,8 @@
   const providerStatuses={disabled:'ОТКЛЮЧЁН',idle:'ОЖИДАНИЕ',online:'ДОСТУПЕН',error:'ОШИБКА',running:'ПРОВЕРКА'};
   let state={events:[],companies:[],providers:[],revision:0,nextCursor:null},selected=null,dirty=false,busy=false,ready=false;
   let activeQuery=new URLSearchParams(),mergeCandidates=[];
+  const moderationForm=$('radarModerationForm'),moderationRoute='/api/admin/radar/moderation';
+  let moderationRevision=null,moderationBusy=false;
   const date=value=>{const parsed=new Date(value);return value&&Number.isFinite(parsed.getTime())?new Intl.DateTimeFormat('ru-RU',{dateStyle:'short',timeStyle:'medium',timeZone:'Europe/Moscow'}).format(parsed)+' МСК':'—';};
   const publicationDate=event=>event.publicationDay?new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'short',year:'numeric'}).format(new Date(event.publishedAt)):date(event.publishedAt);
   function node(tag,className,text){const result=document.createElement(tag);if(className)result.className=className;if(text!==undefined)result.textContent=String(text);return result;}
@@ -18,7 +20,8 @@
     $('radarEventFields').disabled=busy||!ready;
     for(const id of ['newRadarEvent','refreshRadarAdmin','retryRadarAdmin','loadLatestRadar','saveRadarDraft','publishRadarEvent','hideRadarEvent','duplicateRadarEvent','openRadarMerge','syncRadarProviders','moreRadarAdmin','applyRadarFilters','confirmRadarMerge','cancelRadarMerge'])$(id).disabled=busy||!ready;
     for(const button of $('radarAdminList').querySelectorAll('button'))button.disabled=busy;
-    $('radarEventCompany').disabled=busy||!ready||!!selected;
+    $('radarEventCompany').disabled=busy||!ready||Boolean(selected&&(selected.status!=='draft'||selected.companyId));
+    $('radarEventCompany').required=!selected;
     $('radarEventSource').required=!selected;$('radarEventPublishedAt').required=!selected;
     if(selected?.status==='duplicate')for(const id of ['saveRadarDraft','publishRadarEvent','hideRadarEvent','duplicateRadarEvent','openRadarMerge'])$(id).disabled=true;
   }
@@ -49,6 +52,80 @@
       for(const [label,value]of [['Последняя попытка',date(provider.lastFetch)],['Успешная проверка',date(provider.lastSuccess)],['Событий сегодня',provider.eventsToday??0],['Ошибок сегодня',provider.errorsToday??0],['Средняя задержка',delay],['Следующая попытка',date(provider.nextAttemptAt)]])list.append(node('dt','',label),node('dd','',value));
       card.append(top,list);if(provider.error)card.append(node('p','provider-error','Код ошибки: '+String(provider.error).slice(0,120)));root.append(card);
     }
+  }
+  function showModerationMessage(text,error=false){
+    const message=$('radarModerationMessage');
+    message.textContent=text;
+    message.classList.toggle('error',error);
+  }
+  function fillModerationChoices(id,options,selected){
+    const root=$(id);
+    root.replaceChildren();
+    for(const option of options){
+      const label=node('label','radar-checkbox'),input=node('input');
+      input.type='checkbox';
+      input.value=option.id;
+      input.checked=selected.includes(option.id);
+      input.disabled=option.enabled===false;
+      label.append(input,node('span','',option.name+(input.disabled?' · отключён':'')));
+      root.append(label);
+    }
+  }
+  function moderationAuthorization(){
+    const enabled=$('radarModerationEnabled').checked;
+    $('radarModerationAuthorization').hidden=!enabled;
+    $('radarModerationPassword').required=enabled;
+  }
+  function renderModeration({settings,providers}){
+    moderationRevision=settings.revision;
+    $('radarModerationMode').textContent=settings.enabled?'Включена':'Выключена';
+    $('radarModerationEnabled').checked=settings.enabled;
+    $('radarModerationImportance').value=settings.minimumImportance;
+    $('radarModerationConfidence').value=Math.round(settings.minimumConfidence*1000)/10;
+    $('radarModerationAge').value=settings.maxAgeMinutes;
+    fillModerationChoices('radarModerationProviders',providers,settings.providerIds);
+    fillModerationChoices('radarModerationTypes',Object.entries(types).map(([id,name])=>({id,name})),settings.eventTypes);
+    moderationAuthorization();
+    moderationForm.hidden=false;
+  }
+  async function updateModeration(payload){
+    if(moderationBusy||!ready)return;
+    moderationBusy=true;
+    $('radarModerationFields').disabled=true;
+    $('reloadRadarModeration').disabled=true;
+    showModerationMessage(payload?'Сохраняем правила…':'Загружаем правила…');
+    try{
+      // An incorrect confirmation password also returns 401. Keep the form open for a retry.
+      const result=payload?await A.request(moderationRoute,{method:'POST',body:JSON.stringify(payload)}):await api(moderationRoute);
+      renderModeration(result);
+      showModerationMessage(payload?'Правила сохранены.':'');
+    }catch(error){
+      showModerationMessage(error.message,true);
+    }finally{
+      $('radarModerationPassword').value='';
+      $('radarModerationCode').value='';
+      $('radarModerationFields').disabled=false;
+      $('reloadRadarModeration').disabled=false;
+      moderationBusy=false;
+    }
+  }
+  function saveModeration(){
+    if(moderationRevision===null||!moderationForm.reportValidity())return;
+    const chosen=id=>[...$(id).querySelectorAll('input:checked')].map(input=>input.value);
+    const enabled=$('radarModerationEnabled').checked;
+    const payload={revision:moderationRevision,enabled,
+      minimumImportance:$('radarModerationImportance').valueAsNumber,
+      minimumConfidence:$('radarModerationConfidence').valueAsNumber/100,
+      maxAgeMinutes:$('radarModerationAge').valueAsNumber,
+      providerIds:chosen('radarModerationProviders'),eventTypes:chosen('radarModerationTypes')};
+    if(enabled){
+      if(!$('radarModerationProviders').querySelector('input:checked:enabled')||!payload.eventTypes.length){
+        showModerationMessage('Выберите хотя бы один подключённый источник и одну категорию.',true);
+        return;
+      }
+      payload.authorization={password:$('radarModerationPassword').value,code:$('radarModerationCode').value.trim()};
+    }
+    void updateModeration(payload);
   }
   function renderList(){
     const root=$('radarAdminList');root.replaceChildren();$('radarAdminCount').textContent=String(state.events.length)+(state.nextCursor?'+':'');$('radarAdminEmpty').hidden=state.events.length>0;$('moreRadarAdmin').hidden=!state.nextCursor;
@@ -133,7 +210,17 @@
       const source=safeSource(form.elements.source.value.trim());if(!source){message('Укажите HTTPS-ссылку на первоисточник без логина и пароля.',true);return;}
       const publishedAt=new Date(form.elements.publishedAt.value+':00+03:00');if(!Number.isFinite(publishedAt.getTime())){message('Проверьте время публикации первоисточника.',true);return;}
       Object.assign(payload,{companyId:form.elements.companyId.value,source,publishedAt:publishedAt.toISOString(),status:action==='publish'?'published':'draft'});
-    }else{payload.revision=selected.revision;payload.aiIncorrect=form.elements.aiIncorrect.checked;if(action==='publish')payload.status='published';else if(action==='hide')payload.status='hidden';}
+    }else{
+      payload.revision=selected.revision;
+      payload.aiIncorrect=form.elements.aiIncorrect.checked;
+      if(selected.status==='draft'&&!selected.companyId){
+        const companyId=form.elements.companyId.value;
+        if(companyId)payload.companyId=companyId;
+        else if(action==='publish'){message('Перед публикацией выберите компанию.',true);return;}
+      }
+      if(action==='publish')payload.status='published';
+      else if(action==='hide')payload.status='hidden';
+    }
     await mutate('/api/admin/radar'+(selected?'/'+encodeURIComponent(selected.id):''),selected?'PATCH':'POST',payload,action==='publish'?'Событие опубликовано. Торговый сигнал автоматически не создаётся.':action==='hide'?'Событие скрыто из клиентской ленты. Запись и история сохранены.':selected?'Изменения сохранены.':'Черновик события сохранён.');
   }
   function openMerge(){
@@ -169,6 +256,10 @@
   $('moreRadarAdmin').addEventListener('click',()=>refresh({append:true}));$('hideRadarEvent').addEventListener('click',()=>{if(confirm('Скрыть событие из клиентской ленты и сохранить текущие правки?'))void save('hide');});
   $('duplicateRadarEvent').addEventListener('click',()=>void duplicate());$('openRadarMerge').addEventListener('click',openMerge);$('cancelRadarMerge').addEventListener('click',()=>$('radarMergeDialog').close());$('radarMergeForm').addEventListener('submit',event=>{event.preventDefault();void merge();});
   $('syncRadarProviders').addEventListener('click',()=>void syncProviders());
+  $('radarModerationPanel').addEventListener('toggle',event=>{if(event.currentTarget.open&&moderationRevision===null)void updateModeration();});
+  $('reloadRadarModeration').addEventListener('click',()=>void updateModeration());
+  $('radarModerationEnabled').addEventListener('change',moderationAuthorization);
+  moderationForm.addEventListener('submit',event=>{event.preventDefault();saveModeration();});
   $('radarMergeDialog').addEventListener('cancel',event=>{if(busy)event.preventDefault();});
   window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});
   try{const user=await A.requireAdmin();if(!user)return;ready=true;$('radarAdminAuth').hidden=true;$('radarAdminMain').hidden=false;select();await refresh();const eventId=new URLSearchParams(location.search).get('event');if(eventId&&/^[A-Za-z0-9_-]{1,100}$/.test(eventId)){const found=state.events.find(e=>e.id===eventId);if(found)select(found);else{const result=await api('/api/admin/radar/'+encodeURIComponent(eventId));if(result.event){state.events.unshift(result.event);select(result.event);}}}}

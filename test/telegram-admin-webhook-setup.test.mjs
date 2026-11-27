@@ -27,7 +27,7 @@ test('read-only webhook status reports a mismatch without echoing another endpoi
  assert.equal(result.matches,false);assert.equal(result.hasDeliveryError,true);assert.deepEqual(context.calls.map(item=>item.method),['getWebhookInfo']);assert.ok(!JSON.stringify({result,lines:context.lines}).includes('private'));
 });
 
-test('notification mode selects the client bot, preserves pending updates and only receives messages',async()=>{
+test('notification mode selects the client bot, preserves pending updates and receives menu callbacks',async()=>{
  const notificationEnv={...env,TELEGRAM_BOT_TOKEN:'654321:fixture_client_token_not_a_real_secret',TELEGRAM_BOT_USERNAME:'@OrbitaClientFixtureBot',TELEGRAM_WEBHOOK_SECRET:'fixture_client_secret'};
  const url=env.ORBITA_PUBLIC_ORIGIN+'/api/notifications/telegram/webhook';
  const context=harness({getMe:{is_bot:true,username:'OrbitaClientFixtureBot'},setWebhook:true,getWebhookInfo:{url,pending_update_count:2}});
@@ -35,7 +35,7 @@ test('notification mode selects the client bot, preserves pending updates and on
  const result=await configureTelegramAdminWebhook(['--notifications','--set'],options);
  assert.deepEqual(result,{exitCode:0,enabled:true,matches:true,pendingUpdates:2,hasDeliveryError:false});
  assert.deepEqual(context.calls.map(item=>item.method),['getMe','setWebhook','getWebhookInfo']);
- assert.deepEqual(context.calls[1].body,{url,secret_token:notificationEnv.TELEGRAM_WEBHOOK_SECRET,allowed_updates:['message'],max_connections:2,drop_pending_updates:false});
+ assert.deepEqual(context.calls[1].body,{url,secret_token:notificationEnv.TELEGRAM_WEBHOOK_SECRET,allowed_updates:['message','callback_query'],max_connections:2,drop_pending_updates:false});
  assert.equal((await configureTelegramAdminWebhook(['--notifications','--status'],options)).matches,true);
  assert.equal(context.calls.at(-1).method,'getWebhookInfo');
  assert.ok(!context.lines.join(' ').includes(notificationEnv.TELEGRAM_BOT_TOKEN));

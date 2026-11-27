@@ -17,7 +17,7 @@ async function page({ storage = new Map(), search = '?plan=pro', checkout, order
   const buttons = ['pro', 'exclusive'].map(plan => Object.assign(node(plan + ':[data-select]'), { dataset: { select: plan } }));
   const user = { id: 'test-user', email: 'test@example.test', emailVerified: verified, subscriptions: [], access: { hasSubscription: false } };
   const A = {
-    plans: { pro: { name: 'Orbita Pro', price: 1999 }, exclusive: { name: 'Orbita Exclusive', price: 4999 } },
+    plans: { pro: { name: 'Orbita Pro', price: 1990 }, exclusive: { name: 'Orbita Exclusive', price: 4999 } },
     current: async () => user, preferredPlan: () => preferred, rememberPlan: (...args) => remembered.push(args),
     request: async (url, options = {}) => {
       if (url === '/api/public-config') return { paymentsAvailable: true, mailEnabled: true,legalVersion:typeof legalVersion==='function'?legalVersion():legalVersion };

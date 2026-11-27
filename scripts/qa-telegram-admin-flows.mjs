@@ -23,22 +23,33 @@ export async function runTelegramAdminFlows({session,browser,record,outputDir}){
    for(const route of ['/assets/telegram-admin.js','/assets/%74elegram-admin.js','/api/admin/telegram'])await request(guest,route,{status:401});
    for(const role of ['free','pro','exclusive']){const client=await context(role);await request(client,'/telegram-admin.html',{status:303});await request(client,'/assets/telegram-admin.js',{status:403});await request(client,'/api/admin/telegram',{status:403});}
    const actual=await request(editor,'/api/admin/telegram');assert.equal(actual.enabled,false);assert.equal(actual.configured,false);assert.equal(actual.linked,false);assert.equal(actual.preferences.instantPublish,false);assert.ok(!JSON.stringify(actual).includes('botToken'));await request(editor,'/api/admin/telegram/link',{method:'POST',data:{},status:503});
-   view=await editor.newPage();view.on('pageerror',cause=>errors.push(cause.name));await opened();assert.equal(await view.locator('#telegramLink').isDisabled(),true);assert.equal(await view.locator('#telegramCodePanel').isHidden(),true);assert.equal(await view.locator('input[type=password]').count(),0);assert.match(await view.locator('#telegramConnectionState').innerText(),/выключен/);
+   view=await editor.newPage();view.on('pageerror',cause=>errors.push(cause.name));await opened();assert.equal(await view.locator('#telegramLink').isDisabled(),true);assert.equal(await view.locator('#telegramCodePanel').isHidden(),true);assert.equal(await view.locator('#telegramBroadcastPassword').isDisabled(),true);assert.match(await view.locator('#telegramConnectionState').innerText(),/выключен/);
   });
   await check('Telegram редакции: одноразовая команда показана только в текущей вкладке и скрывается при уходе',async()=>{
    state=unlinked();linkResponse=freshLink();
    await view.route('**/api/admin/telegram',route=>route.fulfill({status:200,json:state}));
-   await view.route('**/api/admin/telegram/preferences',route=>{preferenceCalls.push(route.request().postDataJSON());state={...state,preferences:route.request().postDataJSON()};return route.fulfill({status:200,json:{preferences:state.preferences}});});
+   await view.route('**/api/admin/telegram/preferences',route=>{preferenceCalls.push(route.request().postDataJSON());state={...state,preferences:{...state.preferences,...route.request().postDataJSON()}};return route.fulfill({status:200,json:{preferences:state.preferences}});});
    await view.route('**/api/admin/telegram/link',route=>{if(route.request().method()==='DELETE'){unlinks++;state=unlinked();return route.fulfill({status:200,json:{ok:true}});}linkCalls++;return route.fulfill({status:201,json:linkResponse});});
-   await opened();assert.equal(await view.locator('#telegramInstant').isChecked(),false);await view.locator('#telegramLink').click();await view.waitForSelector('#telegramCodePanel:not([hidden])');assert.equal(await view.locator('#telegramCode').innerText(),'/connect '+code);assert.equal(await view.locator('#telegramBotUrl').getAttribute('href'),'https://t.me/'+botUsername);
+   await opened();assert.equal(await view.locator('#telegramInstant').count(),0);await view.locator('#telegramLink').click();await view.waitForSelector('#telegramCodePanel:not([hidden])');assert.equal(await view.locator('#telegramCode').innerText(),'/connect '+code);assert.equal(await view.locator('#telegramBotUrl').getAttribute('href'),'https://t.me/'+botUsername);
    assert.equal(await view.evaluate(value=>Object.values(localStorage).concat(Object.values(sessionStorage)).some(item=>item.includes(value)),code),false);
    await view.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));});assert.equal(await view.locator('#telegramCode').textContent(),'');assert.equal(await view.locator('#telegramCodePanel').isHidden(),true);
    await view.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:false});document.dispatchEvent(new Event('visibilitychange'));});await view.waitForFunction(()=>document.getElementById('telegramWorkspace').style.visibility!=='hidden');assert.equal(await view.locator('#telegramCode').textContent(),'');
   });
-  await check('Telegram редакции: публикация без предпросмотра требует явного подтверждения и сохраняет выбранную стратегию',async()=>{
-   state=linked();await opened();await view.locator('#telegramStrategy').selectOption('Orbita Exclusive');await view.locator('#telegramInstant').check();view.once('dialog',dialog=>dialog.dismiss());await view.locator('#telegramSave').click();await view.waitForFunction(()=>!document.getElementById('telegramSave').disabled);assert.equal(preferenceCalls.length,0);assert.equal(await view.locator('#telegramInstant').isChecked(),false);
-   await view.locator('#telegramInstant').check();view.once('dialog',dialog=>dialog.accept());await view.locator('#telegramSave').click();await view.waitForFunction(()=>document.getElementById('telegramPreferencesMessage').textContent.includes('сохранены'));assert.deepEqual(preferenceCalls,[{strategy:'Orbita Exclusive',instantPublish:true}]);assert.equal(await view.locator('#telegramInstant').isChecked(),true);
-   await view.locator('#telegramInstant').uncheck();await view.locator('#telegramSave').click();await view.waitForFunction(()=>!document.getElementById('telegramSave').disabled);assert.equal(preferenceCalls.at(-1).instantPublish,false);assert.equal(await view.locator('#telegramStrategy').inputValue(),'Orbita Exclusive');
+  await check('Telegram редакции: стратегия сохраняется, подтверждение публикаций и рассылок разделено',async()=>{
+   const attempts=[];
+   await view.route('**/api/admin/telegram/*-authorization',route=>{
+    attempts.push({type:route.request().url().split('/').at(-1),data:route.request().postDataJSON()});
+    return route.fulfill({status:201,json:{expiresAt:new Date(Date.now()+600000).toISOString()}});
+   });
+   state=linked();await opened();await view.locator('#telegramStrategy').selectOption('Orbita Exclusive');await view.locator('#telegramSave').click();
+   await view.waitForFunction(()=>document.getElementById('telegramPreferencesMessage').textContent.includes('сохранены'));
+   assert.deepEqual(preferenceCalls,[{strategy:'Orbita Exclusive'}]);
+   for(const [value,label] of [['publication','Публикации разрешены'],['broadcast','Рассылка разрешена']]){
+    await view.locator('#telegramBroadcastPassword').fill('fixture-password');await view.locator('#telegramBroadcastCode').fill('123456');
+    await view.locator('#broadcast button[value="'+value+'"]').click();await view.waitForFunction(label=>document.getElementById('telegramBroadcastStatus').textContent.includes(label),label);
+    assert.equal(await view.locator('#telegramBroadcastPassword').inputValue(),'');assert.equal(await view.locator('#telegramBroadcastCode').inputValue(),'');
+   }
+   assert.deepEqual(attempts.map(call=>call.type),['publication-authorization','broadcast-authorization']);
   });
   await check('Telegram редакции: неверные ссылки и просроченные коды отклоняются, прежнюю привязку можно отключить при выключенном боте',async()=>{
    state=unlinked();await opened();for(const invalid of [{...freshLink(),botUrl:'https://outside.example/'+botUsername},{...freshLink(),expiresAt:new Date(Date.now()-1000).toISOString()}]){linkResponse=invalid;await view.locator('#telegramLink').click();await view.waitForFunction(()=>!document.getElementById('telegramLink').disabled);assert.equal(await view.locator('#telegramCodePanel').isHidden(),true);assert.equal(await view.locator('#telegramBotUrl').getAttribute('href'),null);assert.match(await view.locator('#telegramStatus').innerText(),/Не удалось подтвердить/);}

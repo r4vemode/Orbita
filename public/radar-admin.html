@@ -16,6 +16,31 @@
     <section id="radarAdminRetry" class="conflict" hidden><h2>Не удалось загрузить редакцию</h2><p>Проверьте соединение и повторите запрос. Несохранённый текст остаётся в форме.</p><button id="retryRadarAdmin" type="button">Повторить загрузку</button></section>
     <section id="radarConflict" class="conflict" hidden aria-labelledby="radarConflictTitle"><h2 id="radarConflictTitle">Событие изменилось в другой вкладке</h2><p>Ваши правки остались в форме. Скопируйте нужный текст, затем загрузите актуальную версию и повторите действие.</p><button id="loadLatestRadar" type="button">Загрузить актуальную версию</button></section>
     <details class="radar-provider-panel" open><summary>DATA SOURCES <span>Состояние источников</span></summary><div class="radar-provider-heading"><p>Показатели относятся к подключённым адаптерам. Отключённый источник не получает сообщения; демонстрационные события обозначены отдельно.</p><button id="syncRadarProviders" type="button">Проверить источники</button></div><div id="radarProviders" class="radar-provider-grid" aria-live="polite"><p class="empty">Загружаем состояние источников…</p></div></details>
+    <details id="radarModerationPanel" class="radar-provider-panel">
+      <summary>Правила автопубликации <span id="radarModerationMode"></span></summary>
+      <p>Автопубликация допускается для свежих критических сообщений из выбранных лент эмитентов. Остальные события остаются в редакции для проверки.</p>
+      <form id="radarModerationForm" method="post" hidden>
+        <fieldset id="radarModerationFields">
+          <label class="radar-checkbox"><input id="radarModerationEnabled" type="checkbox"><span>Включить автопубликацию</span></label>
+          <div class="form-grid">
+            <label>Важность от 9 до 10<input id="radarModerationImportance" type="number" min="9" max="10" step="0.1" required></label>
+            <label>Уверенность от 70 до 100 %<input id="radarModerationConfidence" type="number" min="70" max="100" step="0.1" required></label>
+            <label>Максимальный возраст публикации в минутах<input id="radarModerationAge" type="number" min="5" max="240" step="1" required></label>
+          </div>
+          <div class="form-grid radar-moderation-options">
+            <fieldset><legend>Источники эмитентов</legend><div id="radarModerationProviders"></div></fieldset>
+            <fieldset><legend>Категории событий</legend><div id="radarModerationTypes"></div></fieldset>
+          </div>
+          <div id="radarModerationAuthorization" class="form-grid" hidden>
+            <label>Пароль администратора<input id="radarModerationPassword" type="password" autocomplete="current-password"></label>
+            <label>Свежий код второго фактора<input id="radarModerationCode" autocomplete="one-time-code" maxlength="64"></label>
+          </div>
+          <button class="primary" type="submit">Сохранить правила</button>
+        </fieldset>
+      </form>
+      <p id="radarModerationMessage" class="message" role="status"></p>
+      <button id="reloadRadarModeration" type="button">Загрузить актуальные правила</button>
+    </details>
     <div class="content-workspace radar-admin-workspace">
       <aside class="content-sidebar" aria-label="Список событий Radar">
         <div class="sidebar-heading"><h2>События <span id="radarAdminCount"></span></h2><button id="refreshRadarAdmin" type="button">Обновить</button></div>

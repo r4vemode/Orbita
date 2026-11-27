@@ -3,6 +3,7 @@
   const positive = value => typeof value === 'number' && Number.isFinite(value) && value > 0;
   const number = value => positive(value) ? value.toLocaleString('ru-RU', { maximumFractionDigits: 8 }) : '—';
   const percent = value => (value > 0 ? '+' : '') + value.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+  const dateTime = new Intl.DateTimeFormat('ru-RU', {timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
   const status = record => record.erroneous ? 'Ошибочная публикация' : record.d.status || ({ announced: 'Сигнал объявлен', waiting: 'Ожидает входа', active: 'Активен', closed: 'Завершён', cancelled: 'Отменён' }[record.d.state] || 'Опубликован');
   const marketName = value => ({ stocks: 'Акции', futures: 'Фьючерсы', crypto: 'Криптовалюты' }[value] || 'Рынок');
   const ideaSummary = d => window.OrbitaIdeaCopy?.summary?.(d) ?? d.summary ?? '';
@@ -23,11 +24,13 @@
   }
   const result = record => {
     const d = record.d, exit = record.meta?.exit;
-    return !record.erroneous && d.state === 'closed' && positive(d.entry) && positive(exit) ? (exit / d.entry - 1) * (d.dir === 'ШОРТ' ? -100 : 100) : null;
+    if(record.erroneous||d.state!=='closed')return null;
+    if(Number.isFinite(record.meta?.finalResultPct))return record.meta.finalResultPct;
+    return positive(d.entry)&&positive(exit)?(exit/d.entry-1)*(d.dir==='ШОРТ'?-100:100):null;
   };
   function notify(message) { $('appStatus').textContent = message; }
   function visible() {
-    return records.filter(record => (view !== 'saved' || saved.has(record.id)) && (view !== 'history' || ['closed', 'cancelled'].includes(record.d.state) || record.erroneous) && (market === 'all' || record.d.market === market) && (state === 'all' || record.d.state === state));
+    return records.filter(record => (view !== 'saved' || saved.has(record.id)) && (view !== 'history' || record.meta?.closures?.length || ['closed', 'cancelled'].includes(record.d.state) || record.erroneous) && (market === 'all' || record.d.market === market) && (state === 'all' || record.d.state === state));
   }
   function levels(d) {
     if (![d.entry, d.stop, d.target].every(positive)) return '<p class="announced-note">Уровни ещё не опубликованы. Следите за комментариями автора.</p>';
@@ -58,7 +61,7 @@
     const rows = visible();
     $('savedCount').textContent = records.filter(record => saved.has(record.id)).length;
     $('feedCount').textContent = `Идей: ${rows.length}`;
-    $('collectionNote').textContent = view === 'saved' ? 'Ваши отслеживаемые идеи. Все изменения появятся в обновлениях.' : view === 'history' ? 'Завершённые, отменённые и ошибочные публикации. Прибыльные и убыточные сделки остаются в истории.' : 'Идеи по вашим действующим подпискам. Начальный сигнал может содержать только инструмент и направление; уровни и комментарии автор добавит позже.';
+    $('collectionNote').textContent = view === 'saved' ? 'Ваши отслеживаемые идеи. Все изменения появятся в обновлениях.' : view === 'history' ? 'Здесь видны частичные выходы, завершённые, отменённые и ошибочные идеи.' : 'Идеи по вашим действующим подпискам. Начальный сигнал может содержать только инструмент и направление; уровни и комментарии автор добавит позже.';
     document.querySelectorAll('[data-view]').forEach(button => button.setAttribute('aria-pressed', button.dataset.view === view));
     document.querySelectorAll('[data-market]').forEach(button => button.setAttribute('aria-pressed', button.dataset.market === market));
     document.querySelectorAll('[data-status]').forEach(button => button.setAttribute('aria-pressed', button.dataset.status === state));
@@ -79,13 +82,22 @@
     if(typeof data.chartUrl!=='string'||data.chartUrl.length>2048)return '';
     try{const url=new URL(data.chartUrl);if(url.protocol!=='https:'||url.username||url.password)return '';return `<a data-author-chart href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">График автора ↗</a>`;}catch{return '';}
   }
+  function closureMarkup(record){
+    const m=record.meta,d=record.d;
+    if(record.erroneous||!m?.closures?.length)return '';
+    const fmt=value=>dateTime.format(new Date(value))+' МСК';
+    return `<section class="original-conditions"><h4>Выходы по идее</h4><p>Закрыто ${esc(number(100-m.remainingPct))}% · остаток ${esc(m.remainingPct.toLocaleString('ru-RU',{maximumFractionDigits:2}))}% исходного объёма.</p><p>Вклад закрытой части в расчётный итог ${esc(percent(m.realizedPct))}.</p>${m.remainingPct===0?`<p>Средневзвешенная цена выхода ${esc(number(m.weightedExit))} ${esc(d.unit)}.</p>`:'<p>Остаток остаётся активным до следующего события.</p>'}<ol class="event-list">${m.closures.map(part=>{
+      const source=part.priceSource,method=source?'Котировка из указанного источника':part.priceOrigin==='configured-level'?'Уровень идеи':'Цена указана автором';
+      return `<li><span class="event-time">${esc(fmt(part.occurredAt))}</span><h4>${esc(number(part.percent))}% по ${esc(number(part.price))} ${esc(d.unit)}</h4><p>${esc(part.reason)} · результат части ${esc(percent(part.resultPct))} · вклад ${esc(percent(part.contributionPct))}.</p><p>${esc(method)}${source?` · <a href="${esc(source.url)}" target="_blank" rel="noopener noreferrer">Источник ↗</a> · ${esc(fmt(source.observedAt))}`:''}</p></li>`;
+    }).join('')}</ol></section>`;
+  }
   function renderDetail() {
     const record = records.find(item => item.id === selected);
     if (!record) { $('ideaDetail').hidden = true; renderStage(); return; }
     const d = record.d, meta = record.meta || {}, value = result(record), hasLevels = [d.entry, d.stop, d.target].every(positive), strategy = (window.ORBITA_STRATEGIES || []).find(item => item.name === d.strategy);
     $('ideaDetail').hidden = false;
     $('detailContent').innerHTML = `<div class="paid-detail-heading"><div class="eyebrow">ПЛАН И СОПРОВОЖДЕНИЕ / ${esc(d.ticker)}</div><p class="detail-updated">${esc(meta.updated || meta.published || '')} МСК</p></div>${record.erroneous ? `<p class="error-publication">Ошибочная публикация: ${esc(meta.errorReason || 'Причина указана в истории.')}. Сохранена для проверки и исключена из расчётов.</p>` : ''}
-      <div class="paid-detail-grid"><section class="paid-conditions"><h3>Условия идеи</h3>${levels(d)}${hasLevels ? `<p>${esc(meta.entryRule || 'Смотрите подтверждение входа в истории публикации.')}</p><p>${esc(meta.cancelRule || '')}</p>${positive(d.current) ? `<p>Последняя цена автора: ${number(d.current)} ${esc(d.unit || '')}. Это не поток котировок.</p>` : ''}` : '<p>Идея объявлена. Автор добавит условия входа, стоп и цель отдельным обновлением.</p>'}${meta.initial ? `<div class="original-conditions"><h4>Первоначальная публикация</h4><p>${[meta.initial.entry, meta.initial.stop, meta.initial.target].every(positive) ? `Вход ${number(meta.initial.entry)} · стоп ${number(meta.initial.stop)} · цель ${number(meta.initial.target)} ${esc(d.unit || '')}` : 'Сигнал был опубликован без ценовых уровней.'}</p><p>${esc(meta.initial.entryRule || '')}</p><p>${esc(meta.initial.cancelRule || '')}</p><p>${esc(meta.published || '')} МСК</p></div>` : ''}${value === null ? '' : `<div class="scenario-result ${value < 0 ? 'result-negative' : 'result-positive'}"><span>${esc(d.outcome || 'Идея завершена')}</span><strong>${percent(value)}</strong><small>Изменение цены от входа автора, без комиссий, налогов и проскальзывания.</small></div>`}<div class="idea-links">${chartLink(d)}${strategy ? `<a href="strategy.html?strategy=${encodeURIComponent(strategy.slug)}">О стратегии →</a>` : ''}<a href="brokers.html?market=${encodeURIComponent(d.market || '')}">Где торговать →</a></div><div id="personalMount"></div></section><section class="paid-history"><div class="eyebrow">ХРОНОЛОГИЯ · МСК</div><h3>Комментарии и изменения</h3>${eventMarkup(record)}</section></div>`;
+      <div class="paid-detail-grid"><section class="paid-conditions"><h3>Условия идеи</h3>${levels(d)}${hasLevels ? `<p>${esc(meta.entryRule || 'Смотрите подтверждение входа в истории публикации.')}</p><p>${esc(meta.cancelRule || '')}</p>${positive(d.current) ? `<p>Последняя цена автора: ${number(d.current)} ${esc(d.unit || '')}. Это не поток котировок.</p>` : ''}` : '<p>Идея объявлена. Автор добавит условия входа, стоп и цель отдельным обновлением.</p>'}${meta.initial ? `<div class="original-conditions"><h4>Первоначальная публикация</h4><p>${[meta.initial.entry, meta.initial.stop, meta.initial.target].every(positive) ? `Вход ${number(meta.initial.entry)} · стоп ${number(meta.initial.stop)} · цель ${number(meta.initial.target)} ${esc(d.unit || '')}` : 'Сигнал был опубликован без ценовых уровней.'}</p><p>${esc(meta.initial.entryRule || '')}</p><p>${esc(meta.initial.cancelRule || '')}</p><p>${esc(meta.published || '')} МСК</p></div>` : ''}${value === null ? '' : `<div class="scenario-result ${value < 0 ? 'result-negative' : 'result-positive'}"><span>${esc(d.outcome || 'Идея завершена')}</span><strong>${percent(value)}</strong><small>Изменение цены от входа автора, без комиссий, налогов и проскальзывания.</small></div>`}${closureMarkup(record)}<div class="idea-links">${chartLink(d)}${strategy ? `<a href="strategy.html?strategy=${encodeURIComponent(strategy.slug)}">О стратегии →</a>` : ''}<a href="brokers.html?market=${encodeURIComponent(d.market || '')}">Где торговать →</a></div><div id="personalMount"></div></section><section class="paid-history"><div class="eyebrow">ХРОНОЛОГИЯ · МСК</div><h3>Комментарии и изменения</h3>${eventMarkup(record)}</section></div>`;
     renderStage();
     if (personalReady && positive(d.entry)) OrbitaPersonal.mount($('personalMount'), { ...d, id: record.id, erroneous: !!record.erroneous, unit: d.unit || (d.market === 'crypto' ? 'USDT' : d.market === 'futures' ? 'пт' : '₽') }, meta);
   }

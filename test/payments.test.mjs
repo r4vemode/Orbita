@@ -52,8 +52,8 @@ test('new PRO invoices use the catalog price while existing orders settle at the
  const f=await fixture();try{
   const member=await f.register('reprice@example.test');await f.verify(member);
   const config=(await f.request('/api/payments/config')).data;
-  assert.equal(config.plans.find(plan=>plan.id==='pro').amount,1999);
-  const oldAmount=2999,requestId=randomUUID();
+  assert.equal(config.plans.find(plan=>plan.id==='pro').amount,1990);
+  const oldAmount=1999,requestId=randomUUID();
   const {order:previous}=(await f.checkout(member,'pro',requestId)).data;
   const file=join(f.directory,'billing.json'),before=JSON.parse(await readFile(file,'utf8'));
   before.orders.find(order=>order.id===previous.id).amount=oldAmount;
@@ -62,8 +62,8 @@ test('new PRO invoices use the catalog price while existing orders settle at the
   const oldOrder=(await f.checkout(member,'pro',requestId)).data.order;
   const newOrder=(await f.checkout(member)).data.order;
   assert.equal(oldOrder.id,previous.id);assert.equal(oldOrder.amount,oldAmount);
-  assert.equal(newOrder.amount,1999);assert.equal(f.calls.length,2);
-  assert.equal(JSON.parse(f.calls[1].init.body).Amount,1999);
+  assert.equal(newOrder.amount,1990);assert.equal(f.calls.length,2);
+  assert.equal(JSON.parse(f.calls[1].init.body).Amount,1990);
 
   for(const [order,alternate,transactionId] of [[oldOrder,newOrder.amount,'102001'],[newOrder,oldAmount,'102002']]){
    const valid=fields(order,member.data.user,{TransactionId:transactionId});
@@ -72,7 +72,7 @@ test('new PRO invoices use the catalog price while existing orders settle at the
    assert.deepEqual((await f.callback('pay',valid)).data,{code:0});
   }
   const after=JSON.parse(await readFile(file,'utf8'));
-  assert.deepEqual(after.orders.map(order=>[order.amount,order.status]),[[2999,'paid'],[1999,'paid']]);
+  assert.deepEqual(after.orders.map(order=>[order.amount,order.status]),[[1999,'paid'],[1990,'paid']]);
  }finally{await f.close();}
 });
 

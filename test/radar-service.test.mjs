@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {serviceFixture} from './service-fixture.mjs';
 import {createRadar,validateRadarDatabase} from '../lib/radar/service.mjs';
 import {createRadarJobs} from '../lib/radar/jobs.mjs';
+import {totp} from '../lib/account-security.mjs';
 
 const password='test-password-long-2026';
 async function users(f,{exclusive=false}={}){
@@ -74,8 +75,78 @@ test('Radar preserves distinct live and demo records and refuses editorial merge
   assert.equal((await f.service.ingestBatch([{...raw,isDemo:true}])).inserted,1);assert.equal((await f.service.ingestBatch([raw])).inserted,1);
   const db=await f.service.readDatabase(),demo=db.events.find(event=>event.isDemo),live=db.events.find(event=>!event.isDemo);assert.equal(db.events.length,2);assert.equal(live.sources.length,1);assert.equal(live.marketReaction,null);assert.equal(demo.marketReaction?.isDemo,true);
   for(const [from,to]of [[demo,live],[live,demo]])assert.equal((await f.request('/api/admin/radar/'+from.id+'/merge',{method:'POST',cookie:admin.cookie,body:{revision:from.revision,targetId:to.id,targetRevision:to.revision}})).status,400);
-  const feed=await f.request('/api/radar?importance=0',{cookie:pro.cookie});assert.equal(feed.data.events.length,2);assert.equal(feed.data.events.filter(event=>event.isDemo).length,1);assert.ok((await f.service.readDatabase()).events.every(event=>event.status==='published'));
+  const feed=await f.request('/api/radar?importance=0',{cookie:pro.cookie});assert.equal(feed.data.events.length,1);assert.equal(feed.data.events[0].isDemo,true);assert.equal(live.status,'draft');assert.equal(live.audit[0].action,'queued-for-review');
+  assert.equal((await f.request('/api/radar/'+live.id,{cookie:pro.cookie})).status,404);
+  const approved=await f.request('/api/admin/radar/'+live.id,{method:'PATCH',cookie:admin.cookie,body:{revision:live.revision,status:'published'}});
+  assert.equal(approved.status,200);assert.equal((await f.request('/api/radar/'+live.id,{cookie:pro.cookie})).status,200);
  }finally{await f.close();}
+});
+
+test('Radar critical automation is opt-in, MFA-confirmed, versioned and limited to clear, recent issuer reports',async()=>{
+  const clock=Date.parse('2026-11-27T14:20:00Z');
+  const provider={id:'official-yandex',name:'Яндекс',enabled:true,interval:60000,async fetchEvents(){return {events:[]};}};
+  const f=await serviceFixture(({directory,accounts})=>createRadar(directory,{accounts,env:{RADAR_PROVIDER_MODE:'live',RADAR_NOTIFICATIONS_ENABLED:'true'},providers:[provider],now:()=>clock}));
+  try{
+    const {admin,pro,free}=await users(f);
+    const route='/api/admin/radar/moderation',adminPost=(path,body)=>f.request(path,{method:'POST',cookie:admin.cookie,body});
+    assert.equal((await f.request(route,{cookie:free.cookie})).status,403);
+    const initial=await f.request(route,{cookie:admin.cookie});
+    assert.equal(initial.status,200);assert.equal(initial.data.settings.enabled,false);
+    const setup=await adminPost('/api/security/mfa/setup',{password});
+    assert.equal(setup.status,200);
+    const confirm=await adminPost('/api/security/mfa/confirm',{code:totp(setup.data.secret)});
+    assert.equal(confirm.status,200);
+    const {version,...configured}=initial.data.settings;
+    const rules={...configured,enabled:true,minimumConfidence:0.7,eventTypes:['TECHNICAL_DEFAULT'],providerIds:[provider.id]};
+    assert.equal((await adminPost(route,rules)).status,400);
+    assert.equal((await adminPost(route,{...rules,authorization:{password,code:'000-invalid'}})).status,401);
+    const code=confirm.data.recoveryCodes[0];
+    const enabled=await adminPost(route,{...rules,authorization:{password,code}});
+    assert.equal(enabled.status,200);
+    assert.equal(enabled.data.settings.revision,1);
+    assert.equal((await adminPost(route,{...rules,revision:1,authorization:{password,code}})).status,401);
+
+    const source=(id,title,extra={})=>({provider:provider.id,externalId:id,ticker:'YDEX',sourceType:'IR',
+      sourceUrl:'https://ir.yandex.ru/press-releases/'+id,title,rawText:title,
+      publishedAt:new Date(clock-60000).toISOString(),...extra});
+    const eligible=source('critical','Яндекс сообщил о техническом дефолте по облигациям 100');
+    const records=[eligible,
+      source('forecast','Возможен технический дефолт по облигациям 200'),
+      source('stale','Технический дефолт по облигациям 300',{publishedAt:new Date(clock-3*3600000).toISOString()}),
+      source('unverified','Технический дефолт по облигациям 400',{sourceUrl:'https://example.org/'}),
+      source('date-only','Технический дефолт по облигациям 500',{publicationDay:'2026-11-27',publishedAt:'2026-11-26T21:00:00.000Z'}),
+      source('category','Яндекс разместил облигации 600'),
+      source('unmatched','Технический дефолт по облигациям 650',{ticker:'UNKNOWN'})];
+    assert.equal((await f.service.ingestBatch(records,{provider:provider.id})).inserted,records.length);
+    assert.equal((await f.service.ingestBatch([eligible],{provider:provider.id})).duplicates,1);
+    const db=await f.service.readDatabase();
+    assert.ok(validateRadarDatabase(db));
+    assert.equal(db.events.length,records.length);
+    const published=db.events.find(event=>event.sources[0].externalId==='critical');
+    assert.equal(published.status,'published');
+    assert.equal(published.audit[0].action,'auto-published');
+    assert.equal(published.audit[0].ruleRevision,1);
+    assert.ok(db.events.filter(event=>event.id!==published.id).every(event=>event.status==='draft'));
+    const unmatched=db.events.find(event=>event.sources[0].externalId==='unmatched');
+    assert.equal(unmatched.companyId,null);
+    const assign=patch=>f.request('/api/admin/radar/'+unmatched.id,{method:'PATCH',cookie:admin.cookie,body:{revision:unmatched.revision,status:'published',...patch}});
+    assert.equal((await assign({})).status,400);
+    assert.equal((await f.request('/api/radar/'+unmatched.id,{cookie:pro.cookie})).status,404);
+    const actor=await f.accounts.getUser(pro.data.user.id);
+    assert.deepEqual((await f.service.notificationsFor(actor,{scope:'important'})).map(event=>event.id),[published.id]);
+    const smaller=await adminPost('/api/admin/radar',manual({importanceScore:3,publishedAt:new Date(clock-60000).toISOString()}));
+    assert.equal(smaller.status,201);
+    assert.deepEqual((await f.service.notificationsFor(actor,{scope:'all'})).map(event=>event.id),[published.id,smaller.data.event.id]);
+    assert.equal((await assign({companyId:published.companyId})).status,200);
+    assert.equal((await f.request('/api/radar/'+unmatched.id,{cookie:pro.cookie})).status,200);
+
+    assert.equal((await adminPost(route,{...rules,enabled:false})).status,409);
+    const disabled=await adminPost(route,{...rules,enabled:false,revision:1});
+    assert.equal(disabled.status,200);assert.equal(disabled.data.settings.enabled,false);
+    const next=source('next','Яндекс сообщил о техническом дефолте по облигациям 700');
+    await f.service.ingestBatch([next],{provider:provider.id});
+    assert.equal((await f.service.readDatabase()).events.find(event=>event.sources[0].externalId==='next').status,'draft');
+  }finally{await f.close();}
 });
 
 test('Radar notifications require explicit current own rules, freshness and significant events',async()=>{

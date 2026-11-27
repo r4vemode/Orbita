@@ -92,3 +92,30 @@ test('push-only users (no Telegram) receive the same idea events through the bro
   assert.equal(pushed.length,1);assert.match(pushed[0].title,/SBER LONG: вход выполнен по 310/);assert.equal(pushed[0].url,'/app.html?idea='+idea.id);assert.equal(f.sent.length,0,'Telegram is not configured');
  }finally{await f.close();}
 });
+
+test('editor broadcasts require authorization, select the correct tier, and deduplicate a confirmed operation',async t=>{
+ const f=await fixture();
+ t.after(()=>f.close());
+ const editor=await f.register('broadcast-admin@example.test');
+ await f.accounts.promote(editor.data.user.email);
+ const owner=await f.accounts.getUser(editor.data.user.id);
+ for(const [index,tier] of ['pro','exclusive','free','opted-out'].entries()){
+  const account=await f.register('broadcast-'+tier+'@example.test');
+  if(tier!=='free')await f.grant(account,tier==='opted-out'?'exclusive':tier);
+  if(tier!=='opted-out')await f.preferences(account,{articles:true});
+  await f.bind(account,12000+index);
+ }
+ const args={owner,operationId:'test-exclusive-broadcast',audience:'exclusive',text:'Обзор редакции EXCLUSIVE'};
+ await assert.rejects(f.service.enqueueBroadcast(args),{status:403});
+ const first=await f.service.enqueueBroadcast({...args,authorize:async()=>owner});
+ const replay=await f.service.enqueueBroadcast({...args,authorize:async()=>owner,text:'Другой текст повтора'});
+ assert.deepEqual(replay,first);
+ assert.equal(first.planned,1);
+ await f.service.tick();
+ assert.equal(f.sent.length,1);
+ assert.equal(Number(f.sent[0].chat_id),12001);
+ assert.match(f.sent[0].text,/Обзор редакции EXCLUSIVE/);
+ const statistics=await f.service.statistics();
+ assert.equal(statistics.telegramSent,1);
+ assert.deepEqual(statistics.broadcasts,[{id:first.id,planned:1,queued:1,sent:1,failed:0,blocked:0}]);
+});

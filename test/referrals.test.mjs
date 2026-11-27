@@ -43,12 +43,12 @@ test('first referral is retained, forged cookies do not attribute, and partner c
 test('confirmed first/repeat payments accrue once and incremental refunds never exceed the original charge',async()=>{
  const f=await fixture();try{
   const user=await f.signup('customer@example.test',await f.visit());const first=await f.pay(user),second=await f.pay(user);
-  let own=(await f.partnerData()).data.partners[0];assert.equal(own.balance.totalMinor,29985+19990);assert.equal(own.payments,2);assert.equal(own.mode,'simulation');
-  await f.request('/api/admin/payments/simulate',{method:'POST',cookie:f.admin.cookie,body:first.body});assert.equal((await f.partnerData()).data.partners[0].balance.totalMinor,49975);
+  let own=(await f.partnerData()).data.partners[0];assert.equal(own.balance.totalMinor,29850+19900);assert.equal(own.payments,2);assert.equal(own.mode,'simulation');
+  await f.request('/api/admin/payments/simulate',{method:'POST',cookie:f.admin.cookie,body:first.body});assert.equal((await f.partnerData()).data.partners[0].balance.totalMinor,49750);
   const refundKey=randomUUID(),half=first.order.amount*50;assert.equal((await f.refund(first.order,half,refundKey)).status,200);assert.equal((await f.refund(first.order,half,refundKey)).status,200);
-  own=(await f.partnerData()).data.partners[0];assert.equal(own.balance.totalMinor,14993+19990);
+  own=(await f.partnerData()).data.partners[0];assert.equal(own.balance.totalMinor,14925+19900);
   assert.equal((await f.refund(first.order,half+1)).status,409);assert.equal((await f.refund(first.order,half)).status,200);
-  own=(await f.partnerData()).data.partners[0];assert.equal(own.balance.totalMinor,19990);assert.equal(own.entries.filter(item=>item.kind==='refund').length,2);
+  own=(await f.partnerData()).data.partners[0];assert.equal(own.balance.totalMinor,19900);assert.equal(own.entries.filter(item=>item.kind==='refund').length,2);
   const record=(await f.accounts.getUser(user.data.user.id)).subscriptions[0];assert.ok(Date.parse(record.expiresAt)>Date.now()+29*86400000);assert.ok(Date.parse(record.expiresAt)<Date.now()+31*86400000);
  }finally{await f.close();}
 });
@@ -56,14 +56,14 @@ test('confirmed first/repeat payments accrue once and incremental refunds never 
 test('payout reservation is atomic, settlement needs fresh password and reversal after payout is a negative balance',async()=>{
  const f=await fixture();try{
   const user=await f.signup('payout-customer@example.test',await f.visit());const {order}=await f.pay(user),partner=(await f.partnerData()).data.partners[0];
-  const reserve=()=>f.request('/api/admin/referrals/payouts',{method:'POST',cookie:f.admin.cookie,body:{action:'reserve',requestId:randomUUID(),partnerId:partner.id,amountMinor:29985}});
+  const reserve=()=>f.request('/api/admin/referrals/payouts',{method:'POST',cookie:f.admin.cookie,body:{action:'reserve',requestId:randomUUID(),partnerId:partner.id,amountMinor:29850}});
   const concurrent=await Promise.all([reserve(),reserve()]);assert.deepEqual(concurrent.map(item=>item.status).sort(),[200,400]);const payout=concurrent.find(item=>item.status===200).data.payout;
   const body={action:'paid',payoutId:payout.id,requestId:randomUUID(),reference:'bank-operation-test-1'};
   assert.equal((await f.request('/api/admin/referrals/payouts',{method:'POST',cookie:f.admin.cookie,body})).status,401);
   body.password='test-password-long-2026';assert.equal((await f.request('/api/admin/referrals/payouts',{method:'POST',cookie:f.admin.cookie,body})).status,200);
   assert.equal((await f.request('/api/admin/referrals/payouts',{method:'POST',cookie:f.admin.cookie,body})).status,200);
   assert.equal((await f.refund(order,order.amount*100)).status,200);
-  const balance=(await f.partnerData()).data.partners[0].balance;assert.equal(balance.paidMinor,29985);assert.equal(balance.availableMinor,-29985);assert.equal(balance.totalMinor,0);
+  const balance=(await f.partnerData()).data.partners[0].balance;assert.equal(balance.paidMinor,29850);assert.equal(balance.availableMinor,-29850);assert.equal(balance.totalMinor,0);
  }finally{await f.close();}
 });
 
@@ -96,7 +96,7 @@ test('shared referral visits are flagged without rejecting registration, capped,
   const report=(await f.request('/api/admin/referrals',{cookie:f.admin.cookie})).data.partners[0];
   assert.equal(report.registrations,10);assert.equal(report.fraudReview.reusedVisitRegistrations,9);assert.equal(report.fraudReview.unreviewedRegistrations,9);assert.equal(report.fraudReview.blockedRegistrations,1);assert.equal(report.fraudReview.registrations.length,9);
   assert.doesNotMatch(JSON.stringify((await f.partnerData()).data),/shared-\d+@|fraudReview/);
-  const body={action:'reserve',requestId:randomUUID(),partnerId:report.id,amountMinor:29985};
+  const body={action:'reserve',requestId:randomUUID(),partnerId:report.id,amountMinor:29850};
   assert.equal((await f.request('/api/admin/referrals/payouts',{method:'POST',cookie:f.admin.cookie,body})).status,409);
   body.reviewAcknowledged=true;assert.equal((await f.request('/api/admin/referrals/payouts',{method:'POST',cookie:f.admin.cookie,body})).status,200);
   assert.equal((await f.request('/api/admin/referrals',{cookie:f.admin.cookie})).data.partners[0].fraudReview.unreviewedRegistrations,0);

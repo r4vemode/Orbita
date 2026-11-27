@@ -19,7 +19,7 @@ test('Pro and Exclusive keep independent state and renewal destinations',()=>{
  const user=member(subscription('pro',12*HOUR),subscription('exclusive',2*DAY)),rows=summarizeSubscriptions(user,{now}),reminders=buildSubscriptionReminders(user,{now});
  assert.deepEqual(rows.map(row=>[row.plan,row.status,row.expiresAt]),[['pro','active',expiry(12*HOUR)],['exclusive','active',expiry(2*DAY)]]);
  assert.deepEqual(reminders.map(row=>[row.plan,row.state,row.renewUrl]),[['pro','expiring_today','/subscriptions.html?plan=pro'],['exclusive','expiring_soon','/subscriptions.html?plan=exclusive']]);
- assert.deepEqual(rows.map(row=>[row.name,row.price,row.days]),[['Orbita Pro',1999,30],['Orbita Exclusive',4999,30]]);
+ assert.deepEqual(rows.map(row=>[row.name,row.price,row.days]),[['Orbita Pro',1990,30],['Orbita Exclusive',4999,30]]);
 });
 
 test('a renewal immediately replaces the former warning with the effective latest expiry',()=>{

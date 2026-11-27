@@ -37,7 +37,7 @@ test('local beta isolates provider settings, owns temporary data and exposes fou
     assert.equal(proFeed.localMarketHistory,false);
     assert.ok(proIdeas.length>0&&proIdeas.every(record=>record.demo===true&&record.d.strategy!=='Orbita Exclusive'));assert.ok(exclusiveIdeas.length>proIdeas.length&&exclusiveIdeas.every(record=>record.demo===true)&&exclusiveIdeas.some(record=>record.d.strategy==='Orbita Exclusive'),'EXCLUSIVE includes PRO');
     const config=(await get(session,'/api/public-config')).data;assert.equal(config.paymentsAvailable,false);assert.equal(config.mailEnabled,false);assert.equal(config.telegramEnabled,false);
-    assert.equal(config.plans.pro.price,1999);assert.equal(config.plans.exclusive.price,4999);
+    assert.equal(config.plans.pro.price,1990);assert.equal(config.plans.exclusive.price,4999);
     const radar=(await get(session,'/api/radar?importance=0&limit=50',pro.cookie)).data;assert.ok(radar.events.length>=15);assert.ok(radar.events.every(event=>event.isDemo&&!Object.hasOwn(event,'rawText')));assert.equal((await get(session,'/api/radar',free.cookie)).status,403);assert.equal((await get(session,'/api/radar',exclusive.cookie)).status,200,'EXCLUSIVE includes PRO Radar');
     const settings=(await get(session,'/api/product-settings')).data;assert.equal(settings.supportEmail,'');assert.ok(settings.partnerOffers.every(offer=>offer.url===''));
     assert.equal(await readFile(path.join(operatorData,'accounts.json'),'utf8'),'OPERATOR DATA MUST REMAIN UNTOUCHED');assert.equal(await readFile(path.join(operatorBackups,'keep.txt'),'utf8'),'PRESERVE');

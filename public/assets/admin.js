@@ -9,7 +9,9 @@
   const numericFields = ['entry','stop','target'];
   const strategyMarkets={'Momentum RU':'stocks','Trend RU':'stocks','Импульс':'futures','Crypto Momentum':'crypto','Crypto Trend':'crypto','Orbita Exclusive':'stocks'};
   const defaultStrategies={stocks:'Momentum RU',futures:'Импульс',crypto:'Crypto Momentum'};
-  const eventFieldIds=['levelEntry','levelStop','levelTarget','levelHorizon','levelEntryRule','levelCancelRule','exitPrice','eventNote','descriptionName','descriptionTitle','descriptionSummary','descriptionThesis','descriptionHorizon','descriptionChart'];
+  const closureActions=['partial-close','early-close'];
+  const pricedActions=['manual','stop-change','target-change',...closureActions];
+  const eventFieldIds=['levelEntry','levelStop','levelTarget','levelHorizon','levelEntryRule','levelCancelRule','exitPrice','closurePercent','closureAt','closureReason','closureSource','closureQuoteAt','eventNote','descriptionName','descriptionTitle','descriptionSummary','descriptionThesis','descriptionHorizon','descriptionChart'];
   const eventDrafts=new Map();let eventDirty=false;
   const ideaSummary = d => window.OrbitaIdeaCopy?.summary?.(d) ?? d.summary ?? '';
   let db = {revision:0,records:[]}, users = [], current = null, draftId = null, dirty = false, mutating = false, accountsRevision,privateSession;
@@ -86,7 +88,7 @@
   function ideaCard(record) {
     const d = record.d || {};
     const levels = [d.entry,d.stop,d.target].every(value => Number.isFinite(value) && value > 0);
-    return `<div class="selected-identity"><span class="preview-tag">${escape(d.dir)} · ${escape(d.strategy)}</span><h2>${escape(d.ticker || 'Черновик')}</h2>${d.name ? `<p>${escape(d.name)}</p>` : ''}${d.title ? `<h3>${escape(d.title)}</h3>` : ''}${d.summary ? `<p>${escape(ideaSummary(d))}</p>` : ''}${levels ? `<div class="selected-levels"><span>Вход<b>${escape(number(d.entry))}</b></span><span>Стоп<b>${escape(number(d.stop))}</b></span><span>Цель<b>${escape(number(d.target))}</b></span></div>` : `<p class="no-levels">${record.published ? 'Тикер и направление опубликованы. Уровни ещё не заданы.' : 'Укажите уровни для полного сценария. Черновик можно сохранить без них.'}</p>`}${record.createdVia === 'TELEGRAM' ? '<p class="preview-tag">Источник: Telegram</p>' : ''}${record.radarSource ? '<p class="preview-tag">Контекст: Radar · '+escape(record.radarSource.headline)+'</p>' : ''}${record.demo ? '<p class="demo-label">Учебный пример</p>' : ''}${record.erroneous ? '<p class="error-label">Ошибочная публикация · сохранена в истории</p>' : ''}</div>`;
+    return `<div class="selected-identity"><span class="preview-tag">${escape(d.dir)} · ${escape(d.strategy)}</span><h2>${escape(d.ticker || 'Черновик')}</h2>${d.name ? `<p>${escape(d.name)}</p>` : ''}${d.title ? `<h3>${escape(d.title)}</h3>` : ''}${d.summary ? `<p>${escape(ideaSummary(d))}</p>` : ''}${levels ? `<div class="selected-levels"><span>Вход<b>${escape(number(d.entry))}</b></span><span>Стоп<b>${escape(number(d.stop))}</b></span><span>Цель<b>${escape(number(d.target))}</b></span></div>` : `<p class="no-levels">${record.published ? 'Тикер и направление опубликованы. Уровни ещё не заданы.' : 'Укажите уровни для полного сценария. Черновик можно сохранить без них.'}</p>`}${Number.isFinite(record.meta?.remainingPct) ? `<p>Остаток ${escape(number(record.meta.remainingPct))}% · вклад закрытых частей ${escape(number(record.meta.realizedPct))}%</p>` : ''}${record.createdVia === 'TELEGRAM' ? '<p class="preview-tag">Источник: Telegram</p>' : ''}${record.radarSource ? '<p class="preview-tag">Контекст: Radar · '+escape(record.radarSource.headline)+'</p>' : ''}${record.demo ? '<p class="demo-label">Учебный пример</p>' : ''}${record.erroneous ? '<p class="error-label">Ошибочная публикация · сохранена в истории</p>' : ''}</div>`;
   }
   function preview() {
     const data = readFullData();
@@ -101,15 +103,23 @@
   }
   function eventFields() {
     const action = $('eventAction').value;
+    const closure=closureActions.includes(action),partial=action==='partial-close';
     $('levelsFields').hidden = !['levels','terms-change'].includes(action);
     $('levelHorizon').parentElement.hidden = action === 'terms-change';
     $('descriptionFields').hidden = action !== 'description';
     for (const id of ['levelEntry','levelStop','levelTarget','levelEntryRule','levelCancelRule']) $(id).required = ['levels','terms-change'].includes(action);
     $('strategyChangeField').hidden = action !== 'strategy-change';
     if(action==='strategy-change'){const record=db.records.find(item=>item.id===current);if(record){compatibleStrategies(record.d.market,$('strategyChangeSelect'),record.d.strategy);}}
-    $('exitField').hidden = !['manual','stop-change','target-change'].includes(action);
-    $('exitPrice').required = ['manual','stop-change','target-change'].includes(action);
+    $('exitField').hidden = !pricedActions.includes(action);
+    $('exitPrice').required = pricedActions.includes(action);
     $('exitLabel').textContent = action === 'stop-change' ? 'Новый стоп' : action === 'target-change' ? 'Новая цель' : 'Цена закрытия';
+    $('closureFields').hidden=$('closureFields').disabled=!closure;
+    $('closurePercentField').hidden=!partial;
+    $('closurePercent').disabled=!partial;
+    $('closurePercent').required=partial;
+    $('closureAt').required=$('closureReason').required=closure;
+    if(closure&&!$('closureAt').value)$('closureAt').value=new Date(Date.now()+3*3600000).toISOString().slice(0,19);
+    $('eventNote').required=!closure&&!['archive','unarchive','showcase','unshowcase'].includes(action);
     $('eventNote').placeholder = action === 'error' ? 'Почему публикация ошибочна? Причина останется в истории.' : 'Что произошло и что это меняет?';
   }
   function audit(record) {
@@ -134,7 +144,7 @@
     $('selectedIdea').innerHTML = record ? ideaCard(record) : '<p>Выберите идею слева или опубликуйте новый сигнал.</p>';
     if (record?.published) {
       const state = record.d.state, active = !record.erroneous;
-      const actions = [['note','Комментарий автора'],...(active ? [['description','Изменить описание и разбор']] : []),...(active && state === 'waiting' ? [['terms-change','Уточнить вход и условия до входа']] : []),...(active && state === 'announced' ? [['levels','Добавить уровни входа, стопа и цели']] : []),...(active && ['waiting','active'].includes(state) ? [['stop-change','Изменить стоп'],['target-change','Изменить цель']] : []),...(active && state === 'waiting' ? [['activate','Подтвердить вход']] : []),...(active && ['announced','waiting'].includes(state) ? [['cancel','Отменить до входа']] : []),...(active && state === 'active' ? [['target','Закрыть по цели'],['stop','Закрыть по стопу'],['manual','Закрыть вручную']] : []),...(active ? [['error','Пометить ошибочную публикацию']] : [])];
+      const actions = [['note','Комментарий автора'],...(active ? [['description','Изменить описание и разбор']] : []),...(active && state === 'waiting' ? [['terms-change','Уточнить вход и условия до входа']] : []),...(active && state === 'announced' ? [['levels','Добавить уровни входа, стопа и цели']] : []),...(active && ['waiting','active'].includes(state) ? [['stop-change','Изменить стоп'],['target-change','Изменить цель']] : []),...(active && state === 'waiting' ? [['activate','Подтвердить вход']] : []),...(active && ['announced','waiting'].includes(state) ? [['cancel','Отменить до входа']] : []),...(active && state === 'active' ? [['early-close','Закрыть досрочно'],['partial-close','Закрыть часть'],['target','Закрыть по цели'],['stop','Закрыть по стопу'],['manual','Закрыть вручную']] : []),...(active ? [['error','Пометить ошибочную публикацию']] : [])];
       if(active)actions.push(['strategy-change','Перенести в другую стратегию (PRO ↔ EXCLUSIVE)']);
       actions.push(record.archived?['unarchive','Вернуть из архива']:['archive','Перенести в архив (скрыть у клиентов)']);
       if(record.showcase)actions.push(['unshowcase','Снять публичный пример с лендинга']);else if(active&&!record.archived&&record.tier!=='exclusive'&&record.d.strategy!=='Orbita Exclusive'&&['announced','waiting','active'].includes(state))actions.push(['showcase','Показать на лендинге как пример PRO']);
@@ -228,13 +238,28 @@
       if (!record?.published) throw new Error('Выберите опубликованную идею.');
       const action = $('eventAction').value, note = $('eventNote').value.trim();
       if(!action)throw new Error('Выберите действие, доступное для текущего статуса идеи. Черновик полей сохранён.');
-      if (!note && !['archive','unarchive','showcase','unshowcase'].includes(action)) throw new Error('Добавьте пояснение к изменению.');
+      if (!note && !closureActions.includes(action) && !['archive','unarchive','showcase','unshowcase'].includes(action)) throw new Error('Добавьте пояснение к изменению.');
       if(action==='strategy-change'){const next=$('strategyChangeSelect').value;if(!next||next===record.d.strategy)throw new Error('Выберите другую стратегию.');if(!confirm(`Перенести ${record.d.ticker} в «${next}»? Доступ клиентов изменится сразу.`))return;}
       const payload = {revision:db.revision,action,...(note?{note}:{})};
       if(action==='strategy-change')payload.d={strategy:$('strategyChangeSelect').value};
-      if (['manual','stop-change','target-change'].includes(action)) {
+      if (pricedActions.includes(action)) {
         payload.price = Number($('exitPrice').value);
         if (!Number.isFinite(payload.price) || payload.price <= 0) throw new Error('Укажите положительную цену.');
+      }
+      if(closureActions.includes(action)){
+        const reason=$('closureReason').value.trim(),at=$('closureAt').value,source=$('closureSource').value.trim(),quoted=$('closureQuoteAt').value;
+        if(!reason||!at)throw new Error('Укажите время и причину выхода.');
+        payload.reason=reason;payload.occurredAt=at+'+03:00';
+        const remaining=record.meta?.remainingPct??100;
+        if(action==='partial-close'){
+          const percent=Number($('closurePercent').value);
+          if(!(percent>0&&percent<remaining))throw new Error(`Доля должна быть больше нуля и меньше остатка ${number(remaining)}%.`);
+          payload.percent=percent;
+        }
+        if(source||quoted){
+          if(!source||!quoted)throw new Error('Дополните источник цены и время котировки.');
+          payload.priceSource={url:source,observedAt:quoted+'+03:00'};
+        }
       }
       if (['levels','terms-change'].includes(action)) {
         payload.d = {entry:Number($('levelEntry').value),stop:Number($('levelStop').value),target:Number($('levelTarget').value),...(parseTargets($('levelTargets').value).length||record.d.targets?.length?{targets:parseTargets($('levelTargets').value)}:{}),...(action==='levels'?{horizon:$('levelHorizon').value.trim()}:{}),entryRule:$('levelEntryRule').value.trim(),cancelRule:$('levelCancelRule').value.trim()};

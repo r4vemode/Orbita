@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID,createHmac} from 'node:crypto';
-import {readFile} from 'node:fs/promises';
+import {readFile,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {serviceFixture} from './service-fixture.mjs';
 import {createPayments} from '../lib/payments.mjs';
@@ -31,13 +31,13 @@ test('recurring requires explicit versioned consent and encrypts card tokens; du
   const user=await f.register('recurring@example.test');await f.verify(user);
   assert.equal((await f.checkout(user,{recurring:{accepted:false,termsVersion:RECURRING_TERMS_VERSION}})).status,400);
   const result=await f.checkout(user);assert.equal(result.status,200);const order=result.data.order;
-  assert.equal(order.amount,1999);
-  assert.equal(f.calls.find(item=>item.url.endsWith('/orders/create')).body.Amount,1999);
+  assert.equal(order.amount,1990);
+  assert.equal(f.calls.find(item=>item.url.endsWith('/orders/create')).body.Amount,1990);
   assert.equal((await f.notify('pay',payment(order,user.data.user))).status,200);
   assert.equal((await f.notify('pay',payment(order,user.data.user))).status,200);
   const providerAgreements=f.calls.filter(item=>item.url.endsWith('/subscriptions/create'));
   assert.equal(providerAgreements.length,1);
-  assert.equal(providerAgreements[0].body.Amount,1999);
+  assert.equal(providerAgreements[0].body.Amount,1990);
   const list=await f.request('/api/payments/subscriptions',{cookie:user.cookie});assert.equal(list.data.subscriptions[0].status,'active');assert.equal(list.data.subscriptions[0].days,30);
   assert.ok(Date.parse(list.data.subscriptions[0].nextChargeAt)>Date.now());
   assert.doesNotMatch(await readFile(join(f.directory,'billing.json'),'utf8'),/sensitive-token-only-for-vault/);
@@ -48,9 +48,16 @@ test('recurring requires explicit versioned consent and encrypts card tokens; du
 test('renewal without InvoiceId extends once; failure and cancellation retain paid access and old status cannot reactivate',async()=>{
  const f=await fixture();try{
   const user=await f.register('cycles@example.test');await f.verify(user);const {order}=(await f.checkout(user)).data;
+  const file=join(f.directory,'billing.json'),stored=JSON.parse(await readFile(file,'utf8'));
+  stored.orders[0].amount=stored.subscriptions[0].amount=order.amount=1999;
+  await writeFile(file,JSON.stringify(stored));
   await f.notify('pay',payment(order,user.data.user));const initial=Date.parse((await f.accounts.getUser(user.data.user.id)).subscriptions[0].expiresAt);
+  assert.equal(f.models[0].Amount,1999);
   const renewal=payment(order,user.data.user,{InvoiceId:undefined,SubscriptionId:f.models[0].Id,TransactionId:'123002'});
+  assert.equal((await f.notify('pay',{...renewal,Amount:1990})).status,400);
   assert.equal((await f.notify('pay',renewal)).status,200);assert.equal((await f.notify('pay',renewal)).status,200);
+  const historical=(await f.request('/api/payments/history',{cookie:user.cookie})).data.orders.find(item=>item.renewal);
+  assert.equal(historical.amount,1999);
   assert.equal(Date.parse((await f.accounts.getUser(user.data.user.id)).subscriptions[0].expiresAt)-initial,30*86400000);
   assert.equal((await f.notify('fail',{...renewal,TransactionId:'123003',Status:'Declined'})).status,200);
   const agreement=(await f.request('/api/payments/subscriptions',{cookie:user.cookie})).data.subscriptions[0];

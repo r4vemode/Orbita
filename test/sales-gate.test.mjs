@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHmac,randomUUID} from 'node:crypto';
-import {readFile} from 'node:fs/promises';
+import {readFile,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {createSalesGate} from '../lib/sales-gate.mjs';
 import {createPayments} from '../lib/payments.mjs';
@@ -60,6 +60,40 @@ test('closing sales denies further Check and checkout while valid Pay and Refund
     assert.equal((await f.callback('refund',order,{TransactionId:'90101',PaymentTransactionId:'80101',OperationType:'Refund'})).data.code,0);
     assert.equal((await f.accounts.getUser(f.member.data.user.id)).access.hasSubscription,false);
     assert.equal((await f.callback('pay',order)).data.code,0);assert.equal((await f.accounts.getUser(f.member.data.user.id)).access.hasSubscription,false);
+  }finally{await f.close();}
+});
+
+test('an unpublished price change blocks new orders and preserves signed Checks for existing invoices and renewals',async()=>{
+  let draft=false,enabled=true;
+  const legal={readPublic:async({version:requested}={})=>requested===version||!draft?{published:true,version}:{published:false,version:'ORBITA-2026-11-27'}};
+  const active=createSalesGate({legal,env:{ORBITA_LIVE_PAYMENTS_ENABLED:'true',ORBITA_RECEIPTS_CONFIRMED:'true'}});
+  const stopped=createSalesGate({legal,env:{ORBITA_LIVE_PAYMENTS_ENABLED:'false',ORBITA_RECEIPTS_CONFIRMED:'true'}});
+  const f=await fixture({gate:input=>enabled?active(input):stopped(input)});
+  try{
+    const order=(await f.checkout()).data.order;draft=true;
+    const file=join(f.directory,'billing.json'),db=JSON.parse(await readFile(file,'utf8'));
+    db.orders[0].amount=1999;order.amount=1999;
+    await writeFile(file,JSON.stringify(db));
+    assert.equal((await f.checkout()).status,503);
+    assert.deepEqual((await f.callback('check',order)).data,{code:0});
+    assert.equal((await f.callback('check',order,{Amount:1990})).data.code,13);
+    assert.deepEqual((await f.callback('check',{...order,id:'order-unknown'})).data,{code:13});
+    const current=JSON.parse(await readFile(file,'utf8')),original=current.orders[0];
+    const agreement={id:'agreement-1',status:'active',providerId:'cloudpayments-subscription-1',orderId:original.id,userId:original.userId,email:original.email,plan:original.plan,amount:original.amount,currency:original.currency,days:original.days,testMode:original.testMode};
+    current.subscriptions=[agreement];
+    await writeFile(file,JSON.stringify(current));
+    const renewal={InvoiceId:undefined,SubscriptionId:agreement.providerId,TransactionId:'80102'};
+    assert.deepEqual((await f.callback('check',order,renewal)).data,{code:0});
+    assert.equal((await f.callback('check',order,{...renewal,Amount:1990})).data.code,13);
+    const checked=JSON.parse(await readFile(file,'utf8'));
+    assert.equal(checked.orders.find(item=>item.id==='order-renew-80102').amount,1999);
+    checked.subscriptions[0].cancelRequestedAt=new Date().toISOString();
+    await writeFile(file,JSON.stringify(checked));
+    assert.deepEqual((await f.callback('check',order,renewal)).data,{code:13});
+    enabled=false;
+    assert.deepEqual((await f.callback('check',order)).data,{code:13});
+    assert.deepEqual((await f.callback('pay',order)).data,{code:0});
+    assert.equal((await f.service.getOrder(f.member.data.user,order.id)).order.amount,1999);
   }finally{await f.close();}
 });
 

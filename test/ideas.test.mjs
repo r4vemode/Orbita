@@ -26,6 +26,70 @@ test('normal startup is empty and guests, unpaid and expired users receive no id
   for(const action of [()=>ideas.create(pro,full()),()=>ideas.update(pro,'id',{action:'note',note:'x'}),()=>ideas.remove(pro,'id'),()=>ideas.importDemo(pro)])await rejected(action(),403);
 });
 
+test('partial and early exits share the original position, retain audit history and weight the final result',async t=>{
+  const {directory,ideas}=await fixture(t);
+  let {record:idea}=await ideas.create(admin,full());
+  ({record:idea}=await ideas.update(admin,idea.id,{action:'activate',note:'План выполнен.'}));
+  const occurredAt=idea.meta.enteredAt,initial=structuredClone(idea.meta.initial),audit=structuredClone(idea.meta.events);
+  const part=(percent,price,reason)=>({action:'partial-close',percent,price,occurredAt,reason});
+  ({record:idea}=await ideas.update(admin,idea.id,part(25,320,'Первая фиксация.')));
+  assert.equal(idea.d.state,'active');assert.equal(idea.meta.exit,undefined);assert.equal(idea.meta.remainingPct,75);
+  assert.equal(idea.meta.events.at(-1)[3].before.remainingPct,100);
+  assert.equal(idea.meta.events.at(-1)[3].after.remainingPct,75);
+  assert.equal(idea.meta.events.at(-1)[3].closure.priceOrigin,'admin');
+  assert.deepEqual((await ideas.results()).results,[],'public track record must not expose active partial exits');
+  await rejected(ideas.update(admin,idea.id,part(25,320,'Первая фиксация.')),409);
+  await rejected(ideas.update(admin,idea.id,part(75,300,'Нужен полный выход.')),400);
+  ({record:idea}=await ideas.update(admin,idea.id,part(35,300,'Вторая фиксация.')));
+  const source={url:'https://example.com/quote',observedAt:occurredAt};
+  ({record:idea}=await ideas.update(admin,idea.id,{action:'early-close',price:330,occurredAt,reason:'Завершение сценария.',note:'Пояснение редакции.',priceSource:source}));
+  assert.equal(idea.d.state,'closed');assert.equal(idea.d.outcome,'Закрыто досрочно');assert.equal(idea.meta.closureVersion,1);
+  assert.equal(idea.meta.exit,330);assert.equal(idea.meta.weightedExit,317);assert.equal(idea.meta.remainingPct,0);
+  assert.equal(idea.meta.closedAt,occurredAt);assert.deepEqual(idea.meta.closures.map(exit=>exit.percent),[25,35,40]);
+  assert.deepEqual(idea.meta.closures.at(-1).priceSource,source);assert.equal(idea.meta.closures.at(-1).priceOrigin,'market-reference');
+  assert.ok(idea.meta.closures[1].resultPct<0);assert.ok(Math.abs(idea.meta.finalResultPct-(317/310-1)*100)<1e-12);
+  assert.deepEqual(idea.meta.events.slice(0,audit.length),audit);assert.deepEqual(idea.meta.initial,initial);
+  const [result]=(await ideas.results()).results;
+  assert.equal(result.exit,330);assert.equal(result.weightedExit,317);assert.equal(result.pct,idea.meta.finalResultPct);assert.equal(result.r,.7);
+  assert.equal((await ideas.stats()).pro.avgPct,result.pct);
+  assert.ok(!JSON.stringify(result).includes('Пояснение редакции.'));
+  assert.deepEqual((await (await createIdeas(directory)).get(idea.id,pro)).meta.closures,idea.meta.closures);
+});
+
+test('partial exit validates dates and exact volume and ordinary stop closes only the remainder',async t=>{
+  const {ideas}=await fixture(t);
+  let {record:idea}=await ideas.create(admin,full({dir:'ШОРТ',stop:320,target:280}));
+  ({record:idea}=await ideas.update(admin,idea.id,{action:'activate',note:'Вход подтверждён.'}));
+  const payload={action:'partial-close',price:300,percent:33.33,occurredAt:idea.meta.enteredAt,reason:'Уменьшение риска.'};
+  const before=await ideas.list(admin);
+  for(const fields of [{percent:33.333},{percent:0},{percent:100},{occurredAt:'2025-02-30T17:00:00Z'},{occurredAt:'2099-01-01T00:00:00Z'},{occurredAt:'2000-01-01T00:00:00Z'},{reason:' '},{priceSource:{url:'http://example.com',observedAt:payload.occurredAt}},{priceSource:{url:'https://example.com',observedAt:'2099-01-01T00:00:00Z'}}]){
+    await rejected(ideas.update(admin,idea.id,{...payload,...fields}),400);
+  }
+  assert.deepEqual(await ideas.list(admin),before);
+  ({record:idea}=await ideas.update(admin,idea.id,payload));
+  assert.equal(idea.meta.remainingPct,66.67);
+  ({record:idea}=await ideas.update(admin,idea.id,{action:'stop',note:'Цена достигла стопа.'}));
+  assert.equal(idea.d.state,'closed');assert.equal(idea.meta.exit,320);assert.equal(idea.meta.remainingPct,0);
+  assert.equal(idea.meta.closures.at(-1).percent,66.67);assert.equal(idea.meta.closures.at(-1).priceOrigin,'configured-level');
+  assert.ok(idea.meta.finalResultPct<0,'weighted loss includes the earlier profitable portion');
+  await rejected(ideas.update(admin,idea.id,payload),400);
+});
+
+test('simultaneous close attempts recalculate the shared remaining volume under the file lock',async t=>{
+  const {directory,ideas}=await fixture(t),other=await createIdeas(directory);
+  let {record:idea}=await ideas.create(admin,full());
+  ({record:idea}=await ideas.update(admin,idea.id,{action:'activate',note:'Вход подтверждён.'}));
+  const payload={action:'partial-close',price:314,percent:60,occurredAt:idea.meta.enteredAt,reason:'Фиксация.'};
+  const outcomes=await Promise.allSettled([ideas.update(admin,idea.id,payload),other.update(admin,idea.id,{...payload,price:315})]);
+  assert.equal(outcomes.filter(result=>result.status==='fulfilled').length,1);
+  assert.equal(outcomes.find(result=>result.status==='rejected').reason.status,400);
+  const stored=await ideas.get(idea.id,admin);
+  assert.equal(stored.meta.remainingPct,40);assert.equal(stored.meta.closures.length,1);
+  const file=join(directory,'ideas.json'),db=JSON.parse(await readFile(file,'utf8'));
+  db.records[0].meta.remainingPct=60;
+  assert.equal(validateIdeasDatabase(db),false,'reject a mismatched balance instead of trading through invalid history');
+});
+
 test('EXCLUSIVE includes PRO, PRO cannot read EXCLUSIVE and drafts are visible only to administrators',async t=>{
   const {ideas}=await fixture(t);
   const regular=(await ideas.create(admin,full())).record;

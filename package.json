@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "node server.mjs --local-market-history",
+    "ispmanager-custom-command": "node server.mjs",
     "dev": "node server.mjs --local-market-history",
     "preflight": "node scripts/preflight.mjs",
     "check:mvp": "node scripts/check-mvp.mjs",

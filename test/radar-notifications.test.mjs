@@ -30,7 +30,7 @@ test('Radar Telegram requires separate consent and matching subscription, sends 
     f.advance(10);assert.equal((await f.preferences(user,{radarEvents:true})).status,200);await f.service.tick();assert.equal(f.sent.length,0);
     f.advance(10);const fresh=f.event('fresh-event');fresh.firstPublishedAt=fresh.processedAt;fresh.processedAt=new Date(0).toISOString();f.event('low-event',{importanceScore:5});await f.service.tick();assert.equal(f.sent.length,1);assert.match(f.sent[0].text,/Демонстрация/);assert.match(f.sent[0].text,/Корпоративное событие, не торговый сигнал/);assert.match(f.sent[0].text,/radar.html\?event=fresh-event/);assert.deepEqual(f.marked.map(value=>value.id),['fresh-event']);
     await f.service.tick();assert.equal(f.sent.length,1);
-    const db=JSON.parse(await readFile(path.join(f.directory,'notifications.json'),'utf8'));assert.equal(db.outbox.find(item=>item.eventId==='fresh-event').type,'RADAR_EVENT');
+    const db=JSON.parse(await readFile(path.join(f.directory,'notifications.json'),'utf8'));assert.equal(db.outbox.find(item=>item.eventId==='fresh-event').type,'RADAR_EVENT_PUBLISHED');
     await f.preferences(user,{radarEvents:false});f.advance(10);f.event('disabled-event');await f.service.tick();assert.equal(f.sent.length,1);
   }finally{await f.close();}
 });
