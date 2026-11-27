@@ -19,7 +19,20 @@ export async function runLayoutFlows({session,browser,record,outputDir}){
     for(const route of pages){
       const response=await page.goto(session.base+'/'+route,{waitUntil:'networkidle'});assert.equal(response.status(),200);
       await inspect(route);
-      if(route==='index.html')await screenshot('landing-390.png',390);
+      if(route==='index.html'){
+        await record('Главная: кнопки, карточка и нижняя строка первого экрана на мобильных',async()=>{
+          for(const [width,height] of [[320,568],[393,738],[601,680]]){
+            await page.setViewportSize({width,height});
+            const [actions,preview,footer]=await page.evaluate(()=>['.hero .actions','.preview-note','.hero-foot'].map(selector=>{
+              const {top,bottom}=document.querySelector(selector).getBoundingClientRect();
+              return {top,bottom};
+            }));
+            assert.ok(actions.bottom<preview.top,`Карточка перекрывает кнопки при ${width}×${height}`);
+            assert.ok(preview.bottom<footer.top,`Карточка перекрывает нижнюю строку при ${width}×${height}`);
+          }
+        });
+        await screenshot('landing-390.png',390);
+      }
       if(route==='subscriptions.html')await screenshot('subscriptions-390.png',390);
       if(route==='app.html'){
         await page.waitForSelector('#cards [data-idea]');await screenshot('ideas-1440.png',1440);await screenshot('ideas-390.png',390);
