@@ -19,7 +19,17 @@ export async function runClientFlows({session,browser,record}){
     assert.match(await page.locator('#accountEmail').innerText(),new RegExp(account.email.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
     assert.match(await page.locator('#mailConfiguration').innerText(),/не настроен|не подключ|пока не/i);
   }
-  async function get(ctx,path){const response=await ctx.request.get(base+path,{maxRedirects:0});return {status:response.status(),response};}
+  async function get(ctx,path){
+    const request=()=>ctx.request.get(base+path,{maxRedirects:0});
+    let response=await request();
+    if(response.status()===429){
+      // These independent test accounts share a single loopback rate-limit window.
+      const wait=Math.min(60000,1000*(Number(response.headers()['retry-after'])||1)+150);
+      await new Promise(resolve=>setTimeout(resolve,wait));
+      response=await request();
+    }
+    return {status:response.status(),response};
+  }
   async function post(ctx,path,data){const response=await ctx.request.post(base+path,{headers:{Origin:base},data});assert.ok(response.ok(),`Fixture ${path}: HTTP ${response.status()}`);return response.json();}
   const noOverflow=async(page,label)=>assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),label+' overflows viewport');
   let editor,pro,exclusive,free,regular,special;
@@ -129,8 +139,8 @@ export async function runClientFlows({session,browser,record}){
       await login(page,'exclusive');await page.goto(base+'/learn.html');await page.waitForSelector('.lesson-card');assert.match(await page.locator('#progress').innerText(),/^0 из/);
       assert.deepEqual((await(await pro.request.get(base+'/api/positions')).json()).positions,[]);
       await page.goto(base+'/app.html');await page.locator('[data-view=history]').click();await page.waitForSelector('#cards [data-idea="'+regular.id+'"]');
-      const watchlist=await pro.request.get(base+'/api/watchlist'),data=await watchlist.json();
-      assert.equal(watchlist.status(),200,data.error);
+      const watchlist=await get(pro,'/api/watchlist'),data=await watchlist.response.json();
+      assert.equal(watchlist.status,200,data.error);
       assert.deepEqual(data.ids,[]);
     });
     await check('Отзыв подписки закрывает действующую сессию при обновлении',async()=>{
