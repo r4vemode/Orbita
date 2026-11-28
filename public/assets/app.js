@@ -7,9 +7,11 @@
   const status = record => record.erroneous ? 'Ошибочная публикация' : record.d.status || ({ announced: 'Сигнал объявлен', waiting: 'Ожидает входа', active: 'Активен', closed: 'Завершён', cancelled: 'Отменён' }[record.d.state] || 'Опубликован');
   const marketName = value => ({ stocks: 'Акции', futures: 'Фьючерсы', crypto: 'Криптовалюты' }[value] || 'Рынок');
   const ideaSummary = d => window.OrbitaIdeaCopy?.summary?.(d) ?? d.summary ?? '';
-  let records = [], account, session, saved = new Set(), view = 'all', market = 'all', state = 'all', selected = null, spotlight = null, saving = false, personalReady = false, redirecting = false;
+  let records = [], account, session, closures, saved = new Set(), view = 'open', market = 'all', state = 'all', selected = null, spotlight = null, saving = false, personalReady = false, redirecting = false;
+  const historyButton = document.querySelector('[data-view="history"]');
+  const liveFeed = OrbitaIdeaFeedLive.watch(refresh, 30000);
   function sessionChanged(next){
-    redirecting=true;records=[];saved.clear();selected=spotlight=null;personalReady=false;OrbitaPersonal.clear();S.clear();$('accountLink').textContent='Мой аккаунт';document.querySelector('main').hidden=true;
+    redirecting=true;liveFeed.stop();closures=null;showHistoryCount();records=[];saved.clear();selected=spotlight=null;personalReady=false;OrbitaPersonal.clear();S.clear();$('accountLink').textContent='Мой аккаунт';document.querySelector('main').hidden=true;
     location.replace(!next?'account.html?next='+encodeURIComponent(location.pathname+location.search):!next.access?.hasSubscription?'subscriptions.html':location.pathname+location.search);
   }
   async function api(url, options = {}) {
@@ -19,18 +21,19 @@
     return data;
   }
   function handleError(error) {
-    if (error.status === 401 || error.status === 403) { if (redirecting) return; redirecting = true; location.replace(error.status === 401 ? 'account.html?next=' + encodeURIComponent(location.pathname + location.search) : 'subscriptions.html'); return; }
+    if (error.status === 401 || error.status === 403) { if (redirecting) return; redirecting = true; liveFeed.stop(); location.replace(error.status === 401 ? 'account.html?next=' + encodeURIComponent(location.pathname + location.search) : 'subscriptions.html'); return; }
     $('appStatus').textContent = error.message;
   }
-  const result = record => {
-    const d = record.d, exit = record.meta?.exit;
-    if(record.erroneous||d.state!=='closed')return null;
-    if(Number.isFinite(record.meta?.finalResultPct))return record.meta.finalResultPct;
-    return positive(d.entry)&&positive(exit)?(exit/d.entry-1)*(d.dir==='ШОРТ'?-100:100):null;
-  };
+  const result = OrbitaIdeaCloseState.result;
+  const isHistory = record => record.erroneous || ['closed', 'cancelled'].includes(record.d.state);
+  const historyTime = record => Date.parse(record.meta?.closedAt ?? record.meta?.updatedAt) || 0;
   function notify(message) { $('appStatus').textContent = message; }
   function visible() {
-    return records.filter(record => (view !== 'saved' || saved.has(record.id)) && (view !== 'history' || record.meta?.closures?.length || ['closed', 'cancelled'].includes(record.d.state) || record.erroneous) && (market === 'all' || record.d.market === market) && (state === 'all' || record.d.state === state));
+    const rows = records.filter(record => (view !== 'saved' || saved.has(record.id)) &&
+      (view !== 'open' || !record.archived && !isHistory(record)) &&
+      (view !== 'history' || isHistory(record)) &&
+      (market === 'all' || record.d.market === market) && (state === 'all' || record.d.state === state));
+    return view === 'history' ? rows.sort((a, b) => historyTime(b) - historyTime(a)) : rows;
   }
   function levels(d) {
     if (![d.entry, d.stop, d.target].every(positive)) return '<p class="announced-note">Уровни ещё не опубликованы. Следите за комментариями автора.</p>';
@@ -61,10 +64,15 @@
     const rows = visible();
     $('savedCount').textContent = records.filter(record => saved.has(record.id)).length;
     $('feedCount').textContent = `Идей: ${rows.length}`;
-    $('collectionNote').textContent = view === 'saved' ? 'Ваши отслеживаемые идеи. Все изменения появятся в обновлениях.' : view === 'history' ? 'Здесь видны частичные выходы, завершённые, отменённые и ошибочные идеи.' : 'Идеи по вашим действующим подпискам. Начальный сигнал может содержать только инструмент и направление; уровни и комментарии автор добавит позже.';
+    $('collectionNote').textContent = view === 'saved' ? 'Ваши отслеживаемые идеи. Все изменения появятся в обновлениях.' : view === 'history' ? 'Здесь видны завершённые, отменённые и ошибочные идеи.' : 'Открытые идеи по вашим действующим подпискам.';
+    showHistoryCount();
     document.querySelectorAll('[data-view]').forEach(button => button.setAttribute('aria-pressed', button.dataset.view === view));
     document.querySelectorAll('[data-market]').forEach(button => button.setAttribute('aria-pressed', button.dataset.market === market));
-    document.querySelectorAll('[data-status]').forEach(button => button.setAttribute('aria-pressed', button.dataset.status === state));
+    document.querySelectorAll('[data-status]').forEach(button => {
+      const status = button.dataset.status;
+      button.setAttribute('aria-pressed', status === state);
+      button.hidden = status !== 'all' && (view === 'open' && status === 'closed' || view === 'history' && status !== 'closed');
+    });
     $('cards').innerHTML = rows.map(record => {
       const d = record.d, value = result(record), title = d.title || `${d.ticker} · ${d.dir}`;
       const visualState = record.erroneous ? 'error' : ['announced','waiting','active','closed','cancelled'].includes(d.state) ? d.state : 'waiting';
@@ -113,12 +121,46 @@
     if (updateUrl) { const url = new URL(location.href); url.searchParams.set('idea', id); history.replaceState(null, '', url); }
     $('signalStage').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
+  function showHistoryCount() {
+    OrbitaIdeaFeedLive.showUnread(historyButton, closures?.unread() || 0);
+  }
+  function inViewport(element) {
+    if (!element) return false;
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight;
+  }
+  function acceptIdeas(snapshot, animate = true) {
+    if (redirecting || snapshot.viewerId !== account?.id) return false;
+    const next = closures.update(snapshot.records, snapshot.tiers ?? account.access?.tiers, snapshot.observedAt);
+    if (animate && view === 'open') {
+      for (const record of next) {
+        const card = $('cards').querySelector(`[data-idea="${CSS.escape(record.id)}"]`);
+        const stage = selected === record.id ? $('signalDetail') : spotlight === record.id ? $('signalStory') : null;
+        const source = [card, stage].find(inViewport);
+        if (source) void OrbitaIdeaCloseMotion.fly(source, historyButton, result(record));
+      }
+    }
+    records = snapshot.records;
+    if (selected && !records.some(record => record.id === selected)) {
+      selected = null;
+      notify('Эта идея недоступна по текущей подписке.');
+    }
+    return true;
+  }
   async function refresh() {
-    try { if(session&&!await session.check())return;await S.refresh();if(redirecting)return;records = S.read().records; renderFeed(); if (selected && !records.some(record => record.id === selected)) { selected = null; notify('Эта идея недоступна по текущей подписке.'); } renderDetail(); }
+    try {
+      if (!session || redirecting || !await session.check()) return;
+      const snapshot = await S.refresh();
+      if (!redirecting && snapshot.viewerId !== account.id) await session.check();
+    }
     catch (error) { handleError(error); }
   }
   function closeDetail(scroll = true) { selected = null; $('ideaDetail').hidden = true; const url = new URL(location.href); url.searchParams.delete('idea'); history.replaceState(null, '', url); renderFeed(); if (scroll) $('signalFeed').scrollIntoView({ behavior: 'smooth' }); }
-  document.querySelectorAll('[data-view]').forEach(button => button.onclick = () => { view = button.dataset.view; state = market = 'all'; closeDetail(false); });
+  document.querySelectorAll('[data-view]').forEach(button => button.onclick = () => {
+    view = button.dataset.view;
+    if (view === 'history') closures?.acknowledge();
+    state = market = 'all'; closeDetail(false);
+  });
   document.querySelectorAll('[data-market]').forEach(button => button.onclick = () => { market = button.dataset.market; closeDetail(false); });
   document.querySelectorAll('[data-status]').forEach(button => button.onclick = () => { state = button.dataset.status; closeDetail(false); });
   $('cards').onclick = event => { const button = event.target.closest('[data-idea]'); if (button) select(button.dataset.idea); };
@@ -126,21 +168,30 @@
   function stepSignal(delta) { const rows = visible(); if (!rows.length) return; const index = rows.findIndex(record => record.id === (selected || spotlight)), next = rows[(Math.max(0,index) + delta + rows.length) % rows.length]; if (selected) select(next.id); else { spotlight = next.id; renderStage(); } }
   $('previousSignal').onclick = () => stepSignal(-1); $('nextSignal').onclick = () => stepSignal(1);
   document.addEventListener('keydown', event => { if (event.target.closest('input,textarea,select,[contenteditable="true"]') || document.querySelector('dialog[open]')) return; if (event.key === 'Escape' && selected) closeDetail(); if (event.key === 'ArrowLeft') { event.preventDefault(); stepSignal(-1); } if (event.key === 'ArrowRight') { event.preventDefault(); stepSignal(1); } });
-  $('refreshIdeas').onclick = refresh;
+  $('refreshIdeas').onclick = () => liveFeed.refresh();
   try {
     ({ user: account } = await api('/api/me'));
     if (!account) { handleError({ status: 401 }); return; }
     session=OrbitaMemberSession.watch(account,sessionChanged);
+    closures = OrbitaIdeaCloseState.create(account.id);
     $('accountLink').textContent = account.email || 'Мой аккаунт';
-    await S.refresh(); records = S.read().records;
+    if (!acceptIdeas(await S.refresh(), false)) { await session.check(); return; }
     const watch = await api('/api/watchlist'); saved = new Set(watch.ids || []);
     await OrbitaPersonal.init(account, () => { renderFeed(); renderDetail(); }); personalReady = true;
     if(!await session.check())return;renderFeed(); $('appStatus').textContent = '';
     const linked = new URLSearchParams(location.search).get('idea');
     if (linked) { if (records.some(record => record.id === linked)) select(linked, false); else notify('Идея не найдена или не входит в вашу подписку.'); }
-    window.addEventListener('orbita:store-change', () => { if(redirecting)return;records = S.read().records; renderFeed(); renderDetail(); });
+    window.addEventListener('orbita:store-change', () => {
+      if (acceptIdeas(S.read())) { renderFeed(); renderDetail(); }
+    });
     window.addEventListener('orbita:access-denied', event => handleError({ status: event.detail?.status || 403 }));
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
-    setInterval(() => { if (!document.hidden) refresh(); }, 30000);
+    window.addEventListener('storage', event => {
+      if (closures && (event.key === closures.key || event.key === null)) showHistoryCount();
+    });
+    window.addEventListener('pageshow', event => {
+      if (event.persisted && !redirecting) session = OrbitaMemberSession.watch(account, sessionChanged);
+    });
+    liveFeed.setEligible(true);
+    void liveFeed.refresh();
   } catch (error) { handleError(error); }
 })();

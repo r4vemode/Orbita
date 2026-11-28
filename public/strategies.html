@@ -27,7 +27,7 @@
       <button type="button" data-quick="open" aria-pressed="true">Открытые <b data-qc="open"></b></button>
       <button type="button" data-quick="active" aria-pressed="false">В сделке <b data-qc="active"></b></button>
       <button type="button" data-quick="waiting" aria-pressed="false">Ждут входа <b data-qc="waiting"></b></button>
-      <button type="button" data-quick="history" aria-pressed="false">История <b data-qc="history"></b></button>
+      <button type="button" data-quick="history" aria-pressed="false">История <span class="idea-close-count" aria-hidden="true" hidden></span></button>
     </div>
     <div id="feedHistoryType" class="feed-history-type" hidden>
       <div class="feed-quick" role="group" aria-label="Тип истории">
@@ -53,5 +53,5 @@
   </section>
   <details class="feed-about"><summary>О стратегиях и методике</summary><div id="feedCatalog"></div><p class="o-small">Исторические сценарии рассчитаны по биржевым свечам и отобраны после расчёта. R/R (риск/прибыль) = расстояние от входа до первой цели ÷ расстояние от входа до стопа. Результат — изменение цены от входа до выхода (для SHORT — с обратным знаком), без комиссий. Прошлые результаты не гарантируют будущих.</p></details>
 </main>
-<script src="assets/strategy-data.js"></script><script src="assets/chart-formations.js"></script><script src="assets/idea-chart.js"></script><script src="assets/position-calc.js"></script><script src="assets/ideas-feed.js"></script><script src="assets/editor-store.js"></script><script src="assets/access.js"></script><script src="assets/idea-alerts.js"></script><script src="assets/legal.js"></script>
+<script src="assets/strategy-data.js"></script><script src="assets/chart-formations.js"></script><script src="assets/idea-chart.js"></script><script src="assets/position-calc.js"></script><script src="assets/idea-close-state.js"></script><script src="assets/idea-close-motion.js"></script><script src="assets/idea-feed-live.js"></script><script src="assets/ideas-feed.js"></script><script src="assets/editor-store.js"></script><script src="assets/access.js"></script><script src="assets/idea-alerts.js"></script><script src="assets/legal.js"></script>
 </body></html>

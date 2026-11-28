@@ -7,7 +7,8 @@
   let cache = { revision: 0, records: [] }, pending = null, fingerprint = '', generation=0,controller=null;
   const read = () => clone(cache);
   function replace(next) {
-    const signature = JSON.stringify(next);
+    const { observedAt, ...snapshot } = next;
+    const signature = JSON.stringify(snapshot);
     cache = next;
     if (signature !== fingerprint) {
       fingerprint = signature;
@@ -16,11 +17,13 @@
   }
   async function refresh() {
     if (pending) return pending;
-    const requestGeneration=generation;controller=new AbortController();
+    const requestGeneration=generation;
+    const requestController=controller=new AbortController();
+    const timeout=setTimeout(()=>requestController.abort(),15000);
     pending = (async () => {
       let response, data;
       try {
-        response = await fetch('/api/ideas', { credentials: 'same-origin', cache: 'no-store',signal:controller.signal });
+        response = await fetch('/api/ideas', { credentials: 'same-origin', cache: 'no-store',signal:requestController.signal });
         data = await response.json();
       } catch {
         throw Error('Не удалось загрузить идеи. Проверьте соединение и повторите попытку.');
@@ -35,11 +38,12 @@
         throw error;
       }
       if (!Array.isArray(data.records)) throw Error('Сервер вернул некорректный список идей.');
-      replace({ revision: data.revision ?? 0, records: data.records.filter(record => record && record.published && record.d && typeof record.id === 'string') });
+      replace({ revision: data.revision ?? 0, viewerId: data.viewerId, observedAt: data.observedAt, tiers: data.access?.tiers,
+        records: data.records.filter(record => record && record.published && record.d && typeof record.id === 'string') });
       return read();
     })();
     try { return await pending; }
-    finally { pending = null;controller=null; }
+    finally { clearTimeout(timeout);pending = null;controller=null; }
   }
   const clear=()=>{generation++;controller?.abort();replace({revision:0,records:[]});};
   window.OrbitaStore = { read, refresh, clear, escape, safe, clone, stamp };

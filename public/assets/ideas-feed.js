@@ -23,11 +23,14 @@
   let historyType = ['actual', 'demo'].includes(params.get('type')) ? params.get('type') : null;
   let tier = params.get('tab') === 'exclusive' ? 'exclusive' : 'pro';
   let quick = historyType !== null || params.get('view') === 'history' ? 'history' : null;
-  let feed = null, user = null, stats = null, timer = null, historyRequest = null, historyKey = null;
+  let feed = null, user = null, stats = null, historyRequest = null, historyKey = null, closures = null;
   const expanded = new Set();
+  const defaultViews = new Map();
+  const historyButton = document.querySelector('[data-quick="history"]');
+  const liveFeed = OrbitaIdeaFeedLive.watch(load, 60000);
   const tierOf = r => r.tier || (r.d?.strategy === 'Orbita Exclusive' ? 'exclusive' : 'pro');
   const rr = d => ok(d.entry) && ok(d.stop) && ok(d.target) ? Math.abs(d.target - d.entry) / Math.abs(d.entry - d.stop) : null;
-  const result = r => r.d.state === 'closed' && !r.erroneous && ok(r.d.entry) && ok(r.meta?.exit) ? (r.meta.exit / r.d.entry - 1) * (r.d.dir === 'ШОРТ' ? -100 : 100) : null;
+  const result = OrbitaIdeaCloseState.result;
   const pct = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + '%';
   const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 
@@ -207,7 +210,10 @@
     const historyRows = !hasDemoHistory ? all : activeHistoryType === 'demo' ? demo : actual;
     const openRows = all.filter(r => !r.demoHistory);
     const hasOpen = openRows.some(r => quickMatch(r, 'open'));
-    const view = quick ?? (hasOpen ? 'open' : 'history');
+    if (feed && !feed.locked?.includes(tier) && !defaultViews.has(tier)) {
+      defaultViews.set(tier, hasOpen || closures?.unread(tier) ? 'open' : 'history');
+    }
+    const view = quick ?? defaultViews.get(tier) ?? 'open';
     for (const tab of document.querySelectorAll('.o-tab')) { const on = tab.dataset.tier === tier; tab.setAttribute('aria-selected', String(on)); tab.tabIndex = on ? 0 : -1; }
     for (const b of document.querySelectorAll('[data-quick]')) b.setAttribute('aria-pressed', String(b.dataset.quick === view));
     $('feedLocalHistory').hidden = !legacyLocal || view !== 'history';
@@ -218,6 +224,7 @@
     $('feedSkeleton').hidden = true; $('feedLocked').hidden = true; $('feedEmpty').hidden = true; $('feedList').innerHTML = '';
     if (view === 'history' && !legacyLocal && user && feed && !feed.locked?.includes(tier)) $('feedStats').hidden = true;
     else renderStats();
+    showHistoryCount();
     const hideTools = () => { $('feedFilters').hidden = true; $('feedQuick').hidden = true; renderHistoryStats(null); };
     if (!user) { hideTools(); locked('guest'); return; }
     if (!feed) { hideTools(); locked('none'); return; }
@@ -229,9 +236,8 @@
     const sourceRows = view === 'history' ? historyRows : openRows;
     $('actualHistoryCount').textContent = actual.length;
     $('demoHistoryCount').textContent = demo.length;
-    for (const q of ['open', 'active', 'waiting', 'history']) {
-      const scope = q === 'history' ? historyRows : openRows;
-      document.querySelector(`[data-qc="${q}"]`).textContent = scope.filter(r => quickMatch(r, q)).length;
+    for (const q of ['open', 'active', 'waiting']) {
+      document.querySelector(`[data-qc="${q}"]`).textContent = openRows.filter(r => quickMatch(r, q)).length;
     }
     const strategies = [...new Set(sourceRows.filter(r => quickMatch(r, view)).map(r => r.d.strategy))].sort(), select = $('fStrategy'), current = select.value;
     select.innerHTML = '<option value="">Все</option>' + strategies.map(s => `<option${s === current ? ' selected' : ''}>${esc(s)}</option>`).join('');
@@ -264,29 +270,89 @@
     const list = window.ORBITA_STRATEGIES || [];
     $('feedCatalog').innerHTML = '<ul class="feed-catalog">' + list.map(s => `<li><a href="/strategy.html?strategy=${encodeURIComponent(s.slug)}">${esc(s.name)}</a> <span class="o-tag ${s.exclusive ? 'exclusive' : 'pro'}">${s.exclusive ? 'EXCLUSIVE' : 'PRO'}</span> <span class="o-small">${esc(s.horizon)} · ${esc(s.description)}</span></li>`).join('') + '</ul>';
   }
+  function showHistoryCount() {
+    OrbitaIdeaFeedLive.showUnread(historyButton, closures?.unread(tier) || 0);
+  }
+  function acknowledgeHistory() {
+    if (!closures?.unread(tier)) return;
+    $('feedFilters').reset();
+    historyType = 'actual';
+    closures.acknowledge(tier);
+  }
+  function acceptFeed(body) {
+    const tiers = body.access?.tiers ?? ['pro', 'exclusive'].filter(value => !body.locked?.includes(value));
+    if (feed?.access?.tiers?.some(value => !tiers.includes(value))) OrbitaIdeaCloseMotion.cancel();
+    const next = closures.update(body.records, tiers, body.observedAt);
+    if ((quick ?? defaultViews.get(tier)) !== 'history') {
+      for (const record of next) {
+        if (tierOf(record) !== tier) continue;
+        const row = $('feedList').querySelector(`.irow[data-id="${CSS.escape(record.id)}"]`);
+        if (row) void OrbitaIdeaCloseMotion.fly(row, historyButton, result(record));
+      }
+    }
+    feed = body;
+    liveFeed.setEligible(tiers.length > 0);
+  }
   async function load() {
-    clearTimeout(timer);
+    const hadFeed = Boolean(feed);
+    const connection = new AbortController();
+    const signal = connection.signal;
+    const timeout = setTimeout(() => connection.abort(), 15000);
     try {
-      const [me, st] = await Promise.all([fetch('/api/me', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.ok ? r.json() : { user: null }), fetch('/api/public/stats', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null)]);
-      if (user?.id !== me.user?.id || !me.user) feed = null;
-      user = me.user; stats = st?.stats || null;
-      if (user) {
-        const r = await fetch('/api/ideas', { credentials: 'same-origin', cache: 'no-store' }), body = await r.json().catch(() => ({}));
-        if (r.status === 403) feed = null; else if (!r.ok) throw Error(body.error || 'Не удалось загрузить идеи.'); else feed = body;
+      const [me, st] = await Promise.all([fetch('/api/me', { credentials: 'same-origin', cache: 'no-store', signal }).then(async response => {
+        if (response.status === 401) return { user: null };
+        if (!response.ok) throw Error('Не удалось проверить аккаунт.');
+        return response.json();
+      }), fetch('/api/public/stats', { cache: 'no-store', signal }).then(r => r.ok ? r.json() : null).catch(() => null)]);
+      if (user?.id !== me.user?.id || !me.user) {
+        liveFeed.setEligible(false);
+        feed = null;
+        defaultViews.clear();
+        expanded.clear();
+        closures = me.user ? OrbitaIdeaCloseState.create(me.user.id) : null;
+      }
+      user = me.user;
+      stats = st?.stats || null;
+      if (!user?.access?.hasSubscription) {
+        feed = null;
+        closures?.update([], []);
+        liveFeed.setEligible(false);
+      }
+      if (!feed && (hadFeed || !user?.access?.hasSubscription)) render();
+      if (user?.access?.hasSubscription) {
+        const r = await fetch('/api/ideas', { credentials: 'same-origin', cache: 'no-store', signal }), body = await r.json().catch(() => ({}));
+        if ([401, 403].includes(r.status) || r.ok && body.viewerId !== user.id) {
+          feed = null;
+          closures.update([], []);
+          liveFeed.setEligible(false);
+          if (r.status === 401) user = null;
+        } else if (!r.ok || !Array.isArray(body.records)) throw Error(body.error || 'Не удалось загрузить идеи.');
+        else acceptFeed(body);
       }
       $('feedError').hidden = !feed?.demoHistoryError;
       if (feed?.demoHistoryError) $('feedError').textContent = 'Исторические сценарии временно недоступны.';
       $('feedUpdated').textContent = 'Обновлено в ' + new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(new Date());
     } catch (e) { $('feedError').hidden = false; $('feedError').textContent = e.message + ' Показаны последние загруженные данные.'; }
+    finally { clearTimeout(timeout); }
     historyKey = null; welcome(); render();
-    if (!document.hidden) timer = setTimeout(load, 60000);
   }
   if (store.get('orbita.howto.hidden') === '1' && !params.get('welcome')) $('feedHowto').open = false;
   $('howtoHide').addEventListener('click', () => { $('feedHowto').open = false; store.set('orbita.howto.hidden', '1'); });
   document.querySelector('.o-tabs').addEventListener('click', e => { const tab = e.target.closest('.o-tab'); if (!tab) return; tier = tab.dataset.tier; syncLocation(); render(); });
   document.querySelector('.o-tabs').addEventListener('keydown', e => { if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return; e.preventDefault(); tier = tier === 'pro' ? 'exclusive' : 'pro'; syncLocation(); render(); $('tab-' + tier).focus(); });
-  $('feedQuick').addEventListener('click', e => { const b = e.target.closest('[data-quick]'); if (!b) return; quick = b.dataset.quick; syncLocation(); render(); });
-  $('feedHistoryType').addEventListener('click', e => { const b = e.target.closest('[data-history-type]'); if (!b) return; historyType = b.dataset.historyType; quick = 'history'; syncLocation(); render(); });
+  $('feedQuick').addEventListener('click', e => {
+    const b = e.target.closest('[data-quick]'); if (!b) return;
+    quick = b.dataset.quick;
+    if (quick === 'history') acknowledgeHistory();
+    syncLocation(); render();
+  });
+  $('feedHistoryType').addEventListener('click', e => {
+    const b = e.target.closest('[data-history-type]'); if (!b) return;
+    historyType = b.dataset.historyType;
+    quick = 'history';
+    if (historyType === 'actual') acknowledgeHistory();
+    syncLocation(); render();
+  });
   $('feedList').addEventListener('click', e => { const b = e.target.closest('.irow-main'); if (!b) return; const id = b.closest('.irow').dataset.id; expanded.has(id) ? expanded.delete(id) : expanded.add(id); render(); document.querySelector(`.irow[data-id="${CSS.escape(id)}"] .irow-main`)?.focus(); });
   $('feedList').addEventListener('input', e => {
     const box = e.target.closest('.sizer'); if (!box) return;
@@ -297,7 +363,9 @@
   $('feedFilters').addEventListener('input', render); $('feedFilters').addEventListener('submit', e => e.preventDefault());
   $('resetFeedFilters').addEventListener('click', () => { $('feedFilters').reset(); render(); });
   $('fFrom').addEventListener('change', render);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+  window.addEventListener('storage', event => {
+    if (closures && (event.key === closures.key || event.key === null)) showHistoryCount();
+  });
   $('feedFiltersBox').open = matchMedia('(min-width: 768px)').matches;
-  catalog(); load();
+  catalog(); void liveFeed.refresh();
 })();

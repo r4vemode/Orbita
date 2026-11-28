@@ -4,6 +4,7 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {createAccounts} from './lib/accounts.mjs';
 import {createIdeas} from './lib/ideas.mjs';
+import {createIdeaStream} from './lib/idea-stream.mjs';
 import {readBundledDemoHistory,readDemoHistory} from './lib/demo-history.mjs';
 import {historyStatistics,projectDemoTrade,publicHistoryScenarios} from './lib/trade-history.mjs';
 import {createNews} from './lib/news.mjs';
@@ -55,6 +56,7 @@ let accounts;
 const legal=await createLegal(directory,{templateDir:root,accounts:{identify:req=>accounts.identify(req)},authorizePublish:(req,credentials)=>accounts.authorizeSensitive(req,credentials)});
 accounts=await createAccounts(directory,{...(mfaSetting===undefined?{}:{requireAdminMfa:['true','1'].includes(mfaSetting)}),legalVersionProvider:async()=>(await legal.readPublic()).version,telegramLogin:createTelegramLoginSender()});
 const ideas=await createIdeas(directory,{localMarketHistory});
+const ideaStream=createIdeaStream({accounts,ideas});
 const content=await createContent(directory,{accounts}),news=createNews(directory,{content});
 const payments=await createPayments(directory,{accounts,checkoutGate:createSalesGate({legal}),recurringGate:()=>legal.recurringReadiness(RECURRING_TERMS_VERSION)});
 const referrals=createReferrals({accounts,publicOrigin:process.env.ORBITA_PUBLIC_ORIGIN||'',simulation:(await payments.publicConfig()).simulation});
@@ -122,13 +124,20 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
    // service authenticates the untouched body or the provider's secret header.
    const webhook=webhooks.has(url.pathname);
    accounts.checkRequest(webhook?{method:'GET',headers:req.headers}:req);
-   if(!requestSecurity.enter(req,res,{webhook}))return;
+   const streamRequest=url.pathname==='/api/ideas/stream'&&req.method==='GET';
+   const requestAdmission=requestSecurity.enter(req,res,{webhook,longLived:streamRequest});
+   if(!requestAdmission)return;
    if(webhook){
     if(await payments.handle(req,res,url,null)||await notifications.handle(req,res,url,null)||await telegramAdmin.handle(req,res,url,null))return;
    }
    accounts.checkRequest(req);
    if(await accounts.handle(req,res,url))return;
    const user=await accounts.identify(req);
+   if(url.pathname==='/api/ideas/stream'){
+    if(!streamRequest){json(res,405,{error:'Метод не поддерживается.'},{Allow:'GET'});return;}
+    await ideaStream.open(req,res,user,requestAdmission);
+    return;
+   }
    const includeLocalMarketHistory=localMarketHistory&&/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(req.headers.host||'')
      &&!req.headers.forwarded&&!req.headers['x-forwarded-host'];
    if(await payments.handle(req,res,url,user)||await notifications.handle(req,res,url,user))return;
@@ -151,12 +160,13 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
     json(res,200,historyStatistics({tier,type,market,strategy,...records}));return;
    }
    if(url.pathname==='/api/ideas'&&req.method==='GET'){
+    const observedAt=Date.now();
     const feed=await ideas.list(user);
     let quotes={},specs={},trades=[],demoHistoryError;
     try{quotes=await markets.quotesFor(feed.records);specs=await markets.specsFor(feed.records);}catch{}
     try{trades=await demoTrades();}catch(cause){demoHistoryError=cause.code;}
     const accessible=trades.filter(trade=>canReadTier(user,trade.tier)).map(projectDemoTrade);
-    json(res,200,{...feed,records:[...feed.records,...accessible],quotes,specs,demoHistory:trades.length>0,demoHistoryError,localMarketHistory:includeLocalMarketHistory});return;
+    json(res,200,{...feed,viewerId:user.id,observedAt,records:[...feed.records,...accessible],quotes,specs,demoHistory:trades.length>0,demoHistoryError,localMarketHistory:includeLocalMarketHistory});return;
    }
    const single=url.pathname.match(/^\/api\/ideas\/([a-zA-Z0-9_-]+)$/);
    if(single&&req.method==='GET'){
@@ -235,6 +245,7 @@ server.listen(port,host,()=>{
 let stopping=false;
 async function stop(){
  if(stopping)return;stopping=true;readiness.setDraining();timers.forEach(clearInterval);
+ ideaStream.close();
  const closeHttp=server.listening?new Promise(resolve=>server.close(()=>resolve())):Promise.resolve();
  server.closeIdleConnections?.();const work=Promise.allSettled([closeHttp,telegramAdmin.close(),support.close(),participants.close(),markets.close(),radar.close(),notifications.close(),accounts.flushMail(),content.close(),legal.close(),Promise.allSettled([...backgroundJobs])]);let timer;
  const outcome=await Promise.race([work.then(()=>true),new Promise(resolve=>{timer=setTimeout(()=>resolve(false),10000);})]);clearTimeout(timer);
