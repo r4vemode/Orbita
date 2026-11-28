@@ -1,0 +1,80 @@
+.result-share-open {
+  margin-left:auto;
+  padding:8px 15px;
+  border-radius:10px;
+}
+
+.result-share {
+  box-sizing:border-box;
+  width:min(900px, calc(100% - 24px));
+  max-width:none;
+  max-height:calc(100% - 24px);
+  overflow:auto;
+  margin:auto;
+  padding:24px;
+  color-scheme:dark;
+  color:#ecf4ff;
+  background:#131e30;
+  border:1px solid #547498;
+  border-radius:16px;
+}
+
+.result-share::backdrop { background:#050c18bc; }
+html[data-theme=light] .result-share { color-scheme:light; }
+.result-share-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:20px;
+}
+
+.result-share h2 { margin:0; color:inherit; }
+.result-share button {
+  color:#edf5ff;
+  background:#1b2b41;
+  border:1px solid #536b88;
+  border-radius:9px;
+}
+.result-share button:hover:not(:disabled) { background:#283141; }
+.result-share #resultShareDownload {
+  color:#10223b;
+  background:#b6d4fd;
+  border-color:#b6d4fd;
+}
+.result-share #resultShareDownload:hover:not(:disabled) { background:#d9e8ff; }
+
+.result-share-body {
+  display:grid;
+  grid-template-columns:minmax(0, 1.25fr) minmax(0, 1fr);
+  align-items:start;
+  gap:21px;
+}
+.result-share-preview { background:#0c1625; border-radius:10px; }
+.result-share-preview:has(canvas[hidden]) { display:none; }
+.result-share-preview canvas {
+  display:block;
+  max-width:100%;
+  max-height:min(68vh, 640px);
+  width:auto;
+  height:auto;
+  margin:0 auto;
+  border-radius:10px;
+}
+.result-share-settings label { color:#bed1e9; }
+.result-share-settings select, .result-share-settings input {
+  color:#ecf4ff;
+  background:#0c1727;
+  border-color:#547498;
+}
+.result-share-actions { display:flex; gap:9px; flex-wrap:wrap; }
+.result-share-status { min-height:1.8em; margin:10px 0 0; color:#bed1e9; }
+.result-share-status.is-error { color:#ffb2a9; }
+
+@media (max-width:640px) {
+  .result-share { padding:15px; }
+  .result-share h2 { font-size:17px; }
+  .result-share-body { grid-template-columns:minmax(0, 1fr); gap:15px; }
+  .result-share-preview canvas { max-height:42vh; }
+  .result-share-open { margin-left:0; }
+}

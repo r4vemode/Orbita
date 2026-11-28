@@ -14,8 +14,24 @@
   const eventFieldIds=['levelEntry','levelStop','levelTarget','levelHorizon','levelEntryRule','levelCancelRule','exitPrice','closurePercent','closureAt','closureReason','closureSource','closureQuoteAt','eventNote','descriptionName','descriptionTitle','descriptionSummary','descriptionThesis','descriptionHorizon','descriptionChart'];
   const eventDrafts=new Map();let eventDirty=false;
   const ideaSummary = d => window.OrbitaIdeaCopy?.summary?.(d) ?? d.summary ?? '';
-  let db = {revision:0,records:[]}, users = [], current = null, draftId = null, dirty = false, mutating = false, accountsRevision,privateSession;
+  let db = {revision:0,records:[]}, users = [], current = null, draftId = null, dirty = false, mutating = false, accountsRevision,privateSession,resultShare;
   const form = $('ideaForm');
+  const resultShareButton = $('resultShareOpen');
+  resultShareButton?.addEventListener('click', async () => {
+    if (!current || mutating || resultShareButton.hidden || resultShareButton.disabled) return;
+    const id = current;
+    resultShareButton.disabled = true;
+    try {
+      const {createResultShare} = await import('/assets/result-share.js');
+      if (current !== id || resultShareButton.hidden || $('adminMain').hidden) return;
+      resultShare ??= createResultShare($('resultShareDialog'), api);
+      await resultShare.open(id);
+    } catch {
+      if (current === id) message('Не удалось открыть карточку. Попробуйте ещё раз.', true);
+    } finally {
+      resultShareButton.disabled = false;
+    }
+  });
   let radarDraft=null;
   const radarPanel=document.createElement('section');radarPanel.id='radarSourcePanel';radarPanel.className='radar-source-panel';radarPanel.hidden=true;form.before(radarPanel);
   function clearRadar({release=true}={}){const previous=radarDraft;radarDraft=null;radarPanel.replaceChildren();radarPanel.hidden=true;$('saveDraft').hidden=false;form.elements.ticker.readOnly=false;form.elements.market.disabled=false;if(release&&previous)void api('/api/admin/radar-workflow/'+encodeURIComponent(previous.event.id)+'/release',{method:'POST',body:JSON.stringify({draftToken:previous.draftToken})}).catch(()=>{});}
@@ -138,6 +154,10 @@
     if (record && !record.published && dirty && draftId !== record.id && !confirm('Открыть черновик без сохранения текущей формы?')) return;
     rememberEvent();eventDirty=false;eventDraftStatus.textContent='';discardEvent.hidden=true;
     current = id;
+    resultShare?.close();
+    if(resultShareButton)resultShareButton.hidden = !record?.published || record.d?.state !== 'closed' ||
+      record.erroneous || record.demo || record.isDemo || record.localMarketHistory ||
+      record.id.startsWith('demo-') || !Number.isFinite(record.meta?.exit);
     $('deleteIdea').hidden = !record || !!record.published;
     $('publishedActions').hidden = !record?.published;
     $('editorStatus').textContent = !record ? 'ВЫБЕРИТЕ ИДЕЮ' : record.erroneous ? 'ОШИБОЧНАЯ ПУБЛИКАЦИЯ' : record.published ? record.d.status || record.d.state : 'ЧЕРНОВИК';
@@ -339,7 +359,7 @@
       const data = await api('/api/me');
       if (!data.user) { location.replace('account.html?next=%2Fadmin.html'); return; }
       if (!(data.user.role === 'admin' || data.user.access?.isAdmin)) { showForbidden(); return; }
-      privateSession=window.OrbitaAdminSession.watch(data.user,{workspace:'adminMain',clear(){clearRadar({release:false});db={revision:0,records:[]};users=[];current=draftId=null;dirty=eventDirty=false;eventDrafts.clear();for(const id of ['adminIdentity','ideaList','usersOverview','subscriptionUser','selectedUserAccess','selectedIdea','initialSnapshot','eventHistory','fullPreview','fullFormTitle','editorStatus','count','usersStatus'])$(id).replaceChildren();}});
+      privateSession=window.OrbitaAdminSession.watch(data.user,{workspace:'adminMain',clear(){resultShare?.close();if(resultShareButton)resultShareButton.hidden=true;clearRadar({release:false});db={revision:0,records:[]};users=[];current=draftId=null;dirty=eventDirty=false;eventDrafts.clear();for(const id of ['adminIdentity','ideaList','usersOverview','subscriptionUser','selectedUserAccess','selectedIdea','initialSnapshot','eventHistory','fullPreview','fullFormTitle','editorStatus','count','usersStatus'])$(id).replaceChildren();}});
       $('authState').hidden = true;
       $('adminMain').hidden = false;
       $('adminIdentity').textContent = ` / ${data.user.email}`;

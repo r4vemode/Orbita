@@ -19,7 +19,7 @@ import {createContent} from './lib/content.mjs';
 import {createProductSettings} from './lib/product-settings.mjs';
 import {buildMvpMetrics} from './lib/mvp-metrics.mjs';
 import {PLANS,canReadTier,hasSubscription,isAdmin,requireAdmin,requireMember} from './lib/access.mjs';
-import {json,readJson,error,safeFailure} from './lib/http.mjs';
+import {json,readJson,error,safeFailure,originPolicy} from './lib/http.mjs';
 import {checkStorage,createReadiness} from './lib/operations.mjs';
 import {createRequestSecurity} from './lib/request-security.mjs';
 import {createLegal} from './lib/legal.mjs';
@@ -46,6 +46,8 @@ if(mfaSetting!==undefined&&!['true','false','1','0'].includes(mfaSetting))throw 
 const port=Number(process.env.PORT||3000),host=process.env.HOST||'127.0.0.1';
 if(!Number.isInteger(port)||port<0||port>65535)throw Error('PORT должен быть числом от 0 до 65535.');
 const historySetting=process.env.ORBITA_LOCAL_MARKET_HISTORY;
+const shareOriginPolicy=originPolicy(process.env.ORBITA_PUBLIC_ORIGIN);
+const sharePublicOrigin=shareOriginPolicy.secure?shareOriginPolicy.publicOrigin:'https://orbitaview.ru';
 const localMarketHistory=(historySetting==='true'||(historySetting!=='false'&&process.argv.includes('--local-market-history')))
   &&process.env.NODE_ENV!=='production'&&!process.env.ORBITA_PUBLIC_ORIGIN&&['127.0.0.1','::1','localhost'].includes(host);
 const useBundledHistory=!process.argv.includes('--without-bundled-history');
@@ -80,7 +82,7 @@ const accountAssets=new Set(['/assets/support.js','/assets/dashboard.js','/asset
 const adminPages=new Set(['/admin.html','/content-admin.html','/settings-admin.html','/launch-admin.html','/legal-admin.html','/radar-admin.html','/support-admin.html','/telegram-admin.html','/payments-admin.html','/partners-admin.html','/backtest-admin.html','/markets-admin.html']);
 const radarPages=new Set(['/radar.html']),radarAssets=new Set(['/assets/radar.js']);
 const paidAssets=new Set(['/assets/markets.js','/assets/app.js','/assets/signal-visual.js','/assets/calculator.js','/assets/learning-data.js','/assets/learning.js','/assets/news.js','/assets/personal.js','/assets/participants.js','/assets/member-session.js']);
-const adminAssets=new Set(['/assets/markets-admin.js','/assets/admin.js','/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js','/assets/radar-admin.js','/assets/admin-session.js','/assets/support-admin.js','/assets/telegram-admin.js','/assets/payments-admin.js','/assets/backtest-admin.js','/assets/backtest-engine.js']);
+const adminAssets=new Set(['/assets/markets-admin.js','/assets/admin.js','/assets/content-admin.js','/assets/settings-admin.js','/assets/launch-admin.js','/assets/legal-admin.js','/assets/radar-admin.js','/assets/admin-session.js','/assets/support-admin.js','/assets/telegram-admin.js','/assets/payments-admin.js','/assets/backtest-admin.js','/assets/backtest-engine.js','/assets/result-share.js','/assets/result-share-card.js']);
 const removedAssets=new Set(['/assets/editor-seed.js']);
 function redirect(res,destination){res.writeHead(303,{Location:destination,'Cache-Control':'no-store','Vary':'Cookie'});res.end();}
 function probe(res,status,data,head=false){const body=JSON.stringify(data);res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Content-Length':Buffer.byteLength(body)});res.end(head?undefined:body);}
@@ -169,6 +171,13 @@ const server=http.createServer({maxHeaderSize:16384,headersTimeout:15000,request
    if(url.pathname==='/api/news'){requireMember(user);if(await news(req,res,url,user))return;}
    if(url.pathname==='/api/admin/ideas'){
     requireAdmin(user);if(req.method==='GET'){json(res,200,await ideas.list(user));return;}if(req.method==='POST'){const payload=await readJson(req),current=await accounts.identify(req);requireAdmin(current);if(Object.hasOwn(payload,'radarDraftToken')){const {radarDraftToken,...input}=payload;json(res,201,await telegramAdmin.workflow.publish(current,input,{draftToken:radarDraftToken,req}));}else json(res,201,await ideas.create(current,payload));return;}
+   }
+   const shareIdea=url.pathname.match(/^\/api\/admin\/ideas\/([a-zA-Z0-9_-]+)\/share-card$/);
+   if(shareIdea){
+    requireAdmin(user);
+    if(req.method!=='GET'){json(res,405,{error:'Метод не поддерживается.'},{Allow:'GET'});return;}
+    const card=await ideas.shareResult(user,shareIdea[1]);
+    json(res,200,{card:{...card,publicOrigin:sharePublicOrigin}});return;
    }
    const adminIdea=url.pathname.match(/^\/api\/admin\/ideas\/([a-zA-Z0-9_-]+)(\/events)?$/);
    if(adminIdea){requireAdmin(user);if(adminIdea[2]&&req.method==='POST'||!adminIdea[2]&&req.method==='PUT'){const payload=await readJson(req),current=await accounts.identify(req);requireAdmin(current);json(res,200,await ideas.update(current,adminIdea[1],payload));return;}if(!adminIdea[2]&&req.method==='DELETE'){const current=await accounts.identify(req);requireAdmin(current);json(res,200,await ideas.remove(current,adminIdea[1]));return;}}
