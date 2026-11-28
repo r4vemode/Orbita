@@ -64,6 +64,7 @@
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('pagehide', onPageHide);
     window.addEventListener('pageshow', onPageShow);
+    if (!document.hidden) timer = setTimeout(refresh, interval);
     return { refresh, setEligible, stop };
   }
 

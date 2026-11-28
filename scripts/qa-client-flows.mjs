@@ -127,7 +127,11 @@ export async function runClientFlows({session,browser,record}){
       const page=pages.pro;await page.goto(base+'/app.html?idea='+regular.id);await page.waitForSelector('.personal-form');await page.goto(base+'/subscriptions.html');if(await page.locator('.shell-toggle').isVisible())await page.locator('.shell-toggle').click();await page.locator('.shell-logout').click();await page.waitForURL(url=>url.pathname==='/account.html');
       await page.goBack();await page.waitForURL(url=>url.pathname==='/account.html');assert.equal(await page.locator('.personal-form').count(),0);assert.equal((await get(pro,'/api/positions')).status,401);assert.equal((await get(pro,'/app.html')).status,303);
       await login(page,'exclusive');await page.goto(base+'/learn.html');await page.waitForSelector('.lesson-card');assert.match(await page.locator('#progress').innerText(),/^0 из/);
-      assert.deepEqual((await(await pro.request.get(base+'/api/positions')).json()).positions,[]);await page.goto(base+'/app.html');await page.locator('[data-view=history]').click();await page.waitForSelector('#cards [data-idea="'+regular.id+'"]');assert.deepEqual((await(await pro.request.get(base+'/api/watchlist')).json()).ids,[]);
+      assert.deepEqual((await(await pro.request.get(base+'/api/positions')).json()).positions,[]);
+      await page.goto(base+'/app.html');await page.locator('[data-view=history]').click();await page.waitForSelector('#cards [data-idea="'+regular.id+'"]');
+      const watchlist=await pro.request.get(base+'/api/watchlist'),data=await watchlist.json();
+      assert.equal(watchlist.status(),200,data.error);
+      assert.deepEqual(data.ids,[]);
     });
     await check('Отзыв подписки закрывает действующую сессию при обновлении',async()=>{
       const page=pages.pro;await post(editor,'/api/admin/subscriptions',{userId:(await(await pro.request.get(base+'/api/me')).json()).user.id,plan:'exclusive',expiresAt:null,reason:'Учебная проверка отзыва в действующей сессии.'});

@@ -192,6 +192,5 @@
       if (event.persisted && !redirecting) session = OrbitaMemberSession.watch(account, sessionChanged);
     });
     liveFeed.setEligible(true);
-    void liveFeed.refresh();
   } catch (error) { handleError(error); }
 })();
